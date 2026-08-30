@@ -2,28 +2,28 @@
 
 POST /api/v1/jobs/{job_id}/sign-off
 
-Route shape and persistence are real: this writes a SignOff row and returns
-it. What's still TODO, and is the actual enforcement REG-02 needs:
-  - An `audit_logs` entry alongside the SignOff row (actor, timestamp,
-    job ID, model version) — the AuditLog model already exists
-    (app/models/audit_log.py), this route just doesn't write to it yet.
-  - Blocking PDF export / QR share / "complete" status until a SignOff row
-    exists for that job_id — app/routes/pdf_reports.py and
-    app/routes/qr_reports.py currently have no such check.
-  - The "DRAFT — NOT REVIEWED" watermark on unsigned PDFs — stubbed in
-    app/services/pdf_report.py as `apply_draft_watermark`, not called yet.
-  - Restricting this endpoint to users with the clinician role once
-    role-based checks are consistently applied (require_role exists in
-    app/core/auth.py but isn't attached here yet).
+Writes a SignOff row, an audit_logs entry, and rejects a duplicate
+sign-off for the same job_id with 409. Restricted to clinician/admin
+roles. Enforcement on the export side lives elsewhere:
+  - app/routes/pdf_reports.py: doesn't block the PDF download, but
+    stamps it "DRAFT — NOT REVIEWED" when no SignOff row exists.
+  - app/services/qr_service.py (require_signed_off): hard-blocks minting
+    a QR share token — the un-authenticated, patient-facing path — until
+    a SignOff row exists.
+
+Not done: validating job_id refers to a real, completed job before
+accepting a sign-off (currently accepts any string).
 """
 import uuid
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.auth import get_current_user
+from app.core.auth import require_role
 from app.db.session import get_db
+from app.models.audit_log import AuditLog
 from app.models.sign_off import SignOff
 
 router = APIRouter()
@@ -44,16 +44,20 @@ class SignOffResponse(BaseModel):
 async def sign_off_job(
     job_id: str,
     body: SignOffRequest,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(require_role("clinician", "admin")),
     db: AsyncSession = Depends(get_db),
 ):
-    """Record a clinician sign-off for a job's result.
+    """Record a clinician sign-off for a job's result."""
+    existing = await db.execute(select(SignOff).where(SignOff.job_id == job_id))
+    if existing.scalars().first() is not None:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "code": "ALREADY_SIGNED_OFF",
+                "message": f"job_id {job_id!r} already has a sign-off on record.",
+            },
+        )
 
-    TODO(REG-02): reject with 409 if a SignOff already exists for this
-    job_id (currently allows duplicates — each POST just adds another row).
-    TODO(REG-02): validate job_id refers to a completed job before
-    accepting a sign-off (currently accepts any string).
-    """
     record = SignOff(
         id=uuid.uuid4(),
         job_id=job_id,
@@ -61,6 +65,16 @@ async def sign_off_job(
         model_versions=body.model_versions,
     )
     db.add(record)
+
+    db.add(AuditLog(
+        user_id=uuid.UUID(user["sub"]),
+        action="report.sign_off",
+        resource_type="async_job",
+        resource_id=job_id,
+        status="success",
+        details={"model_versions": body.model_versions},
+    ))
+
     await db.flush()
 
     return SignOffResponse(

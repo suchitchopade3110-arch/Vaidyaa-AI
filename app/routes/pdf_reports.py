@@ -5,10 +5,14 @@ GET /api/v1/report/{job_id}/pdf -> downloads clinical PDF
 from celery.result import AsyncResult
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.ownership import require_job_owner
 from app.core.disclaimer import MEDICAL_DISCLAIMER
+from app.db.session import get_db
 from app.models.async_job import AsyncJobRecord
+from app.models.sign_off import SignOff
 from app.services.pdf_report import generate_report_pdf
 from app.workers.celery_app import celery_app
 
@@ -20,12 +24,25 @@ DISCLAIMER_HEADER = "AI-assisted analysis. NOT diagnostic."
 # positional segment; this only affects the internal binding name) so it
 # matches what `require_job_owner` expects to find in the path.
 @router.get("/report/{task_id}/pdf")
-async def download_pdf_report(task_id: str, _owner: AsyncJobRecord = Depends(require_job_owner)):
+async def download_pdf_report(
+    task_id: str,
+    _owner: AsyncJobRecord = Depends(require_job_owner),
+    db: AsyncSession = Depends(get_db),
+):
     """
     Fetch a completed Celery job result and stream it as a PDF download.
     Returns 425 if the job is not yet complete.
+
+    REG-02: does not block the download on a missing sign-off — it stamps
+    a "DRAFT — NOT REVIEWED" watermark across every page instead, per the
+    requirement's own watermark acceptance criterion. QR sharing
+    (app/routes/qr_reports.py) is the harder gate: that one refuses
+    outright, since it's the un-authenticated, patient-facing path.
     """
     job_id = task_id
+    signoff_result = await db.execute(select(SignOff).where(SignOff.job_id == job_id))
+    is_signed = signoff_result.scalars().first() is not None
+
     result = AsyncResult(job_id, app=celery_app)
 
     if not result.ready():
@@ -75,7 +92,7 @@ async def download_pdf_report(task_id: str, _owner: AsyncJobRecord = Depends(req
         "generated_at": job_result.get("completed_at", ""),
     }
 
-    pdf_bytes = generate_report_pdf(report_data)
+    pdf_bytes = generate_report_pdf(report_data, signed=is_signed)
     filename = f"vaidyaai_report_{job_id[:8]}.pdf"
     return Response(
         content=pdf_bytes,
@@ -83,5 +100,6 @@ async def download_pdf_report(task_id: str, _owner: AsyncJobRecord = Depends(req
         headers={
             "Content-Disposition": f'attachment; filename="{filename}"',
             "X-Medical-Disclaimer": DISCLAIMER_HEADER,
+            "X-Signed-Off": "true" if is_signed else "false",
         },
     )

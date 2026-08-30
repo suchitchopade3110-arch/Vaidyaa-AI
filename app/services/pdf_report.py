@@ -4,12 +4,9 @@ from __future__ import annotations
 
 import base64
 import io
-import logging
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
-
-log = logging.getLogger(__name__)
 
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_RIGHT
@@ -82,8 +79,22 @@ def _watermark_logo(canv, _doc):
     canv.restoreState()
 
 
-def _page_template(canv, doc):
+def _draft_watermark(canv):
+    """REG-02 — diagonal 'DRAFT — NOT REVIEWED' stamp for unsigned reports."""
+    canv.saveState()
+    canv.translate(W / 2, H / 2)
+    canv.rotate(38)
+    canv.setFillColor(DANGER)
+    canv.setFillAlpha(0.16)
+    canv.setFont("Helvetica-Bold", 54)
+    canv.drawCentredString(0, 0, "DRAFT — NOT REVIEWED")
+    canv.restoreState()
+
+
+def _page_template(canv, doc, signed: bool = True):
     _watermark_logo(canv, doc)
+    if not signed:
+        _draft_watermark(canv)
     logo = _logo_reader()
     canv.saveState()
     canv.setFillColor(DARK)
@@ -243,8 +254,14 @@ def _report_type(report_data: dict) -> tuple[str, bool]:
     return raw_type, is_image
 
 
-def generate_report_pdf(report_data: dict) -> bytes:
-    """Accepts unified VaidyaAI report data and returns branded PDF bytes."""
+def generate_report_pdf(report_data: dict, signed: bool = True) -> bytes:
+    """Accepts unified VaidyaAI report data and returns branded PDF bytes.
+
+    `signed` (REG-02): pass False to stamp every page with a diagonal
+    "DRAFT — NOT REVIEWED" watermark — see app/routes/pdf_reports.py for
+    the caller that looks up whether a SignOff row exists for the job.
+    Defaults to True so any other existing caller keeps prior behaviour.
+    """
     buf = io.BytesIO()
     left_margin = right_margin = 16 * mm
     top_margin = 22 * mm
@@ -262,7 +279,7 @@ def generate_report_pdf(report_data: dict) -> bytes:
             PageTemplate(
                 id="main",
                 frames=[Frame(left_margin, bottom_margin, W - left_margin - right_margin, H - top_margin - bottom_margin, id="body")],
-                onPage=_page_template,
+                onPage=lambda canv, pdf_doc: _page_template(canv, pdf_doc, signed=signed),
             )
         ]
     )
@@ -508,24 +525,4 @@ def generate_report_pdf(report_data: dict) -> bytes:
 
     doc.build(story)
     buf.seek(0)
-    # TODO(REG-02): apply_draft_watermark(pdf_bytes, signed=...) here once
-    # generate_report_pdf's caller can tell it whether a SignOff exists for
-    # this job_id (see app/api/v1/routes/signoff.py, app/models/sign_off.py).
     return buf.read()
-
-
-def apply_draft_watermark(pdf_bytes: bytes, signed: bool) -> bytes:
-    """REG-02 stub. When `signed` is False, this should stamp a visible
-    "DRAFT — NOT REVIEWED" watermark across every page.
-
-    Not implemented: no caller passes `signed` yet (see the TODO above),
-    and stamping an already-built PDF needs a page-overlay step (e.g.
-    reportlab canvas + pypdf merge) that isn't wired in. Returns the input
-    unchanged so callers wiring this in later have a safe default.
-    """
-    if not signed:
-        log.warning(
-            "REG-02 NOT ENFORCED: unsigned report PDF generated without a "
-            "DRAFT watermark (apply_draft_watermark is a stub)."
-        )
-    return pdf_bytes

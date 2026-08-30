@@ -14,6 +14,7 @@ from app.core.config import settings
 from app.models.patient import Patient
 from app.models.qr_access import QRAuditLog, QRToken
 from app.models.report import Report
+from app.models.sign_off import SignOff
 from app.services.pdf_report import generate_report_pdf
 from app.workers.celery_app import celery_app
 
@@ -49,8 +50,34 @@ async def find_report(report_id: str, db: AsyncSession) -> Report | None:
     return result.scalar_one_or_none()
 
 
+async def require_signed_off(report_id: str, report: Report | None, db: AsyncSession) -> None:
+    """REG-02 — refuse to mint a QR share token for an unsigned report.
+
+    QR sharing is the un-authenticated, patient-facing distribution path —
+    unlike the direct PDF download (app/routes/pdf_reports.py), which
+    still lets an authenticated clinician pull an unsigned copy with a
+    DRAFT watermark, this one hard-blocks instead.
+
+    SignOff.job_id is always a Celery task_id (see app/core/ownership.py);
+    `report.celery_task_id` is the FK from a persisted Report row to that
+    same id. Fall back to the raw `report_id` when no Report row resolved
+    at all — for pipelines still keyed straight off the Celery task_id.
+    """
+    lookup_key = report.celery_task_id if report and report.celery_task_id else report_id
+    result = await db.execute(select(SignOff).where(SignOff.job_id == lookup_key))
+    if result.scalars().first() is None:
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "code": "NOT_SIGNED_OFF",
+                "message": "This report has not been reviewed and signed off by a clinician yet.",
+            },
+        )
+
+
 async def generate_report_token(report_id: str, db: AsyncSession, patient_id: str | None = None) -> str:
     report = await find_report(report_id, db)
+    await require_signed_off(report_id, report, db)
     resolved_report_id = str(report.id) if report else report_id
     resolved_patient_id = patient_id or (str(report.patient_id) if report and report.patient_id else None)
 

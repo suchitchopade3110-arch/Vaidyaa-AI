@@ -55,15 +55,36 @@ Noted only because SEC-01 unblocks it: `app/api/v1/routes/jobs.py`'s
   surface list — the actual sweep (API descriptions, PDF headers,
   README.md) is unwritten, and no CI step calls the script.
 
-## REG-02 — mandatory clinician sign-off
+## REG-02 — mandatory clinician sign-off — **DONE**
 
-- **Real:** `app/models/sign_off.py` (`SignOff` table) and
-  `POST /api/v1/jobs/{job_id}/sign-off` (`app/api/v1/routes/signoff.py`) —
-  writes a row, returns it.
-- **Not done:** no audit_logs entry alongside the sign-off; no route
-  blocks PDF export, QR share, or "complete" status on a missing SignOff;
-  `apply_draft_watermark` (`app/services/pdf_report.py`) is an unwired
-  stub that returns its input unchanged.
+- `app/models/sign_off.py` (`SignOff` table). `POST
+  /api/v1/jobs/{job_id}/sign-off` writes a row, an `audit_logs` entry
+  (action `report.sign_off`), 409s on a duplicate sign-off for the same
+  `job_id`, and is restricted to `clinician`/`admin` roles.
+- `app/services/pdf_report.py`'s `generate_report_pdf` takes a `signed`
+  flag and stamps every page with a diagonal "DRAFT — NOT REVIEWED"
+  watermark when `False` — done in-render (reportlab draws it directly),
+  not as a separate PDF-bytes post-process. `app/routes/pdf_reports.py`
+  looks up whether a `SignOff` row exists for the job and passes that in;
+  it does **not** block the download outright — an authenticated
+  clinician can still pull an unsigned copy, watermarked.
+- `app/services/qr_service.py`'s `require_signed_off` **does** hard-block
+  (403) minting a QR share token for an unsigned report — that path is
+  un-authenticated and patient-facing, so it's the one held to "cannot
+  be shared until sign-off" literally.
+- **Interpretation call, not a doc bug:** the requirements doc's "no
+  report can be exported to PDF... until sign-off" line and its
+  "unsigned outputs are watermarked" line don't both read as literally
+  true at once — a hard export block leaves nothing to watermark. Read
+  as: authenticated PDF export gets a watermark, patient-facing QR
+  sharing gets a hard block. Worth confirming with whoever owns REG-02
+  if that split isn't what was intended.
+- **Not done:** validating `job_id` refers to a real, completed job
+  before accepting a sign-off (any string is currently accepted); gating
+  a job's own "complete" status (as returned by the various job-status
+  endpoints) on sign-off — that field describes pipeline completion, not
+  clinical review, and conflating the two didn't seem like the right
+  call without checking first.
 
 ## DPD-01 — consent capture and purpose binding
 
