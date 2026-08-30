@@ -6,8 +6,9 @@ from celery.result import AsyncResult
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
 
-from app.core.auth import get_current_user
+from app.core.ownership import require_job_owner
 from app.core.disclaimer import MEDICAL_DISCLAIMER
+from app.models.async_job import AsyncJobRecord
 from app.services.pdf_report import generate_report_pdf
 from app.workers.celery_app import celery_app
 
@@ -15,18 +16,16 @@ router = APIRouter()
 DISCLAIMER_HEADER = "AI-assisted analysis. NOT diagnostic."
 
 
-@router.get("/report/{job_id}/pdf")
-async def download_pdf_report(job_id: str, user: dict = Depends(get_current_user)):
+# Path param renamed job_id -> task_id (URL itself is unchanged — it's a
+# positional segment; this only affects the internal binding name) so it
+# matches what `require_job_owner` expects to find in the path.
+@router.get("/report/{task_id}/pdf")
+async def download_pdf_report(task_id: str, _owner: AsyncJobRecord = Depends(require_job_owner)):
     """
     Fetch a completed Celery job result and stream it as a PDF download.
     Returns 425 if the job is not yet complete.
-
-    SEC-02: this closes the "any request without auth" gap — auth alone.
-    TODO(SEC-01): swap `Depends(get_current_user)` for
-    `Depends(require_job_owner)` (app/core/ownership.py) once submission
-    routes persist job ownership; today any authenticated user can still
-    fetch any other user's PDF by job_id.
     """
+    job_id = task_id
     result = AsyncResult(job_id, app=celery_app)
 
     if not result.ready():

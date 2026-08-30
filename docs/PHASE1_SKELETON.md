@@ -10,25 +10,35 @@ This file is the map. Each item below links to where its pieces live and
 states plainly what's real versus stubbed — read it before assuming
 something is enforced just because a file with the right name exists.
 
-## SEC-01 — per-user job ownership
+## SEC-01 — per-user job ownership — **DONE**
 
-- **Real:** `app/models/async_job.py` (`AsyncJobRecord` table),
-  the matching Alembic migration, and `app/core/ownership.py`
-  (`require_job_owner` / `record_job_ownership` — both fully implemented).
-- **Not wired:** no submission route (`reports.py` / `images.py` /
-  `claims.py`) calls `record_job_ownership` yet, and no status/result/pdf
-  route depends on `require_job_owner` yet. TODO markers sit at every one
-  of those call sites. Wire both sides together in the same change —
-  landing only one either does nothing or 404s every existing job.
+- `app/models/async_job.py` (`AsyncJobRecord` table) + migration.
+- `app/core/ownership.py`: `require_job_owner` (404s on missing/mismatched
+  owner) and `record_job_ownership` (writes the row at submission).
+- Wired into every route that takes a job id: submission routes
+  (`reports.py`, `images.py`, `claims.py`) call `record_job_ownership`
+  right after dispatch; status/result/pdf routes (`jobs.py`, `reports.py`,
+  `images.py`, `claims.py`, `pdf_reports.py`) depend on
+  `require_job_owner`; `websocket_routes.py`'s `/ws/{job_id}` does the
+  same check manually (it can't use `Depends(get_current_user)` — the
+  token arrives as a query param, not a header).
+- **Known gap, not covered:** `images.py`'s `/image/{analysis_id}` route
+  is keyed by an `ImageAnalysis` row PK, not a Celery task_id, and that
+  table has no `user_id` column. Needs its own fix — see the TODO on that
+  route.
+- **Integration test still needed:** the acceptance criteria calls for
+  "user A submits a job, user B requests it by ID, receives 404" as an
+  automated test. Not added in this pass — `tests/` wasn't touched.
 
-## SEC-02 — close unauthenticated endpoints
+## SEC-02 — close unauthenticated endpoints — **DONE**
 
-- **Done:** `/yolo_outputs` static mount removed (separate cleanup pass).
-  `GET /report/{job_id}/pdf` and `POST /api/text` now require
-  `get_current_user`. `WS /ws/{job_id}` now authenticates via a `?token=`
-  query param before accepting the connection.
-- **Not done:** none of the above check *ownership*, only that the caller
-  is authenticated — that's SEC-01's job, and depends on it landing first.
+- `/yolo_outputs` static mount removed (separate cleanup pass).
+  `GET /report/{job_id}/pdf` requires auth + ownership (now via
+  `require_job_owner`, since SEC-01 landed). `POST /api/text` requires
+  auth. `WS /ws/{job_id}` authenticates via a `?token=` query param and
+  checks ownership before accepting the connection.
+- **Not done:** accepting the WS token via Sec-WebSocket-Protocol as a
+  fallback to the query param — TODO in `websocket_routes.py`.
 
 ## SEC-03 — job listing (Phase 2, not built here)
 

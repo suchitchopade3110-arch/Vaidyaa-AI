@@ -1,19 +1,20 @@
 """SEC-01 — per-user job ownership.
 
-`require_job_owner` is real: it looks up the AsyncJobRecord for a task_id
-and 404s (not 403 — see rationale below) on a missing record or an owner
-mismatch. `record_job_ownership` is real too: call it once at job
-submission to persist who owns a task.
+`require_job_owner` looks up the AsyncJobRecord for a task_id and 404s
+(not 403 — see rationale below) on a missing record or an owner mismatch.
+`record_job_ownership` persists who owns a task at submission time.
 
-What's NOT done, and is the actual remaining work:
-  1. No submission route calls `record_job_ownership` yet — see the
-     `# TODO(SEC-01)` markers in app/api/v1/routes/{reports,images,claims}.py.
-  2. No status/result/pdf route depends on `require_job_owner` yet — same
-     markers in app/api/v1/routes/jobs.py and app/routes/pdf_reports.py.
+Wired in on both sides:
+  - Every submission route (reports.py, images.py, claims.py) calls
+    `record_job_ownership` right after dispatching its Celery task.
+  - Every status/result/pdf/websocket route that takes a job id
+    (jobs.py, reports.py, images.py, claims.py, pdf_reports.py,
+    websocket_routes.py) depends on `require_job_owner` (or, for the
+    websocket route, the same check done manually — see its docstring).
 
-Both are deliberately left unwired: applying (1) without (2), or vice versa,
-either does nothing or 404s every existing job (nothing has an owner row
-yet). Wire both together in the same change, then delete this paragraph.
+Known gap: `app/api/v1/routes/images.py`'s `/image/{analysis_id}` route is
+keyed by a different identifier (an ImageAnalysis row PK, not a Celery
+task_id) and isn't covered by this — see the TODO on that route.
 """
 import uuid
 

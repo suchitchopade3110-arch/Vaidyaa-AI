@@ -9,8 +9,12 @@ from pathlib import Path
 import aiofiles
 from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException, status
 from celery.result import AsyncResult
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import get_current_user
+from app.core.ownership import record_job_ownership, require_job_owner
+from app.db.session import get_db
+from app.models.async_job import AsyncJobRecord
 from app.schemas.report import ReportAsyncResponse, ReportTypeEnum
 from app.schemas.job import JobStatus
 from app.workers.pipeline_tasks import analyze_report_task
@@ -67,6 +71,7 @@ async def submit_report_analysis(
     age: int = Form(40),
     explanation_mode: str = Form("brief"),
     user=Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Submit lab report / clinical note for analysis.
@@ -88,9 +93,6 @@ async def submit_report_analysis(
     job_id = str(uuid.uuid4())
     file_path, _extension = await _save_report_upload(file, job_id)
 
-    # TODO(SEC-01): call record_job_ownership(db, job_id, user, "report")
-    # here, right after dispatch — needs `db: AsyncSession = Depends(get_db)`
-    # added to this route's params. See app/core/ownership.py.
     # TODO(DPD-01): call require_valid_consent(db, patient_id, purpose=...)
     # before dispatch and reject if it 403s. See app/core/consent.py.
     # ── Dispatch Celery task ───────────────────────────────────────────────
@@ -99,6 +101,7 @@ async def submit_report_analysis(
         task_id=job_id,
         queue="reports",
     )
+    await record_job_ownership(db, task.id, user, "report")
 
     return {
         "job_id": task.id,
@@ -111,7 +114,7 @@ async def submit_report_analysis(
 
 @router.get("/status/{task_id}", response_model=JobStatus)
 @router.get("/report/status/{task_id}", response_model=JobStatus)
-async def get_report_status(task_id: str, user=Depends(get_current_user)):
+async def get_report_status(task_id: str, _owner: AsyncJobRecord = Depends(require_job_owner)):
     """Poll report analysis job status."""
     request_id = str(uuid.uuid4())
     result = AsyncResult(task_id, app=celery_app)
@@ -137,7 +140,7 @@ async def get_report_status(task_id: str, user=Depends(get_current_user)):
 
 
 @router.get("/{task_id}")
-async def get_report_combined(task_id: str, user=Depends(get_current_user)):
+async def get_report_combined(task_id: str, _owner: AsyncJobRecord = Depends(require_job_owner)):
     """Combined status and result endpoint for the frontend."""
     result = AsyncResult(task_id, app=celery_app)
     state = result.state
@@ -153,7 +156,7 @@ async def get_report_combined(task_id: str, user=Depends(get_current_user)):
 
 
 @router.get("/report/result/{task_id}")
-async def get_report_result(task_id: str, user=Depends(get_current_user)):
+async def get_report_result(task_id: str, _owner: AsyncJobRecord = Depends(require_job_owner)):
     """Retrieve completed report analysis result."""
     result = AsyncResult(task_id, app=celery_app)
     if result.state != "SUCCESS":
