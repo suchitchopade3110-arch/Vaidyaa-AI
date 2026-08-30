@@ -35,6 +35,9 @@ async def submit_claim(
     """
     job_id = str(uuid.uuid4())
 
+    # TODO(SEC-01): call record_job_ownership(db, job_id, user, "claim")
+    # here, right after dispatch — needs `db: AsyncSession = Depends(get_db)`
+    # added to this route's params. See app/core/ownership.py.
     # ── Dispatch Celery task ───────────────────────────────────────────────
     task = verify_claim_task.apply_async(
         args=[payload.claim_text, str(payload.patient_id) if payload.patient_id else None],

@@ -88,6 +88,11 @@ async def submit_report_analysis(
     job_id = str(uuid.uuid4())
     file_path, _extension = await _save_report_upload(file, job_id)
 
+    # TODO(SEC-01): call record_job_ownership(db, job_id, user, "report")
+    # here, right after dispatch — needs `db: AsyncSession = Depends(get_db)`
+    # added to this route's params. See app/core/ownership.py.
+    # TODO(DPD-01): call require_valid_consent(db, patient_id, purpose=...)
+    # before dispatch and reject if it 403s. See app/core/consent.py.
     # ── Dispatch Celery task ───────────────────────────────────────────────
     task = analyze_report_task.apply_async(
         args=[file_path, patient_id, report_type, gender, age, explanation_mode],

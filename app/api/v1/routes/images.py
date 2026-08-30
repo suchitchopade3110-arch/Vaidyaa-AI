@@ -85,6 +85,11 @@ async def submit_image_analysis(
     job_id = str(uuid.uuid4())
     file_path, _extension = await _save_image_upload(file, job_id)
 
+    # TODO(SEC-01): call record_job_ownership(db, job_id, user, "image")
+    # here, right after dispatch — needs `db: AsyncSession = Depends(get_db)`
+    # added to this route's params. See app/core/ownership.py.
+    # TODO(DPD-01): call require_valid_consent(db, patient_id, purpose=...)
+    # before dispatch and reject if it 403s. See app/core/consent.py.
     # Dispatch Celery task
     task = analyze_image_task.apply_async(
         args=[file_path, analysis_type, patient_id, clinical_context],

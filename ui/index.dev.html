@@ -1,0 +1,21 @@
+<!doctype html>
+<!--
+  PLT-04 — Vite dev/build entry point (skeleton).
+
+  Deliberately separate from ui/index.html, which is the existing marketing
+  landing page, and from ui/VAIDYAAI.html, which is the existing CDN +
+  in-browser-Babel app shell — neither is touched by this file. Once the
+  real port (see src/main.jsx) is done, this becomes the one entry point
+  and the other two can be retired or reduced to a landing page + redirect.
+-->
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>VAIDYAA AI</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

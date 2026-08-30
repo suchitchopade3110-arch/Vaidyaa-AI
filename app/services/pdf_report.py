@@ -4,9 +4,12 @@ from __future__ import annotations
 
 import base64
 import io
+import logging
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+log = logging.getLogger(__name__)
 
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_RIGHT
@@ -505,4 +508,24 @@ def generate_report_pdf(report_data: dict) -> bytes:
 
     doc.build(story)
     buf.seek(0)
+    # TODO(REG-02): apply_draft_watermark(pdf_bytes, signed=...) here once
+    # generate_report_pdf's caller can tell it whether a SignOff exists for
+    # this job_id (see app/api/v1/routes/signoff.py, app/models/sign_off.py).
     return buf.read()
+
+
+def apply_draft_watermark(pdf_bytes: bytes, signed: bool) -> bytes:
+    """REG-02 stub. When `signed` is False, this should stamp a visible
+    "DRAFT — NOT REVIEWED" watermark across every page.
+
+    Not implemented: no caller passes `signed` yet (see the TODO above),
+    and stamping an already-built PDF needs a page-overlay step (e.g.
+    reportlab canvas + pypdf merge) that isn't wired in. Returns the input
+    unchanged so callers wiring this in later have a safe default.
+    """
+    if not signed:
+        log.warning(
+            "REG-02 NOT ENFORCED: unsigned report PDF generated without a "
+            "DRAFT watermark (apply_draft_watermark is a stub)."
+        )
+    return pdf_bytes

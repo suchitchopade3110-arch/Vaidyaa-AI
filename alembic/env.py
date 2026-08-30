@@ -5,9 +5,7 @@ from alembic import context
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-from app.db.database import Base
-from app.models.models import Patient, Claim, Report, ImageAnalysis  # noqa
-from app.models.qr_access import QRAuditLog, QRToken  # noqa
+from app.db.base import Base  # noqa: F401 — imports every model onto Base.metadata
 
 config = context.config
 if config.config_file_name is not None:

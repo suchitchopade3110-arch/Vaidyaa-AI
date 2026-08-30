@@ -3,9 +3,10 @@ VaidyaAI — PDF Report Generation Route
 GET /api/v1/report/{job_id}/pdf -> downloads clinical PDF
 """
 from celery.result import AsyncResult
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
 
+from app.core.auth import get_current_user
 from app.core.disclaimer import MEDICAL_DISCLAIMER
 from app.services.pdf_report import generate_report_pdf
 from app.workers.celery_app import celery_app
@@ -15,10 +16,16 @@ DISCLAIMER_HEADER = "AI-assisted analysis. NOT diagnostic."
 
 
 @router.get("/report/{job_id}/pdf")
-async def download_pdf_report(job_id: str):
+async def download_pdf_report(job_id: str, user: dict = Depends(get_current_user)):
     """
     Fetch a completed Celery job result and stream it as a PDF download.
     Returns 425 if the job is not yet complete.
+
+    SEC-02: this closes the "any request without auth" gap — auth alone.
+    TODO(SEC-01): swap `Depends(get_current_user)` for
+    `Depends(require_job_owner)` (app/core/ownership.py) once submission
+    routes persist job ownership; today any authenticated user can still
+    fetch any other user's PDF by job_id.
     """
     result = AsyncResult(job_id, app=celery_app)
 

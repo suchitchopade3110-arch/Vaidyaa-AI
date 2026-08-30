@@ -47,6 +47,12 @@ async def job_status(task_id: str, user=Depends(get_current_user)):
     States: PENDING → STARTED → SUCCESS | FAILURE | RETRY
 
     Use this for polling after submitting any /verify or /analyze request.
+
+    TODO(SEC-01): `Depends(get_current_user)` only proves the caller is
+    someone; it doesn't check they own `task_id`. Swap in
+    `Depends(require_job_owner)` from app/core/ownership.py once
+    submission routes persist ownership (see that module's docstring for
+    why both sides need to land together).
     """
     result = AsyncResult(task_id, app=celery_app)
     state = result.state
@@ -101,6 +107,11 @@ async def list_recent_jobs(
     """
     Celery result backends do not provide portable task listing. The frontend
     handles an empty list; production can replace this with async_jobs DB reads.
+
+    TODO(SEC-03): the async_jobs table now exists (app/models/async_job.py)
+    — once submission routes write to it, replace this stub with
+    `select(AsyncJobRecord).where(AsyncJobRecord.user_id == user["sub"])`,
+    paginated, newest first, per the RecentJobsResponse model above.
     """
     if limit < 1 or limit > 100:
         raise HTTPException(status_code=400, detail={"code": "INVALID_LIMIT", "message": "limit must be 1-100"})

@@ -3,6 +3,7 @@ import asyncio
 from celery.result import AsyncResult
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
+from app.core.auth import decode_access_token
 from app.workers.celery_app import celery_app
 
 router = APIRouter()
@@ -14,7 +15,23 @@ async def websocket_endpoint(websocket: WebSocket, job_id: str):
 
     Sends `{job_id, status, progress, step}`, plus `result` on SUCCESS or
     `error` on FAILURE, then closes the connection.
+
+    SEC-02: authenticates via `?token=` query param (or the same value
+    passed as a Sec-WebSocket-Protocol subprotocol — TODO below) before
+    accepting. TODO(SEC-01): this only proves *a* valid user is connected,
+    not that they own `job_id` — swap in the same ownership check
+    `require_job_owner` does (app/core/ownership.py) once job submission
+    persists ownership, so users can't watch each other's job progress.
     """
+    token = websocket.query_params.get("token")
+    # TODO(SEC-02): also accept the token via Sec-WebSocket-Protocol, for
+    # clients that can't put a bearer token in a URL query string.
+    try:
+        decode_access_token(token)
+    except ValueError:
+        await websocket.close(code=4401)  # unauthorized
+        return
+
     await websocket.accept()
     try:
         while True:
