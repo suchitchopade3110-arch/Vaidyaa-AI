@@ -1,0 +1,15 @@
+{
+  "$comment": "Inventory of ML weights this project depends on. Files listed as tracked=true are committed directly to the repo; everything else is fetched separately (see source) and stays out of git per .gitignore. Update this file whenever a model is added, replaced, or its source changes.",
+  "models": [
+    {
+      "name": "chexnet.onnx",
+      "path": "app/ml/models/chexnet.onnx",
+      "tracked": true,
+      "version": "unspecified",
+      "checksum": null,
+      "source": "unspecified",
+      "used_by": "app/ml/ml_prediction_engine.py",
+      "note": "Committed directly because it is small (~1MB) and required at import time. Fill in version/checksum/source when known."
+    }
+  ]
+}

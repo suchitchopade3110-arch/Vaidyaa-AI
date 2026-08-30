@@ -24,11 +24,16 @@ Thumbs.db
 # Uploads
 uploads/
 
-# ML model files (download from Drive)
+# ML model weights (download from Drive) — large binaries are kept out of git.
+# Exception: chexnet.onnx is tracked directly (small, needed at import time by
+# app/ml/predictor.py). See models.manifest.json for what's tracked vs. fetched
+# and why; if more weights need to ship in-repo, move to Git LFS rather than
+# widening this exception file by file.
 app/ml/models/*.pkl
 *.pth
 *.pt
-app/ml/models/
+app/ml/models/*
+!app/ml/models/chexnet.onnx
 
 # Byte-compiled
 *.pyc
@@ -49,3 +54,6 @@ data/chromadb/
 coverage.xml
 htmlcov/
 .pytest_cache/
+
+# Runtime YOLO detection outputs (may contain patient imagery)
+data/yolo_outputs/
