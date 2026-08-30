@@ -1,135 +1,77 @@
-<p align="center">
-  <img src="docs/architecture/vaidyaai-banner.png" alt="VaidyaAI Banner" width="600"/>
-</p>
+# VaidyaAI
 
-<h1 align="center">🏥 VaidyaAI — Medical Intelligence Platform</h1>
+Multi-modal medical intelligence platform for AI-assisted clinical claim verification, medical report analysis, and medical image interpretation — with architecturally enforced hallucination mitigation.
 
-<p align="center">
-  <em>A six-layer AI pipeline for lab report analysis, medical image diagnosis, and clinical claim verification.</em>
-</p>
-
-<p align="center">
-  <a href="https://github.com/suchitchopade3110-arch/vadiyaaAI/actions/workflows/ci.yml">
-    <img src="https://github.com/suchitchopade3110-arch/vadiyaaAI/actions/workflows/ci.yml/badge.svg" alt="CI status" />
-  </a>
-  <img src="https://img.shields.io/badge/python-3.11-blue?logo=python&logoColor=white" />
-  <img src="https://img.shields.io/badge/FastAPI-0.111-009688?logo=fastapi&logoColor=white" />
-  <img src="https://img.shields.io/badge/Celery-5.4-37814A?logo=celery&logoColor=white" />
-  <img src="https://img.shields.io/badge/PostgreSQL-15-336791?logo=postgresql&logoColor=white" />
-  <img src="https://img.shields.io/badge/Redis-7-DC382D?logo=redis&logoColor=white" />
-  <img src="https://img.shields.io/badge/ChromaDB-0.5-FF6F00" />
-  <img src="https://img.shields.io/badge/LLaMA--3-Groq-EE4C2C" />
-  <img src="https://img.shields.io/badge/React-JSX-61DAFB?logo=react&logoColor=white" />
-  <img src="https://img.shields.io/badge/SIH%202025-Team%20Straw%20Hats-gold" />
-</p>
+> **AI-assisted analysis, NOT a medical diagnosis.** Every API response carries a mandatory medical disclaimer. This system is a decision-support tool with a human-in-the-loop requirement. It is not FDA/CDSCO cleared and must not be used for autonomous clinical decision-making.
 
 ---
 
-## 📋 Table of Contents
+## Why this exists
 
-- [Overview](#-overview)
-- [Architecture](#-architecture)
-- [Features](#-features)
-- [Tech Stack](#-tech-stack)
-- [Getting Started](#-getting-started)
-- [API Endpoints](#-api-endpoints)
-- [Working Examples](#-working-examples)
-- [Project Structure](#-project-structure)
-- [Team](#-team)
-- [License](#-license)
+Claim verification, report interpretation, and imaging review are still manual and error-prone. Most AI tooling in this space either handles one modality or hands a single general-purpose LLM the entire job — which is exactly how hallucinated clinical claims get produced.
 
----
+VaidyaAI takes the opposite approach: **strict model role confinement**. No model is allowed outside its lane.
 
-## 🧠 Overview
+| Model | Allowed role | Never does |
+|---|---|---|
+| ClinicalBERT | Named entity extraction only | Reasoning, generation |
+| BioGPT | RAG embeddings only | Text generation |
+| Groq / LLaMA-3 | Reasoning and generation only | Entity extraction, embedding |
+| XGBoost / CheXNet / ViT / Swin | Prediction only | Explanation text |
 
-**VaidyaAI** is a comprehensive medical intelligence platform built for **Smart India Hackathon 2025** (SIH 2025). It processes lab reports, medical images (X-rays, MRI, CT, Skin, Pathology), and clinical claims through a multi-stage AI pipeline that delivers:
-
-- ✅ **Verdicts** — Verified / Refuted / Uncertain
-- 📊 **Confidence Scores** — Platt-scaled 0–100
-- ⚠️ **Uncertainty Flags** — when confidence drops below threshold
-- 🔍 **Anomaly Detection** — flagging out-of-range values
-- 📖 **Citations** — PubMed, WHO standards, clinical guidelines
-- ⚕️ **Medical Disclaimers** — on every response
-
-> 🚨 **Disclaimer:** VaidyaAI is a clinical decision-support tool. It does NOT replace professional medical advice.
+Mixing these roles is an architectural violation, not a style preference.
 
 ---
 
-## 🏗️ Architecture
+## Architecture
 
-<p align="center">
-  <img src="docs/architecture/Phase_2_Architecture.png" alt="VaidyaAI Architecture" width="900"/>
-</p>
-
-VaidyaAI follows a **six-layer pipeline architecture**:
+Six-layer pipeline. Two entry paths (text and image) that converge at the RAG/LLM layer.
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│  Layer 1 — Ingestion & Preprocessing                             │
-│  OCR (PaddleOCR/Tesseract) · DICOM Parser · Image Normalization  │
-├──────────────────────────────────────────────────────────────────┤
-│  Layer 2 — Entity Extraction (NER)                               │
-│  ClinicalBERT → conditions, meds, lab values, doses              │
-├──────────────────────────────────────────────────────────────────┤
-│  Layer 3 — Classification & Prediction                           │
-│  CheXNet (X-ray) · ViT (MRI/Skin) · Swin (Pathology) · XGBoost │
-├──────────────────────────────────────────────────────────────────┤
-│  Layer 4 — RAG Retrieval                                         │
-│  BioGPT Embeddings → ChromaDB → WHO/PubMed/StatPearls           │
-├──────────────────────────────────────────────────────────────────┤
-│  Layer 5 — LLM Reasoning                                        │
-│  Groq/LLaMA-3 → Verdict + Explanation + Hallucination Check     │
-├──────────────────────────────────────────────────────────────────┤
-│  Layer 6 — Explainability & Reporting                            │
-│  SHAP · GradCAM · Attention Rollout · PDF Report + QR Access    │
-└──────────────────────────────────────────────────────────────────┘
+Layer 1  Input & Preprocessing   PaddleOCR · PyMuPDF · CLAHE · DICOM parsing · ClinicalBERT NER
+Layer 2  Segmentation            MedSAM · auto-prompt generation · ROI extraction
+Layer 3  ML Prediction           XGBoost + SHAP · CheXNet/DenseNet (14-class NIH) · GradCAM
+                                 modality routing: MRI ViT ensemble · CT (TorchXRayVision)
+                                 skin ViT (HAM10000, attention rollout) · pathology Swin (CRC)
+Layer 4  RAG / LLM Intelligence  ChromaDB (4 collections) · BioGPT embeddings
+                                 Groq/LLaMA-3 reasoning · self-verify loop · citation extraction
+Layer 5  Async Infrastructure    FastAPI · Celery · Redis · PostgreSQL
+Layer 6  Output                  structured JSON · Platt-scaled confidence (0–100)
+                                 explainability artifacts · PDF reports · WebSocket updates
 ```
+
+### Hallucination mitigation
+
+Three layers, all enforced in code rather than in prompts:
+
+1. **RAG grounding** — generation is constrained to retrieved ChromaDB evidence.
+2. **Self-verification loop** — the generated answer is re-checked against its own cited sources.
+3. **Threshold flagging** — Platt-scaled confidence below threshold, or fewer than 2 supporting sources, returns `Insufficient evidence` instead of an answer.
+
+Confidence is always reported on a **0–100 Platt-scaled range**. A 0–1 score anywhere in the codebase is a bug.
 
 ---
 
-## ✨ Features
+## Stack
 
-| Module | What It Does | Models Used |
-|--------|-------------|-------------|
-| 🩸 **Lab Report Analysis** | OCR extraction → NER → panel classification → risk prediction → LLM explanation | PaddleOCR, ClinicalBERT, XGBoost, LLaMA-3 |
-| 🫁 **Chest X-ray Analysis** | 14-class pathology detection with GradCAM heatmaps + YOLO lung detection | CheXNet (DenseNet121-NIH), YOLOv8, GradCAM |
-| 🧠 **Brain MRI Analysis** | Tumor classification with 3-model fallback + test-time augmentation | ViT Brain Tumor (3-model ensemble + TTA) |
-| 🔬 **CT Scan Analysis** | Multi-pathology classification | TorchXRayVision |
-| 🧬 **Skin Lesion Analysis** | HAM10000-trained classification with ABCDE scoring | Fine-tuned ViT + Attention Rollout |
-| 🔎 **Pathology Analysis** | CRC tissue classification | Swin Transformer |
-| ✅ **Claim Verification** | Medical claim fact-checking with evidence retrieval + hallucination check | ClinicalBERT, BioGPT, ChromaDB, LLaMA-3 |
-| 📄 **PDF Report Generation** | Clinical-grade PDF reports with VAIDYAA watermark + QR code access | ReportLab |
-| 🔄 **Real-time Updates** | WebSocket-based job status tracking | Celery + Redis + WebSocket |
+**Backend** FastAPI · Celery · Redis · PostgreSQL · ChromaDB · SQLAlchemy · Alembic · SlowAPI
+**ML/AI** PyTorch · HuggingFace Transformers · ClinicalBERT · BioGPT · XGBoost · SHAP · GradCAM · MedSAM · PaddleOCR · TorchXRayVision · YOLOv8 · Swin · ViT
+**LLM** Groq (LLaMA-3)
+**Frontend** React
+**Ops** Docker Compose
 
 ---
 
-## 🛠️ Tech Stack
-
-```
-Backend:     FastAPI · Celery · Redis · PostgreSQL · Alembic
-ML/AI:       PyTorch · TorchXRayVision · HuggingFace Transformers · XGBoost
-LLM:         Groq API (LLaMA-3) — all text generation
-NER:         ClinicalBERT (entity extraction only)
-Embeddings:  BioGPT (vector search only)
-RAG:         ChromaDB (multi-collection: radiology, skin, pathology)
-OCR:         PaddleOCR · PyTesseract · PyMuPDF
-Explain:     SHAP · GradCAM · Attention Rollout
-Frontend:    React JSX · HTML/CSS
-Infra:       Docker · Docker Compose · Flower (Celery monitoring)
-```
-
----
-
-## 🚀 Getting Started
+## Getting started
 
 ### Prerequisites
 
-- 🐍 Python 3.11+
-- 🐘 PostgreSQL 15+
-- 📦 Redis 7+
-- 🔑 Groq API key
+- Python 3.10+
+- PostgreSQL 14+
+- Redis 6+
+- A Groq API key
 
-### 1️⃣ Clone & Install
+### Install
 
 ```bash
 git clone https://github.com/suchitchopade3110-arch/vadiyaaAI.git
@@ -140,442 +82,138 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 2️⃣ Environment Variables
-
-Create a `.env` file in root:
-
-```env
-POSTGRES_HOST=localhost
-POSTGRES_PORT=5432
-POSTGRES_DB=vaidyaai
-POSTGRES_USER=vaidya
-POSTGRES_PASSWORD=vaidya123
-
-REDIS_URL=redis://localhost:6380/0
-CELERY_BROKER_URL=redis://localhost:6380/0
-CELERY_RESULT_BACKEND=redis://localhost:6380/1
-
-GROQ_API_KEY=your_groq_api_key_here
-
-UPLOAD_DIR=./uploads
-DEBUG=true
-```
-
-### 3️⃣ Download Model Weights
-
-The CheXNet checkpoint is not tracked in git (binary weights don't belong in version control). Download it separately and place it at `app/ml/models/chexnet.pth` before running the image pipeline:
+### Configure
 
 ```bash
-# Download chexnet.pth from the team's shared Drive/artifact storage
-# and place it at:
-mkdir -p app/ml/models
-mv ~/Downloads/chexnet.pth app/ml/models/chexnet.pth
+cp .env.example .env
 ```
 
-### 4️⃣ Database Setup
+Set at minimum:
+
+```
+DATABASE_URL=postgresql://user:pass@localhost:5432/vaidyaai
+REDIS_URL=redis://localhost:6379/0
+GROQ_API_KEY=your_key_here
+CHROMA_PERSIST_DIR=./chroma_db
+```
+
+### Migrate
 
 ```bash
-# Start PostgreSQL & create database
-createdb -U vaidya vaidyaai
-
-# Run migrations
 alembic upgrade head
 ```
 
-### 5️⃣ Start Services (3 terminals)
+### Run
+
+Three terminals:
 
 ```bash
-# Terminal 1 — Redis
-redis-server --port 6380
+# Terminal 1 — broker
+redis-server
 
-# Terminal 2 — Celery Workers
+# Terminal 2 — worker
 source .venv/bin/activate
-celery -A app.workers.celery_app worker -Q reports,images,claims --concurrency=2
+celery -A app.workers.celery_app worker -Q reports,images,claims --loglevel=info
 
-# Terminal 3 — FastAPI Server
+# Terminal 3 — API
 source .venv/bin/activate
 uvicorn app.main:app --reload --port 8000
 ```
 
-### 🐳 Or Use Docker Compose
+Docs at `http://localhost:8000/docs`.
+
+---
+
+## Model weights
+
+Model checkpoints are not tracked in git. Place them under `models/` before running the full pipeline:
+
+| File | Used by | Fallback if missing |
+| --- | --- | --- |
+| `xgb_calibrated.pkl` | Tabular predictor | Hardcoded heuristic |
+| `scaler.pkl` | Feature scaling | Hardcoded heuristic |
+| `shap_explainer.pkl` | SHAP explainability | Explanation omitted |
+| `sam_vit_b_01ec64.pth` | MedSAM segmentation | Full-image passthrough |
+
+Fallbacks let the app boot, but predictions from a fallback path are **not** production-valid.
+
+---
+
+## API surface
+
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| `POST` | `/api/v1/claims/verify` | Verify a clinical claim → Verified / Refuted / Uncertain |
+| `POST` | `/api/v1/reports/analyze` | Parse lab report, clinical note, or discharge summary |
+| `POST` | `/api/v1/images/analyze` | Segment + classify X-ray, CT, MRI, skin, or pathology image |
+| `GET` | `/api/v1/jobs/{job_id}` | Poll async job status |
+| `WS` | `/ws/jobs/{job_id}` | Live progress stream |
+| `GET` | `/health` | Liveness probe |
+
+Long-running analyses return a `job_id` immediately and complete on the Celery worker.
+
+Live routes live in `app/api/v1/routes/`. Anything in `app/routes/` is legacy and unmounted — grep before assuming a file is active.
+
+---
+
+## Known limitations
+
+- **MedSAM falls back silently.** `segment-anything` is not pinned in `requirements.txt` and the checkpoint ships separately, so segmentation currently passes the full image through. Fix before trusting any ROI-dependent output.
+- **XGBoost version warnings** on load; the calibrated model needs re-export against the pinned version.
+- **HIPAA audit logging is incomplete.** Do not process real PHI on this build.
+- **Docker Compose setup is unfinished.**
+- Dead code exists in the tree. `app/ml/predictors/` is orphaned.
+
+---
+
+## Project layout
+
+```
+app/
+├── main.py                  FastAPI app factory
+├── config.py                pydantic-settings
+├── api/v1/routes/           live route handlers
+├── models/                  SQLAlchemy ORM
+├── schemas/                 Pydantic request/response
+├── services/
+│   ├── preprocessing/       OCR, DICOM, ClinicalBERT NER
+│   ├── segmentation/        MedSAM wrapper
+│   ├── prediction/          XGBoost, CheXNet, modality routing
+│   ├── intelligence/        BioGPT RAG, LLM reasoning, self-verify
+│   └── explainability/      SHAP, GradCAM, disclaimers
+├── tasks/                   Celery task definitions
+├── workers/celery_app.py
+└── core/                    auth, middleware, error handlers
+migrations/
+tests/
+```
+
+---
+
+## Testing
 
 ```bash
-docker-compose up --build
-```
-
-Services: API (`:8000`), PostgreSQL (`:5433`), Redis (`:6380`), Flower (`:5555`)
-
----
-
-## 📡 API Endpoints
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/api/v1/verify/claim` | 🔍 Submit a medical claim for verification |
-| `GET` | `/api/v1/verify/claim/status/{task_id}` | 📊 Poll claim verification result |
-| `POST` | `/api/v1/analyze/image` | 🫁 Upload medical image for analysis |
-| `GET` | `/api/v1/analyze/image/status/{task_id}` | 📊 Poll image analysis result |
-| `POST` | `/api/v1/analyze/report` | 🩸 Upload lab report (PDF/CSV/TXT) |
-| `GET` | `/api/v1/analyze/report/status/{task_id}` | 📊 Poll report analysis result |
-| `GET` | `/api/v1/jobs/{job_id}` | 📋 Get any job status |
-| `GET` | `/api/v1/health` | 💚 Health check |
-| `WS` | `/ws/jobs/{job_id}` | 🔄 WebSocket real-time status |
-
----
-
-## 💡 Working Examples
-
-### Example 1: 🔍 Verify a Medical Claim
-
-```bash
-curl -X POST http://localhost:8000/api/v1/verify/claim \
-  -H "Content-Type: application/json" \
-  -d '{
-    "claim_text": "Aspirin reduces heart attack risk by 50%",
-    "priority": "high"
-  }'
-```
-
-**Response (202 Accepted):**
-```json
-{
-  "claim_id": "a3f1e2d4-...",
-  "task_id": "b7c9d1e3-...",
-  "status": "pending",
-  "poll_url": "/api/v1/verify/claim/status/b7c9d1e3-...",
-  "estimated_seconds": 15
-}
-```
-
-**Poll for result:**
-```bash
-curl http://localhost:8000/api/v1/verify/claim/status/b7c9d1e3-...
-```
-
-**Final Result:**
-```json
-{
-  "verdict": "refuted",
-  "confidence_score": 82,
-  "uncertainty_flag": false,
-  "explanation": "While aspirin does reduce cardiovascular risk, clinical trials (NEJM 2018) show a 12-25% relative risk reduction, not 50%...",
-  "anomalies": ["Exaggerated risk reduction claim"],
-  "citations": [
-    {
-      "source": "PubMed",
-      "pmid": "30152035",
-      "title": "Aspirin for Primary Prevention — ARRIVE Trial"
-    }
-  ],
-  "medical_disclaimer": "This analysis is for informational purposes only..."
-}
+source .venv/bin/activate
+pytest -v
+pytest --cov=app --cov-report=term-missing
 ```
 
 ---
 
-### Example 2: 🫁 Analyze a Chest X-ray
+## Team
 
-```bash
-curl -X POST http://localhost:8000/api/v1/analyze/image \
-  -F "file=@chest_xray.jpg" \
-  -F "analysis_type=xray"
-```
+**Straw Hats** — Sri Shakthi Institute of Engineering and Technology, Coimbatore
 
-**Response (202 Accepted):**
-```json
-{
-  "analysis_id": "d4e5f6a7-...",
-  "task_id": "c8b7a6e5-...",
-  "analysis_type": "xray",
-  "status": "pending",
-  "poll_url": "/api/v1/analyze/image/status/c8b7a6e5-...",
-  "estimated_seconds": 45
-}
-```
-
-**Final Result:**
-```json
-{
-  "classification": {
-    "label": "Cardiomegaly",
-    "confidence": 87,
-    "all_pathologies": {
-      "Cardiomegaly": 0.87,
-      "Effusion": 0.23,
-      "Atelectasis": 0.15,
-      "No Finding": 0.08
-    }
-  },
-  "severity": "moderate",
-  "gradcam_overlay_url": "/outputs/gradcam_c8b7a6e5.png",
-  "yolo_detections": [
-    { "label": "lung_opacity", "confidence": 0.76, "bbox": [120, 80, 340, 290] }
-  ],
-  "rag_context": {
-    "source": "WHO Diagnostic Imaging Protocols",
-    "relevant_guideline": "Cardiomegaly: cardiothoracic ratio > 0.5 on PA film..."
-  },
-  "explanation": "CheXNet detected cardiomegaly with high confidence. The cardiothoracic ratio appears elevated...",
-  "confidence_score": 87,
-  "uncertainty_flag": false,
-  "citations": [...],
-  "medical_disclaimer": "..."
-}
-```
+| Name | Role |
+| --- | --- |
+| Suchit Sachin Chopade | Backend Lead / Team Leader |
+| Subhiksha B | Domain / Research Lead |
+| Shruthi S | LLM / RAG Engineer |
+| Shreekumar B | ML / Prediction Engineer |
+| Thaariha G | Data / Preprocessing Engineer |
 
 ---
 
-### Example 3: 🩸 Analyze a Lab Report
+## License
 
-```bash
-curl -X POST http://localhost:8000/api/v1/analyze/report \
-  -F "file=@blood_report.pdf" \
-  -F "report_type=blood"
-```
-
-**Final Result (after polling):**
-```json
-{
-  "patient_data": {
-    "conditions": ["Type 2 Diabetes"],
-    "medications": ["Metformin 500mg"],
-    "lab_values": {
-      "HbA1c": { "value": 8.2, "unit": "%", "reference": "4.0-5.6", "flag": "HIGH" },
-      "Fasting Glucose": { "value": 156, "unit": "mg/dL", "reference": "70-100", "flag": "HIGH" },
-      "Creatinine": { "value": 1.1, "unit": "mg/dL", "reference": "0.7-1.3", "flag": "NORMAL" }
-    }
-  },
-  "panel_classification": "Metabolic Panel",
-  "risk_prediction": {
-    "risk_level": "elevated",
-    "confidence_score": 78,
-    "shap_factors": [
-      { "feature": "HbA1c", "impact": 0.42, "direction": "increases_risk" },
-      { "feature": "Fasting Glucose", "impact": 0.31, "direction": "increases_risk" }
-    ]
-  },
-  "anomalies": [
-    "HbA1c significantly above target (8.2% vs target <7%)",
-    "Fasting glucose elevated at 156 mg/dL"
-  ],
-  "explanation": "Lab results indicate suboptimal glycemic control. HbA1c of 8.2% suggests...",
-  "citations": [...],
-  "medical_disclaimer": "..."
-}
-```
-
----
-
-### Example 4: 🧠 Analyze a Brain MRI
-
-```bash
-curl -X POST http://localhost:8000/api/v1/analyze/image \
-  -F "file=@brain_mri.jpg" \
-  -F "analysis_type=mri"
-```
-
-**Final Result:**
-```json
-{
-  "classification": {
-    "label": "Glioma",
-    "confidence": 91,
-    "model_used": "vit_brain_tumor_primary",
-    "tta_applied": true,
-    "ensemble_agreement": "3/3 models agree"
-  },
-  "segmentation": {
-    "mask_url": "/outputs/seg_mask_f7a8b9c0.png",
-    "overlay_url": "/outputs/seg_overlay_f7a8b9c0.png",
-    "roi_bounding_box": { "x": 145, "y": 89, "w": 112, "h": 98 }
-  },
-  "severity": "high",
-  "explanation": "ViT ensemble detected glioma with high confidence. Segmentation shows...",
-  "confidence_score": 91,
-  "citations": [...],
-  "medical_disclaimer": "..."
-}
-```
-
----
-
-### Example 5: 🧬 Analyze a Skin Lesion
-
-```bash
-curl -X POST http://localhost:8000/api/v1/analyze/image \
-  -F "file=@skin_lesion.jpg" \
-  -F "analysis_type=skin"
-```
-
-**Final Result:**
-```json
-{
-  "classification": {
-    "label": "Melanocytic Nevi (nv)",
-    "confidence": 94,
-    "abcde_score": {
-      "asymmetry": "low",
-      "border": "regular",
-      "color": "uniform",
-      "diameter": "<6mm",
-      "evolution": "N/A"
-    }
-  },
-  "explainability": {
-    "method": "attention_rollout",
-    "heatmap_url": "/outputs/attention_skin_e3d4c5.png"
-  },
-  "severity": "low",
-  "confidence_score": 94,
-  "explanation": "Skin lesion classified as melanocytic nevi (benign mole) with high confidence...",
-  "citations": [...],
-  "medical_disclaimer": "..."
-}
-```
-
----
-
-## 📁 Project Structure
-
-```
-vadiyaaAI/
-├── 📂 app/
-│   ├── 📂 api/v1/routes/       # FastAPI route handlers
-│   │   ├── claims.py           # POST /verify/claim
-│   │   ├── images.py           # POST /analyze/image
-│   │   ├── reports.py          # POST /analyze/report
-│   │   ├── jobs.py             # GET /jobs/{id}
-│   │   └── health.py           # GET /health
-│   ├── 📂 services/            # Business logic layer
-│   │   ├── claim_service.py    # Claim verification pipeline
-│   │   ├── image_analysis_service.py  # Image analysis orchestrator
-│   │   ├── rag_pipeline.py     # RAG retrieval (ChromaDB + BioGPT)
-│   │   ├── clinical_ner_service.py    # ClinicalBERT NER
-│   │   ├── ml_predictor.py     # XGBoost tabular predictions
-│   │   ├── ocr_service.py      # PaddleOCR/Tesseract
-│   │   ├── yolo_detector.py    # YOLO lung detection
-│   │   ├── pdf_report.py       # Clinical PDF generation
-│   │   └── 📂 explainability/  # SHAP, GradCAM modules
-│   ├── 📂 image_pipeline/      # Medical image processing
-│   │   ├── classifier_v2.py    # CheXNet 14-class classifier
-│   │   ├── segmentor.py        # MedSAM segmentation
-│   │   ├── gradcam.py          # GradCAM heatmap generation
-│   │   └── quality_gate.py     # Input image validation
-│   ├── 📂 ml/                  # ML models & prediction engines
-│   │   ├── ml_prediction_engine.py    # Ensemble prediction
-│   │   ├── 📂 models/          # Saved model weights
-│   │   └── 📂 explainability/  # SHAP explainers
-│   ├── 📂 rag/                 # RAG retrieval & reasoning
-│   │   ├── retriever.py        # ChromaDB vector search
-│   │   └── reasoner.py         # LLM reasoning chain
-│   ├── 📂 workers/             # Celery async task workers
-│   │   ├── celery_app.py       # Celery configuration
-│   │   └── pipeline_tasks.py   # Task definitions
-│   ├── 📂 schemas/             # Pydantic request/response models
-│   ├── 📂 db/                  # SQLAlchemy models & session
-│   ├── 📂 core/                # Config, middleware, logging
-│   ├── main.py                 # FastAPI app entry point
-│   └── pipeline.py             # Master pipeline orchestrator (1245 lines)
-├── 📂 ui/                      # React JSX frontend
-│   ├── report-analyzer.jsx     # Lab report upload & results
-│   ├── image-analysis.jsx      # Medical image analysis UI
-│   ├── claim-verifier.jsx      # Claim verification UI
-│   ├── dashboard.jsx           # Main dashboard
-│   └── job-tracker.jsx         # Real-time job status
-├── 📂 data/                    # ChromaDB stores, YOLO outputs, OCR cache
-├── 📂 alembic/                 # Database migrations
-├── 📂 tests/                   # E2E + pipeline + RAG tests
-├── 📂 docs/                    # Architecture diagrams
-├── docker-compose.yml          # Full stack: API + PG + Redis + Celery + Flower
-├── Dockerfile                  # Python 3.11-slim container
-├── requirements.txt            # All dependencies
-└── clinical_reference.py       # WHO range enrichment & blood report analysis
-```
-
----
-
-## 🏆 Team Straw Hats
-
-Built with 🔥 for **Smart India Hackathon 2025** by Team Straw Hats from **Sri Sakthi Institute of Engineering and Technology**.
-
-| Member | Role |
-|--------|------|
-| 👨‍💻 **Suchit** | Team Leader · Backend Lead |
-| 🤖 **Shruthi** | LLM / RAG Engineer |
-| 📊 **Subhiksha** | ML / Prediction Engineer |
-| 🗃️ **Thaariha** | Data / Preprocessing Engineer |
-| 🔬 **Shreekumar** | Domain / Research Lead |
-
----
-
-## ✅ Testing & CI
-
-- **Unit tests** (no live services needed): `pytest tests/test_pipelines.py tests/test_rag_integration.py tests/test_file_validator.py tests/test_errors.py tests/test_retry.py tests/test_auth.py -m "not integration"`
-- **Coverage**: `pytest --cov=app --cov-report=term-missing` (see `pyproject.toml` for the `[tool.ruff]` and `[tool.pytest.ini_options]` config, including the `integration` marker used to separate infra-dependent tests).
-- **E2E** (needs the full stack running — API + Redis + Postgres + Celery): `docker-compose up -d`, wait for `/health`, then `pytest tests/test_e2e.py -v`. Self-skips if the server isn't reachable.
-- **Lint**: `ruff check app/`.
-- CI runs lint + unit tests + coverage on every push/PR, and the Docker Compose E2E stack on every PR (non-blocking) and on `main` (blocking) — see `.github/workflows/ci.yml`.
-
-## 🧪 Load Testing
-
-A lightweight [Locust](https://locust.io/) script lives at `load-tests/locustfile.py`, targeting `/health`, `/api/v1/verify/claim`, `/api/v1/analyze/report/{type}`, and `/api/v1/analyze/image/{type}`. It's a manual pre-demo sanity tool, not part of CI.
-
-```bash
-pip install locust
-locust -f load-tests/locustfile.py --host http://localhost:8000
-```
-
-Then open http://localhost:8089, set concurrent users / spawn rate, and watch response times and failure rates. Every simulated user registers its own throwaway account on start and reuses the access token for the rest of its session, matching the real auth flow.
-
-## 📈 Monitoring
-
-Prometheus-compatible metrics are exposed at `GET /metrics` (request counts, latency histograms by route, status codes — via `prometheus-fastapi-instrumentator`). No Grafana/dashboard is set up yet; point a Prometheus scrape config at `/metrics` when there's a real deployment target.
-
-## 🩺 Bias / Model Audit
-
-`app/ml/audit/run_bias_audit.py` runs a lightweight bias audit against `app/ml/audit/data/verified_claims_v1.csv` and writes `app/ml/audit/reports/bias_audit_v1_report.{csv,json}`. Run it directly:
-
-```bash
-python -m app.ml.audit.run_bias_audit
-```
-
-The admin dashboard also triggers it on demand via `GET /api/v1/admin/bias-audit` (admin role required) if a report doesn't already exist.
-
----
-
-## 🔐 Security
-
-- **Dependency scanning**: run `make audit` to check `requirements.txt` against known vulnerabilities via [pip-audit](https://github.com/pypa/pip-audit). It reports findings only — it never auto-upgrades anything, since some pins (celery, redis, torch, etc.) are intentional. Review and bump versions deliberately.
-- **Auth**: JWT access tokens (~20 min) + refresh tokens (~7 days, revocable via the `refresh_tokens` table). See `POST /auth/login`, `POST /auth/refresh`, `POST /auth/logout`.
-- **RBAC**: roles are `admin` / `clinician` / `reviewer` (`app.core.auth.require_role`). Admin-only routes currently: `app/api/v1/routes/admin.py`.
-- **Rate limiting**: slowapi, backed by `settings.REDIS_URL` — applied to upload/analysis endpoints (`images`, `reports`, `claims`, `text`).
-- Report suspected vulnerabilities to the maintainers privately rather than filing a public issue.
-
-### Audit logging (HIPAA technical safeguard — partial)
-
-Every request under `/api/v1/verify`, `/api/v1/analyze/image`, `/api/v1/analyze/report`, and `/patients` writes an append-only row to the `audit_logs` table (`app/models/audit_log.py`, via `AuditLogMiddleware` in `app/core/middleware.py`): who (user ID from the JWT), what (action + resource type/ID), when, from where (IP/user-agent), and success/failure — never the underlying claim text, report contents, or image bytes. Query it via `GET /api/v1/admin/audit-log` (admin role required; filter by `user_id`, `patient_id`, `resource_type`, `action`, `status`, `start_date`, `end_date`).
-
-**This is one HIPAA technical safeguard (access logging), not HIPAA compliance.** Also required and out of scope for this pass: encryption at rest and in transit, a signed Business Associate Agreement with any third-party processor that sees PHI (Groq, for the LLM calls), and a formal risk assessment. Treat this as a building block, not a certification.
-
----
-
-## 📝 Key Design Principles
-
-- 🔒 **Strict Model Isolation** — BioGPT = embeddings only, ClinicalBERT = NER only, all generation → Groq/LLaMA-3
-- 📏 **Standardized Confidence** — Platt-scaled 0–100 (not 0–1) across all modules
-- 📚 **Real RAG** — No stubs; ChromaDB with per-modality collections (radiology, skin, pathology)
-- 🧪 **Explainability First** — SHAP for tabular, GradCAM for CNNs, Attention Rollout for ViTs
-- ⚡ **Async Everything** — Celery workers with Redis broker, WebSocket status updates
-- 🛡️ **Every Response Includes** — verdict, confidence_score, uncertainty_flag, anomalies[], citations[], disclaimer
-
----
-
-## 📄 License
-
-This project was developed for SIH 2025. All rights reserved by Team Straw Hats.
-
----
-
-<p align="center">
-  <strong>🩺 VaidyaAI — Because every diagnosis deserves a second opinion from AI.</strong>
-</p>
+TBD — see `LICENSE`. Patent application pending on the underlying architecture.
