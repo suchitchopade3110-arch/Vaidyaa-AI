@@ -133,7 +133,7 @@ function DifferentialDxBlock({ ddx }) {
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap' }}>
                   <div>
                     <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', marginRight: '8px' }}>#{item.rank || index + 1}</span>
-                    <strong style={{ fontSize: '14px', color: 'var(--text-primary)' }}>{item.diagnosis}</strong>
+                    <strong style={{ fontSize: '14px', color: 'var(--text-primary)' }}>{item.condition}</strong>
                     {item.icd10 && <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginLeft: '8px', fontFamily: 'var(--font-mono)' }}>{item.icd10}</span>}
                   </div>
                   <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>

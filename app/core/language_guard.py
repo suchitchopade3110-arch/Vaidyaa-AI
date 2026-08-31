@@ -12,14 +12,15 @@ without touching pipeline behavior).
 
 Deliberately NOT swept here, and not something this module can safely
 catch: prohibited terms inside LLM prompts, internal module/function names,
-NER label taxonomies borrowed from a pretrained model's own vocabulary
-("problem" / "diagnosis" as a spaCy/med7 entity type, say), or JSON
-response field *names* like `"diagnosis"` that existing frontend code
-already reads. Fixing those means either a coordinated breaking API change
-(tracked against PLT-04, which hasn't ported the frontend off those field
-names yet) or a clinical-prompt rewrite that needs its own validation, not
-a mechanical find-and-replace. See docs/PHASE1_SKELETON.md for exactly
-which files carry that gap.
+and NER label taxonomies borrowed from a pretrained model's own vocabulary
+("problem" / "diagnosis" as a spaCy/med7 entity type, say) — renaming those
+is unrelated churn, not user-facing copy. The one item that WAS in this
+category — JSON response field names like `"diagnosis"`/`"primary_
+diagnosis"` and the LLM prompt asking for them
+(app/services/differential_diagnosis.py, app/services/pipeline_
+controller.py, app/routes/text_routes.py) — has been fixed now that PLT-04
+ported the frontend off the old field names, unblocking the breaking API
+change. See docs/PHASE1_SKELETON.md for the full account.
 """
 import re
 

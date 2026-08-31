@@ -2,11 +2,10 @@
 
 Tracks the seven Phase 1 items in the business-readiness requirements doc
 (SEC-01, SEC-02, REG-01, REG-02, DPD-01, PLT-01, PLT-04). Started as
-structural scaffolding for all seven; six (SEC-01, SEC-02, REG-02,
-DPD-01, PLT-01, PLT-04) are now fully wired and enforced. REG-01 is
-partially done — its mechanically-safe surfaces are enforced in CI, its
-deeper (LLM prompt / API contract) violations are documented, not fixed
-— see its section below for exactly why.
+structural scaffolding for all seven; all seven are now fully wired and
+enforced, including REG-01's LLM-prompt and API-contract fix, which was
+deliberately sequenced after PLT-04 (it's a breaking response-shape
+change and needed the frontend ported off the old field names first).
 
 This file is the map. Each item below links to where its pieces live and
 states plainly what's real versus stubbed — read it before assuming
@@ -48,7 +47,7 @@ Noted only because SEC-01 unblocks it: `app/api/v1/routes/jobs.py`'s
 `list_recent_jobs` still hardcodes `[]`; a TODO there points at
 `AsyncJobRecord` as the read path once SEC-01's write side exists.
 
-## REG-01 — non-diagnostic output contract — **PARTIALLY DONE, scope narrowed on purpose**
+## REG-01 — non-diagnostic output contract — **DONE**
 
 - `app/core/language_guard.py`'s `scan_text` is a real detector — disclaiming
   uses ("NOT a medical diagnosis", "Do not diagnose", "isn't a screening
@@ -64,22 +63,31 @@ Noted only because SEC-01 unblocks it: `app/api/v1/routes/jobs.py`'s
   right after ruff. Currently clean — the one real finding it caught
   (`reports.py`'s pipeline-diagram docstring: "Anomaly Detection" →
   "Outlier Flagging") is fixed.
-- **Deliberately not swept, and why:** this only polices the surfaces
-  above — copy that's clearly just labelling/description text, safe to
-  reword without changing behavior. It does **not** touch:
-  - **LLM prompts.** `app/services/differential_diagnosis.py`'s system
-    prompt literally instructs the model to produce differential
-    diagnoses with a `"primary_diagnosis"` JSON field — the deepest,
-    most substantive violation found. Rewriting a clinical LLM prompt
-    changes actual model output and needs its own validation pass, not
-    a mechanical find-and-replace done blind.
+- **Now also fixed — the LLM prompt and API contract.** These were
+  deliberately left for last because PLT-04 needed to land first (a
+  breaking response-shape change with no frontend to coordinate against
+  is a bad idea):
+  - **LLM prompt.** `app/services/differential_diagnosis.py`'s system
+    prompt used to instruct the model to produce a "differential
+    diagnosis" with a `"primary_diagnosis"` JSON field — the deepest,
+    most substantive violation found, since it shaped actual model
+    output. Rewritten to ask for "candidate conditions for clinical
+    correlation" instead, with the JSON contract's `"diagnosis"` /
+    `"primary_diagnosis"` keys renamed to `"condition"` /
+    `"leading_candidate"`, and `"differential_generated"` renamed to
+    `"candidates_generated"`. The disclaiming instruction ("Do not
+    diagnose") is unchanged — it was already correct.
   - **API response field names.** `app/routes/text_routes.py`'s `/api/text`
-    response has a literal `"diagnosis"` key; `app/services/
-    pipeline_controller.py` builds a `"diagnosis"` field from a risk
-    label. `ui/report-analyzer.jsx` reads `item.diagnosis` directly —
-    renaming the field is a breaking API change that needs coordinating
-    with PLT-04 (the frontend hasn't been ported off the old contract
-    yet), not something to do unilaterally here.
+    response had a literal `"diagnosis"` key (renamed to `"risk_label"`);
+    `app/services/pipeline_controller.py` built a `"diagnosis"` field from
+    a risk label or an image classification label (renamed to
+    `"risk_label"` and `"classification_label"` respectively).
+    `ui/src/pages/ReportAnalyzer.jsx`'s differential-list rendering
+    (`item.diagnosis`) is updated to `item.condition` to match. No test
+    or other consumer referenced the old field names.
+- **Deliberately still not swept, and why:** the remaining surfaces are
+  clearly internal, not user-facing copy, so mechanically renaming them
+  is unrelated churn rather than a compliance fix:
   - **Internal identifiers.** Module/function names like
     `yolo_detector.py`, `differential_diagnosis.py`, or NER entity-type
     labels borrowed from a pretrained model's own taxonomy
@@ -246,10 +254,18 @@ Noted only because SEC-01 unblocks it: `app/api/v1/routes/jobs.py`'s
   file but kept `VAIDYAAI.html`, un-updated at the time. Fixed to point
   at `/app/` instead, so those links now go somewhere real for the
   first time in a while.
-- **Still not done:** no end-to-end run against a live backend
-  (Postgres/Redis/Celery workers) — verification used a mocked
-  `/api/v1/jobs` response, not a real one; someone should smoke-test
-  against the actual running stack.
+- **Now smoke-tested end to end against a live backend** (real Postgres
+  with all migrations applied, real Redis, real uvicorn-served app —
+  Docker wasn't available, so these ran as plain OS processes). Confirmed
+  live over real HTTP with real JWTs, not mocks: unauthenticated 403 on
+  `/api/v1/jobs`; a valid token getting real DB-backed job data; SEC-01
+  cross-user ownership (404, not 403, on another user's job); DPD-01's
+  403 `CONSENT_REQUIRED` → grant → success flow; REG-02 sign-off and its
+  409 on a repeat; the QR-share 403 `NOT_SIGNED_OFF` gate on an unsigned
+  job versus a real PNG on a signed-off one; PLT-01's admin-only org
+  creation (403 for non-admin, 201 for admin) and org-scoped job listing
+  (403 without admin role, then correctly scoped once a user was
+  org-assigned and re-logged-in for the JWT `org_id` claim to refresh).
 
 ## What this skeleton deliberately does not touch
 

@@ -14,11 +14,6 @@ router = APIRouter()
 @router.post("/text", summary="Run the direct synchronous text pipeline")
 @limiter.limit("20/minute")
 async def text_pipeline(request: Request, data: QueryRequest, user: dict = Depends(get_current_user)):
-    # TODO(REG-01): the response's own "diagnosis" field name still reads
-    # that way below — this docstring no longer claims it in the OpenAPI
-    # description, but the field itself hasn't been renamed. See
-    # app/core/language_guard.py's module docstring for why (breaking API
-    # change, needs frontend coordination).
     """Run the text/lab-value pipeline synchronously (no Celery job/polling).
 
     Returns a finding-review summary, retrieval/extraction confidence,
@@ -29,7 +24,7 @@ async def text_pipeline(request: Request, data: QueryRequest, user: dict = Depen
         result = run_text_pipeline(data.query)
         return {
             "type": "text_pipeline",
-            "diagnosis": result["diagnosis"],
+            "risk_label": result["risk_label"],
             "confidence": result["confidence"],
             "evidence": result["evidence"],
             "explanation": result["explanation"],

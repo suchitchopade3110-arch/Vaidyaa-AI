@@ -1,4 +1,16 @@
-"""Phase 3 differential diagnosis and explanation helpers."""
+"""Phase 3 differential-consideration and explanation helpers.
+
+REG-01: the JSON contract this module produces (and the prompt that asks
+the LLM for it) used to instruct the model to return a "diagnosis" and a
+"primary_diagnosis" — the deepest violation of the non-diagnostic output
+contract found in the codebase, since it shapes actual model output, not
+just labelling copy. Renamed to "condition"/"leading_candidate" and the
+prompt now asks for candidates to correlate clinically, not a diagnosis.
+This was deliberately left for last (see docs/PHASE1_SKELETON.md) because
+it's a breaking response-shape change that needed the frontend ported off
+the old field names first (PLT-04) before it could ship without silently
+breaking ui/src/pages/ReportAnalyzer.jsx's differential-list rendering.
+"""
 
 from __future__ import annotations
 
@@ -15,11 +27,13 @@ MODEL = os.getenv("GROQ_DDX_MODEL", os.getenv("GROQ_MODEL", "llama-3.1-8b-instan
 DISCLAIMER = "AI-assisted analysis. NOT a medical diagnosis. Consult a qualified healthcare professional."
 
 
-DDX_SYSTEM = """You are a clinical differential diagnosis AI assistant for VaidyaAI.
-Return only valid JSON. If evidence is insufficient, say so. Do not diagnose.
-Every diagnosis must cite supporting evidence from the provided input."""
+DDX_SYSTEM = """You are a clinical decision-support assistant for VaidyaAI.
+Return only valid JSON. If evidence is insufficient, say so. Do not diagnose
+and do not state or imply a diagnosis — list candidate conditions for a
+clinician to correlate against the full clinical picture, each grounded in
+supporting evidence from the provided input."""
 
-DDX_PROMPT = """Generate a top-3 differential diagnosis list.
+DDX_PROMPT = """Generate a top-3 list of candidate conditions for clinical correlation.
 
 Conditions: {conditions}
 Lab anomalies: {anomalies}
@@ -29,11 +43,11 @@ Report type: {report_type}
 
 Return JSON:
 {{
-  "verdict": "differential_generated" | "insufficient_evidence" | "uncertain",
+  "verdict": "candidates_generated" | "insufficient_evidence" | "uncertain",
   "differentials": [
     {{
       "rank": 1,
-      "diagnosis": "string",
+      "condition": "string",
       "icd10": "string",
       "confidence": 0.0,
       "supporting_evidence": ["string"],
@@ -42,7 +56,7 @@ Return JSON:
       "urgency": "routine" | "follow_up" | "urgent" | "emergency"
     }}
   ],
-  "primary_diagnosis": "string",
+  "leading_candidate": "string",
   "urgency_flag": "routine" | "follow_up" | "urgent" | "emergency",
   "brief_summary": "string",
   "full_explanation": "string",
@@ -80,9 +94,9 @@ def _fallback_differential(entities: dict[str, Any], anomalies: list[dict[str, A
         return {
             "verdict": "insufficient_evidence",
             "differentials": [],
-            "primary_diagnosis": "Insufficient evidence for differential diagnosis",
+            "leading_candidate": "Insufficient evidence to list candidate conditions",
             "urgency_flag": "routine",
-            "brief_summary": "Not enough findings are available to generate a differential diagnosis.",
+            "brief_summary": "Not enough findings are available to list candidate conditions.",
             "full_explanation": "Fewer than two abnormalities were detected and no conditions were identified.",
             "uncertainty_flag": True,
             "disclaimer": DISCLAIMER,
@@ -96,7 +110,7 @@ def _fallback_differential(entities: dict[str, Any], anomalies: list[dict[str, A
         differentials.append(
             {
                 "rank": index,
-                "diagnosis": f"{field} abnormality",
+                "condition": f"{field} abnormality",
                 "icd10": "",
                 "confidence": 0.55,
                 "supporting_evidence": [f"{field}: {item.get('value', '')} {item.get('unit', '')}".strip()],
@@ -107,12 +121,12 @@ def _fallback_differential(entities: dict[str, Any], anomalies: list[dict[str, A
         )
 
     return {
-        "verdict": "differential_generated",
+        "verdict": "candidates_generated",
         "differentials": differentials,
-        "primary_diagnosis": differentials[0]["diagnosis"] if differentials else (conditions[0] if conditions else "Uncertain"),
+        "leading_candidate": differentials[0]["condition"] if differentials else (conditions[0] if conditions else "Uncertain"),
         "urgency_flag": "urgent" if risk_score >= 80 else "follow_up" if risk_score >= 55 else "routine",
         "brief_summary": "The report contains abnormal findings that should be reviewed with a clinician.",
-        "full_explanation": "Differential diagnosis is generated from detected conditions, abnormal labs, and overall risk score.",
+        "full_explanation": "Candidate conditions are listed from detected conditions, abnormal labs, and overall risk score, for clinical correlation.",
         "uncertainty_flag": False,
         "disclaimer": DISCLAIMER,
     }
@@ -124,7 +138,7 @@ def generate_differential(
     risk_score: float,
     report_type: str = "lab",
 ) -> dict[str, Any]:
-    """Generate top differential diagnoses with an insufficient-evidence gate."""
+    """List top candidate conditions for clinical correlation, gated on insufficient evidence."""
     if len(anomalies) < 2 and not entities.get("conditions"):
         return _fallback_differential(entities, anomalies, risk_score)
 

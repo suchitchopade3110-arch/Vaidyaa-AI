@@ -42,7 +42,7 @@ def run_text_pipeline(query: str) -> dict[str, Any]:
     )
 
     return {
-        "diagnosis": _risk_label(prediction["risk_score"]),
+        "risk_label": _risk_label(prediction["risk_score"]),
         "confidence": prediction["risk_score"],
         "evidence": evidence,
         "explanation": explanation,
@@ -95,7 +95,7 @@ async def run_image_pipeline(file: UploadFile) -> dict[str, Any]:
     )
 
     return {
-        "diagnosis": classification["label"],
+        "classification_label": classification["label"],
         "confidence": classification["top_confidence"],
         "heatmap": None,
         "mask": segmentation["mask_path"],
