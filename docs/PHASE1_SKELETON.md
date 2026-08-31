@@ -203,9 +203,7 @@ Noted only because SEC-01 unblocks it: `app/api/v1/routes/jobs.py`'s
   ported to real ES modules under `ui/src/` — mechanical conversion
   (the `{ ... }` block-scope wrapper and `Object.assign(window, {...})`
   are gone; `const { useState } = React` is a real `import`), component
-  bodies otherwise unchanged from `ui/*.jsx`. The originals in `ui/*.jsx`
-  are left in place, untouched, still served as-is at `/ui` — nothing
-  here breaks that path.
+  bodies otherwise unchanged from `ui/*.jsx`.
 - **New, because the backend didn't require it when the originals were
   written:** a login screen (`ui/src/pages/Login.jsx`) and auth context
   (`ui/src/lib/auth.jsx`), and every API call now goes through
@@ -232,19 +230,26 @@ Noted only because SEC-01 unblocks it: `app/api/v1/routes/jobs.py`'s
   future change that breaks the build fails CI.
 - `app/main.py` mounts the build at **`/app`**, not `/ui` — deliberately
   not the "swap `/ui`'s target" reading of the acceptance criteria.
-  `ui/index.html` (marketing landing page) and `ui/VAIDYAAI.html` (the
-  CDN/Babel demo) still live directly under `ui/`; pointing `/ui` at
-  `ui/dist/` instead would make both unreachable. The mount degrades
-  gracefully (skips with a log line, doesn't crash) when `ui/dist/`
-  doesn't exist yet, i.e. before anyone has run the build.
-- **Not done:** `ui/*.jsx` (the originals) and `ui/VAIDYAAI.html` are
-  still there, unremoved — deleting the CDN/Babel version once the Vite
-  build is confirmed working in a real deployment (not just this local
-  build+headless-render check) is a follow-up, not bundled into this
-  change. No end-to-end run against a live backend (Postgres/Redis/
-  Celery workers) — the headless verification used a mocked
+  `ui/index.html` (marketing landing page) and `ui/report-preview.html`
+  (the QR-scan preview page — see `app/services/qr_service.py`) still
+  live directly under `ui/`; pointing `/ui` at `ui/dist/` instead would
+  make both unreachable. The mount degrades gracefully (skips with a
+  log line, doesn't crash) when `ui/dist/` doesn't exist yet, i.e.
+  before anyone has run the build.
+- **Old CDN/Babel demo removed:** `ui/VAIDYAAI.html` and the `ui/*.jsx`
+  globals it loaded (`dashboard.jsx`, `claim-verifier.jsx`,
+  `report-analyzer.jsx`, `image-analysis.jsx`, `job-tracker.jsx`,
+  `report-qr-widget.jsx`, `shared.jsx`) are deleted now that `ui/src/`
+  replaces them. `ui/index.html`'s four CTA links pointed at
+  `"VAIDYAA AI.html"` (with a space) — already a 404 before this
+  change, from an earlier dead-code pass that deleted that specific
+  file but kept `VAIDYAAI.html`, un-updated at the time. Fixed to point
+  at `/app/` instead, so those links now go somewhere real for the
+  first time in a while.
+- **Still not done:** no end-to-end run against a live backend
+  (Postgres/Redis/Celery workers) — verification used a mocked
   `/api/v1/jobs` response, not a real one; someone should smoke-test
-  against the actual backend before removing the old path.
+  against the actual running stack.
 
 ## What this skeleton deliberately does not touch
 

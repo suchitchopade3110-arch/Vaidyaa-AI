@@ -217,11 +217,14 @@ else:
 
 # PLT-04: the Vite-built app (ui/dist/, from `npm run build` in ui/) is
 # mounted separately at /app rather than replacing the /ui mount above —
-# ui/index.html (the marketing landing page) and ui/VAIDYAAI.html (the old
-# CDN + in-browser-Babel demo) still live directly under ui/, and pointing
-# /ui at ui/dist/ instead would make both unreachable. /app is not built
-# by default (ui/dist/ doesn't exist until someone runs the build), so
-# this mount is skipped, not broken, until that happens.
+# ui/index.html (the marketing landing page) and ui/report-preview.html
+# (the QR-scan preview page, see app/services/qr_service.py) still live
+# directly under ui/, and pointing /ui at ui/dist/ instead would make
+# both unreachable. The old CDN + in-browser-Babel demo (ui/VAIDYAAI.html
+# and its ui/*.jsx globals) has been removed now that this build replaces
+# it. /app is not built by default (ui/dist/ doesn't exist until someone
+# runs the build), so this mount is skipped, not broken, until that
+# happens.
 _FRONTEND_DIST_DIR = os.path.join(_FRONTEND_DIR, "dist")
 if os.path.isdir(_FRONTEND_DIST_DIR):
     app.mount("/app", StaticFiles(directory=_FRONTEND_DIST_DIR, html=True), name="app")
