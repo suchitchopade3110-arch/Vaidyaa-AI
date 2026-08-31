@@ -1,20 +1,23 @@
 """DPD-01 — consent capture and purpose binding.
 
-`require_valid_consent` is a **permissive stub**: it currently logs a
-warning and lets every request through rather than enforcing anything. That
-is deliberate and temporary, not a design choice — flipping it to actually
-block unconsented processing needs:
-  1. A consent-capture UI/endpoint that writes ConsentRecord rows (none
-     exists yet; the model does — see app/models/consent.py).
-  2. Every upload route (reports.py, images.py, claims.py submit handlers)
-     to pass a `data_principal_id` and `purpose` through to this dependency.
-  3. Deciding what happens today, before (1) exists, to jobs submitted
-     with no consent record — this stub currently chooses "allow and log",
-     which is itself the thing DPD-01 exists to close. Do not ship this to
-     a pilot without turning it into a hard failure.
+`require_valid_consent` enforces: it raises 403 when there's no active
+(granted, not withdrawn) ConsentRecord for the given principal + purpose.
+Wired into every upload route (reports.py, images.py, claims.py) whenever
+a `patient_id` is provided.
+
+Known, deliberate gap: **submissions with no `patient_id` bypass this
+check entirely** — there's nothing to bind consent to. All three upload
+routes accept an optional patient_id today (`Form(None)` /
+`payload.patient_id`), so anonymous/test uploads still work unconsented.
+Whether anonymous uploads should be allowed at all under DPDP is a product
+decision, not something to resolve unilaterally here — see
+docs/PHASE1_SKELETON.md.
 """
 import logging
+import uuid
+from datetime import datetime, timezone
 
+from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -22,19 +25,88 @@ from app.models.consent import ConsentRecord
 
 log = logging.getLogger(__name__)
 
+# Purpose strings shared between the consent-grant endpoint
+# (app/api/v1/routes/consent.py) and each upload route's enforcement call.
+PURPOSE_REPORT_ANALYSIS = "report_analysis"
+PURPOSE_IMAGE_ANALYSIS = "image_analysis"
+PURPOSE_CLAIM_VERIFICATION = "claim_verification"
+
+
+async def _active_consent(db: AsyncSession, data_principal_id: str, purpose: str) -> ConsentRecord | None:
+    result = await db.execute(
+        select(ConsentRecord).where(
+            ConsentRecord.data_principal_id == data_principal_id,
+            ConsentRecord.purpose == purpose,
+            ConsentRecord.withdrawn_at.is_(None),
+        )
+    )
+    return result.scalars().first()
+
 
 async def require_valid_consent(
     db: AsyncSession,
     data_principal_id: str,
     purpose: str,
-) -> ConsentRecord | None:
-    """Look up an active (granted, not withdrawn) consent record.
+) -> ConsentRecord:
+    """Raise 403 unless an active consent record exists for this principal
+    and purpose. Returns the record on success."""
+    record = await _active_consent(db, data_principal_id, purpose)
 
-    TODO(DPD-01): raise HTTPException(403) when no valid record is found,
-    once callers actually pass real data_principal_id/purpose values and
-    there's a way for a patient to have granted consent in the first place.
-    Currently returns None and logs instead of blocking, so existing demo
-    flows keep working until the write side (see module docstring) exists.
+    if record is None:
+        log.info(
+            "DPD-01: blocked — no active consent for principal=%s purpose=%s",
+            data_principal_id,
+            purpose,
+        )
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "code": "CONSENT_REQUIRED",
+                "message": (
+                    f"No active consent on record for this patient and purpose "
+                    f"({purpose!r}). Grant consent via POST /api/v1/consent/grant "
+                    f"before submitting."
+                ),
+            },
+        )
+
+    return record
+
+
+async def grant_consent(
+    db: AsyncSession,
+    data_principal_id: str,
+    purpose: str,
+) -> ConsentRecord:
+    """Record a fresh consent grant. Always inserts a new row rather than
+    reactivating a withdrawn one — withdrawal is meant to be a durable,
+    auditable event (see withdraw_consent), not something a later grant
+    quietly erases."""
+    record = ConsentRecord(
+        id=uuid.uuid4(),
+        data_principal_id=data_principal_id,
+        purpose=purpose,
+        notice_version=new_notice_version(),
+    )
+    db.add(record)
+    await db.flush()
+    return record
+
+
+async def withdraw_consent(
+    db: AsyncSession,
+    data_principal_id: str,
+    purpose: str,
+) -> list[ConsentRecord]:
+    """Withdraw every currently-active consent record for this principal +
+    purpose (there's normally at most one, but nothing stops re-granting
+    while an active one already exists, so this is defensive). Returns the
+    records withdrawn; an empty list means there was nothing active to
+    withdraw.
+
+    TODO(DPD-03): withdrawal is supposed to also trigger retention/erasure
+    for already-processed data tied to this principal — not done here,
+    this only stops *future* processing (via require_valid_consent).
     """
     result = await db.execute(
         select(ConsentRecord).where(
@@ -43,17 +115,12 @@ async def require_valid_consent(
             ConsentRecord.withdrawn_at.is_(None),
         )
     )
-    record = result.scalars().first()
+    records = list(result.scalars().all())
+    now = datetime.now(timezone.utc)
+    for record in records:
+        record.withdrawn_at = now
 
-    if record is None:
-        log.warning(
-            "DPD-01 NOT ENFORCED: no consent record for principal=%s purpose=%s "
-            "— processing anyway (stub). See app/core/consent.py.",
-            data_principal_id,
-            purpose,
-        )
-
-    return record
+    return records
 
 
 def new_notice_version() -> str:

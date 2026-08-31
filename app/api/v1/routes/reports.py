@@ -12,6 +12,7 @@ from celery.result import AsyncResult
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import get_current_user
+from app.core.consent import PURPOSE_REPORT_ANALYSIS, require_valid_consent
 from app.core.ownership import record_job_ownership, require_job_owner
 from app.db.session import get_db
 from app.models.async_job import AsyncJobRecord
@@ -91,10 +92,14 @@ async def submit_report_analysis(
         )
 
     job_id = str(uuid.uuid4())
+
+    # DPD-01: only enforced when a patient_id was actually provided — see
+    # app/core/consent.py's module docstring on the anonymous-upload gap.
+    if patient_id:
+        await require_valid_consent(db, patient_id, PURPOSE_REPORT_ANALYSIS)
+
     file_path, _extension = await _save_report_upload(file, job_id)
 
-    # TODO(DPD-01): call require_valid_consent(db, patient_id, purpose=...)
-    # before dispatch and reject if it 403s. See app/core/consent.py.
     # ── Dispatch Celery task ───────────────────────────────────────────────
     task = analyze_report_task.apply_async(
         args=[file_path, patient_id, report_type, gender, age, explanation_mode],

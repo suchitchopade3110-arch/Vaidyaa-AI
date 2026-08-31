@@ -1,10 +1,11 @@
 # Phase 1 business-readiness skeleton
 
-Structural scaffolding for the seven Phase 1 items in the business-readiness
-requirements doc (SEC-01, SEC-02, REG-01, REG-02, DPD-01, PLT-01, PLT-04).
-Models, migrations, and route/module shapes exist for all seven; the
-enforcement logic that makes each one actually block something is mostly
-still TODO, marked at each call site with a `# TODO(<ITEM-ID>)` comment.
+Tracks the seven Phase 1 items in the business-readiness requirements doc
+(SEC-01, SEC-02, REG-01, REG-02, DPD-01, PLT-01, PLT-04). Started as
+structural scaffolding for all seven; four (SEC-01, SEC-02, REG-02,
+DPD-01) are now fully wired and enforced, not just modeled. REG-01,
+PLT-01, and PLT-04 are still skeleton-only — see their sections below for
+exactly what's real versus stubbed.
 
 This file is the map. Each item below links to where its pieces live and
 states plainly what's real versus stubbed — read it before assuming
@@ -86,16 +87,35 @@ Noted only because SEC-01 unblocks it: `app/api/v1/routes/jobs.py`'s
   clinical review, and conflating the two didn't seem like the right
   call without checking first.
 
-## DPD-01 — consent capture and purpose binding
+## DPD-01 — consent capture and purpose binding — **DONE**
 
-- **Real:** `app/models/consent.py` (`ConsentRecord` table) and
-  `app/core/consent.py` (`require_valid_consent` — reads the table).
-- **Deliberately permissive:** `require_valid_consent` logs a warning and
-  returns `None` on a missing record instead of raising. There is no
-  consent-capture UI/endpoint yet to write rows in the first place, so a
-  hard 403 here would just break every existing upload. Flip it once (a)
-  a capture flow exists and (b) submission routes pass real
-  `data_principal_id`/`purpose` values through.
+- `app/models/consent.py` (`ConsentRecord` table). `app/core/consent.py`:
+  `require_valid_consent` now raises 403 (`CONSENT_REQUIRED`) instead of
+  logging and letting the request through; `grant_consent` /
+  `withdraw_consent` do the actual writes.
+- `POST /api/v1/consent/grant` and `POST /api/v1/consent/withdraw`
+  (`app/api/v1/routes/consent.py`) are the write side — didn't exist at
+  all before this pass, so `require_valid_consent` had nothing to check
+  against yet. Withdrawal sets `withdrawn_at` on the active record(s);
+  it does not retroactively purge already-processed data (that's DPD-03).
+- Wired into all three upload routes (`reports.py`, `images.py`,
+  `claims.py`): each now calls `require_valid_consent(db, patient_id,
+  purpose)` before dispatching, with a purpose constant per pipeline
+  (`PURPOSE_REPORT_ANALYSIS` / `PURPOSE_IMAGE_ANALYSIS` /
+  `PURPOSE_CLAIM_VERIFICATION`).
+- **Known, deliberate gap:** the check only runs **when a `patient_id` is
+  provided** — all three routes accept an optional patient_id, and
+  there's nothing to bind consent to without one. Anonymous/test uploads
+  bypass DPD-01 entirely. Whether anonymous uploads should be allowed at
+  all under DPDP is a product decision, not resolved here.
+- **Also not done:** these grant/withdraw endpoints are called by an
+  authenticated clinician/staff user attesting that consent was obtained
+  from the patient at intake — there's no patient-facing auth in this
+  system for the data principal to grant consent directly. DPDP expects
+  the principal's own action to be the consent event; a staff attestation
+  is a real gap, not a technicality, and is flagged in
+  `app/api/v1/routes/consent.py`'s docstring rather than presented as
+  solved.
 
 ## PLT-01 — organisation hierarchy
 

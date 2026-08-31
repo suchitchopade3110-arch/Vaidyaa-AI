@@ -8,6 +8,7 @@ from datetime import timezone, datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import get_current_user
+from app.core.consent import PURPOSE_IMAGE_ANALYSIS, require_valid_consent
 from app.core.ownership import record_job_ownership, require_job_owner
 from app.db.session import get_db
 from app.models.async_job import AsyncJobRecord
@@ -86,10 +87,14 @@ async def submit_image_analysis(
         )
 
     job_id = str(uuid.uuid4())
+
+    # DPD-01: only enforced when a patient_id was actually provided — see
+    # app/core/consent.py's module docstring on the anonymous-upload gap.
+    if patient_id:
+        await require_valid_consent(db, patient_id, PURPOSE_IMAGE_ANALYSIS)
+
     file_path, _extension = await _save_image_upload(file, job_id)
 
-    # TODO(DPD-01): call require_valid_consent(db, patient_id, purpose=...)
-    # before dispatch and reject if it 403s. See app/core/consent.py.
     # Dispatch Celery task
     task = analyze_image_task.apply_async(
         args=[file_path, analysis_type, patient_id, clinical_context],

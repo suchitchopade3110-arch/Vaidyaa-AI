@@ -10,6 +10,7 @@ from celery.result import AsyncResult
 from datetime import datetime
 
 from app.core.auth import get_current_user
+from app.core.consent import PURPOSE_CLAIM_VERIFICATION, require_valid_consent
 from app.core.ownership import record_job_ownership, require_job_owner
 from app.db.session import get_db
 from app.models.async_job import AsyncJobRecord
@@ -37,6 +38,11 @@ async def submit_claim(
     ClinicalBERT NER → BioGPT → ChromaDB → GPT-4/Llama → Hallucination Check
     """
     job_id = str(uuid.uuid4())
+
+    # DPD-01: only enforced when a patient_id was actually provided — see
+    # app/core/consent.py's module docstring on the anonymous-upload gap.
+    if payload.patient_id:
+        await require_valid_consent(db, str(payload.patient_id), PURPOSE_CLAIM_VERIFICATION)
 
     # ── Dispatch Celery task ───────────────────────────────────────────────
     task = verify_claim_task.apply_async(
