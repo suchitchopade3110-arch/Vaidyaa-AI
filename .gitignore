@@ -57,3 +57,6 @@ htmlcov/
 
 # Runtime YOLO detection outputs (may contain patient imagery)
 data/yolo_outputs/
+
+# PLT-04 — Vite frontend build (ui/)
+node_modules/

@@ -2,7 +2,11 @@ import asyncio
 
 from celery.result import AsyncResult
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from sqlalchemy import select
 
+from app.core.auth import decode_access_token
+from app.db.session import AsyncSessionLocal
+from app.models.async_job import AsyncJobRecord
 from app.workers.celery_app import celery_app
 
 router = APIRouter()
@@ -14,7 +18,30 @@ async def websocket_endpoint(websocket: WebSocket, job_id: str):
 
     Sends `{job_id, status, progress, step}`, plus `result` on SUCCESS or
     `error` on FAILURE, then closes the connection.
+
+    SEC-02: authenticates via `?token=` query param before accepting.
+    SEC-01: also checks the token's owner matches AsyncJobRecord.user_id
+    for `job_id`, same rule `require_job_owner` applies to the HTTP routes
+    — a job with no AsyncJobRecord (nothing has written one yet, or it
+    predates this check) is refused too, not silently allowed.
     """
+    token = websocket.query_params.get("token")
+    # TODO(SEC-02): also accept the token via Sec-WebSocket-Protocol, for
+    # clients that can't put a bearer token in a URL query string.
+    try:
+        user = decode_access_token(token)
+    except ValueError:
+        await websocket.close(code=4401)  # unauthorized
+        return
+
+    async with AsyncSessionLocal() as db:
+        result = await db.execute(select(AsyncJobRecord).where(AsyncJobRecord.id == job_id))
+        record = result.scalar_one_or_none()
+
+    if record is None or str(record.user_id) != user.get("sub"):
+        await websocket.close(code=4404)  # not found / not yours
+        return
+
     await websocket.accept()
     try:
         while True:

@@ -6,6 +6,8 @@ from uuid import UUID
 from celery.result import AsyncResult
 
 from app.core.auth import get_current_user
+from app.core.ownership import require_job_owner
+from app.models.async_job import AsyncJobRecord
 from app.workers.job_status import revoke_task
 from app.workers.celery_app import celery_app
 
@@ -41,7 +43,7 @@ class RecentJobsResponse(BaseModel):
     response_model=JobStatusResponse,
     summary="Poll live Celery task status",
 )
-async def job_status(task_id: str, user=Depends(get_current_user)):
+async def job_status(task_id: str, _owner: AsyncJobRecord = Depends(require_job_owner)):
     """
     Real-time task state from Redis backend.
     States: PENDING → STARTED → SUCCESS | FAILURE | RETRY
@@ -75,7 +77,11 @@ async def job_status(task_id: str, user=Depends(get_current_user)):
     "/{task_id}",
     summary="Cancel a queued or running task",
 )
-async def cancel_job(task_id: str, terminate: bool = False, user=Depends(get_current_user)):
+async def cancel_job(
+    task_id: str,
+    terminate: bool = False,
+    _owner: AsyncJobRecord = Depends(require_job_owner),
+):
     """
     Revoke a Celery task. Set terminate=true to SIGTERM a running worker.
     Use with caution on GPU image tasks.
@@ -101,6 +107,12 @@ async def list_recent_jobs(
     """
     Celery result backends do not provide portable task listing. The frontend
     handles an empty list; production can replace this with async_jobs DB reads.
+
+    TODO(SEC-03): submission routes now write to async_jobs
+    (app/models/async_job.py, wired as part of SEC-01) — replace this stub
+    with `select(AsyncJobRecord).where(AsyncJobRecord.user_id == user["sub"])`,
+    paginated, newest first, per the RecentJobsResponse model above. Left
+    as a stub here deliberately: SEC-03 is its own Phase 1/2 item.
     """
     if limit < 1 or limit > 100:
         raise HTTPException(status_code=400, detail={"code": "INVALID_LIMIT", "message": "limit must be 1-100"})

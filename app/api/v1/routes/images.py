@@ -8,7 +8,9 @@ from datetime import timezone, datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import get_current_user
+from app.core.ownership import record_job_ownership, require_job_owner
 from app.db.session import get_db
+from app.models.async_job import AsyncJobRecord
 
 UTC = timezone.utc
 
@@ -69,6 +71,7 @@ async def submit_image_analysis(
     patient_id: str = Form(None),
     clinical_context: str = Form(""),
     user=Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Submit medical image for analysis.
@@ -85,12 +88,15 @@ async def submit_image_analysis(
     job_id = str(uuid.uuid4())
     file_path, _extension = await _save_image_upload(file, job_id)
 
+    # TODO(DPD-01): call require_valid_consent(db, patient_id, purpose=...)
+    # before dispatch and reject if it 403s. See app/core/consent.py.
     # Dispatch Celery task
     task = analyze_image_task.apply_async(
         args=[file_path, analysis_type, patient_id, clinical_context],
         task_id=job_id,
         queue="images",
     )
+    await record_job_ownership(db, task.id, user, "image")
 
     return {
         "job_id": task.id,
@@ -102,7 +108,7 @@ async def submit_image_analysis(
 
 
 @router.get("/status/{task_id}", response_model=JobStatus)
-async def get_image_status(task_id: str, user=Depends(get_current_user)):
+async def get_image_status(task_id: str, _owner: AsyncJobRecord = Depends(require_job_owner)):
     """Poll image analysis task status."""
     request_id = str(uuid.uuid4())
     result = AsyncResult(task_id, app=celery_app)
@@ -137,7 +143,16 @@ async def get_image_status_or_result(
     db: AsyncSession = Depends(get_db),
     user=Depends(get_current_user),
 ):
-    """Poll image analysis job status and get result when complete."""
+    """Poll image analysis job status and get result when complete.
+
+    TODO(SEC-01): this route is keyed by `analysis_id` (an ImageAnalysis
+    row PK), not a Celery task_id, so `require_job_owner` (which looks up
+    AsyncJobRecord by task_id) doesn't apply here as-is. ImageAnalysis has
+    no `user_id` column — the same ownership gap exists on this endpoint
+    and needs its own fix (add user_id to ImageAnalysis, or resolve
+    analysis_id -> celery_task_id -> AsyncJobRecord and reuse the same
+    check). Not covered by this pass.
+    """
     from app.services.image_service import ImageService
     
     service = ImageService(db)
@@ -242,7 +257,7 @@ async def get_image_status_or_result(
 
 
 @router.get("/{task_id}")
-async def get_image_combined(task_id: str, user=Depends(get_current_user)):
+async def get_image_combined(task_id: str, _owner: AsyncJobRecord = Depends(require_job_owner)):
     """Combined status and result endpoint for the frontend."""
     result = AsyncResult(task_id, app=celery_app)
     state = result.state

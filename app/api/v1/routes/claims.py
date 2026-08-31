@@ -10,7 +10,9 @@ from celery.result import AsyncResult
 from datetime import datetime
 
 from app.core.auth import get_current_user
+from app.core.ownership import record_job_ownership, require_job_owner
 from app.db.session import get_db
+from app.models.async_job import AsyncJobRecord
 from app.schemas.claim import ClaimRequest, ClaimAsyncResponse, ClaimResult
 from app.schemas.job import JobStatus
 from app.workers.pipeline_tasks import verify_claim_task
@@ -24,6 +26,7 @@ router = APIRouter()
 async def submit_claim(
     payload: ClaimRequest,
     user=Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Submit a medical claim for verification.
@@ -42,6 +45,7 @@ async def submit_claim(
         queue="claims",
         priority=9 if payload.priority == "high" else 5,
     )
+    await record_job_ownership(db, task.id, user, "claim")
 
     return {
         "job_id": task.id,
@@ -53,7 +57,7 @@ async def submit_claim(
 
 
 @router.get("/claim/{task_id}")
-async def get_claim_combined(task_id: str, user=Depends(get_current_user)):
+async def get_claim_combined(task_id: str, _owner: AsyncJobRecord = Depends(require_job_owner)):
     """Combined status and result endpoint for the frontend."""
     result = AsyncResult(task_id, app=celery_app)
     state = result.state
@@ -70,7 +74,7 @@ async def get_claim_combined(task_id: str, user=Depends(get_current_user)):
 
 
 @router.get("/claim/status/{task_id}", response_model=JobStatus)
-async def get_claim_status(task_id: str, user=Depends(get_current_user)):
+async def get_claim_status(task_id: str, _owner: AsyncJobRecord = Depends(require_job_owner)):
     """Poll claim verification job status."""
     request_id = str(uuid.uuid4())
     result = AsyncResult(task_id, app=celery_app)
@@ -106,7 +110,7 @@ async def get_claim_status(task_id: str, user=Depends(get_current_user)):
 
 
 @router.get("/claim/result/{task_id}")
-async def get_claim_result(task_id: str, user=Depends(get_current_user)):
+async def get_claim_result(task_id: str, _owner: AsyncJobRecord = Depends(require_job_owner)):
     """Retrieve completed claim verification result."""
     result = AsyncResult(task_id, app=celery_app)
     
