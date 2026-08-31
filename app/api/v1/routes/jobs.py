@@ -4,9 +4,13 @@ from typing import List, Optional
 from datetime import datetime, timezone
 from uuid import UUID
 from celery.result import AsyncResult
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import get_current_user
 from app.core.ownership import require_job_owner
+from app.core.tenancy import scope_to_org
+from app.db.session import get_db
 from app.models.async_job import AsyncJobRecord
 from app.workers.job_status import revoke_task
 from app.workers.celery_app import celery_app
@@ -90,30 +94,73 @@ async def cancel_job(
     return {"task_id": task_id, "cancelled": True}
 
 
+def build_recent_jobs_query(user: dict, limit: int, org: bool):
+    """SEC-03 + PLT-01 — construct (but don't execute) the recent-jobs
+    query for `user`. Split out from the route so it can be unit-tested
+    without a database: the property that matters (org_id always comes
+    from the caller's own token, never a client-supplied parameter) is
+    verifiable by inspecting the returned Select object directly.
+
+    Default: only the caller's own jobs (`user_id == sub`), newest first.
+    `org=True` (admin role only): every job whose owner is in the
+    caller's own org — via scope_to_org, so the org_id filter can only
+    ever be the caller's own, by construction. Non-admins passing
+    org=True get 403, not a silent fallback to self-only (a client
+    should not be able to think it asked for org-wide data and get a
+    quietly narrower answer back).
+    """
+    query = select(AsyncJobRecord).order_by(AsyncJobRecord.created_at.desc()).limit(limit)
+
+    if org:
+        if user.get("role") != "admin":
+            raise HTTPException(status_code=403, detail="org-wide job listing requires the admin role")
+        org_id = user.get("org_id")
+        if org_id is None:
+            raise HTTPException(
+                status_code=422,
+                detail="caller has no org_id on their token — nothing to scope org=true by",
+            )
+        return scope_to_org(query, UUID(org_id), AsyncJobRecord.org_id)
+
+    return query.where(AsyncJobRecord.user_id == UUID(user["sub"]))
+
+
 @router.get(
     "/",
-    response_model=List[JobStatusResponse],
+    response_model=RecentJobsResponse,
     summary="List recent jobs across all pipelines",
 )
 @router.get(
     "",
-    response_model=List[JobStatusResponse],
+    response_model=RecentJobsResponse,
     summary="List recent jobs across all pipelines",
 )
 async def list_recent_jobs(
     limit: int = 20,
-    user=Depends(get_current_user),
+    org: bool = False,
+    user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
-    """
-    Celery result backends do not provide portable task listing. The frontend
-    handles an empty list; production can replace this with async_jobs DB reads.
-
-    TODO(SEC-03): submission routes now write to async_jobs
-    (app/models/async_job.py, wired as part of SEC-01) — replace this stub
-    with `select(AsyncJobRecord).where(AsyncJobRecord.user_id == user["sub"])`,
-    paginated, newest first, per the RecentJobsResponse model above. Left
-    as a stub here deliberately: SEC-03 is its own Phase 1/2 item.
+    """List jobs the caller can see: their own by default, or (admin role
+    only) every job submitted within their organisation with `org=true`.
     """
     if limit < 1 or limit > 100:
         raise HTTPException(status_code=400, detail={"code": "INVALID_LIMIT", "message": "limit must be 1-100"})
-    return []
+
+    query = build_recent_jobs_query(user, limit, org)
+    result = await db.execute(query)
+    rows = result.scalars().all()
+
+    return RecentJobsResponse(
+        jobs=[
+            RecentJobItem(
+                job_id=row.id,
+                pipeline=row.pipeline,
+                celery_task_id=row.id,
+                status=row.status,
+                created_at=row.created_at,
+            )
+            for row in rows
+        ],
+        total=len(rows),
+    )

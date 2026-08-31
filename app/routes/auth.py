@@ -41,13 +41,19 @@ class TokenResponse(BaseModel):
 
 
 def _create_access_token(user: User) -> str:
-    """Minimal claims only: user id, role, exp. No PHI."""
+    """Minimal claims only: user id, role, org, exp. No PHI.
+
+    PLT-01: org_id is only in the claims when the user has one — most
+    users predate Organisation/Department (see User.org_id nullability)
+    and there's no self-serve onboarding to backfill it. app/core/
+    ownership.py already falls back to the user's own id when org_id is
+    absent, so this doesn't change existing behaviour for those users.
+    """
     expire = datetime.now(timezone.utc) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    return jwt.encode(
-        {"sub": str(user.id), "role": user.role, "type": "access", "exp": expire},
-        settings.SECRET_KEY,
-        algorithm=ALGORITHM,
-    )
+    claims = {"sub": str(user.id), "role": user.role, "type": "access", "exp": expire}
+    if user.org_id is not None:
+        claims["org_id"] = str(user.org_id)
+    return jwt.encode(claims, settings.SECRET_KEY, algorithm=ALGORITHM)
 
 
 async def _create_refresh_token(user: User, db: AsyncSession) -> str:

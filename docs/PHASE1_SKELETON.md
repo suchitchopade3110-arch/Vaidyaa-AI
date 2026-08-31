@@ -2,12 +2,12 @@
 
 Tracks the seven Phase 1 items in the business-readiness requirements doc
 (SEC-01, SEC-02, REG-01, REG-02, DPD-01, PLT-01, PLT-04). Started as
-structural scaffolding for all seven; four (SEC-01, SEC-02, REG-02,
-DPD-01) are now fully wired and enforced. REG-01 is partially done —
-its mechanically-safe surfaces are enforced in CI, its deeper (LLM
-prompt / API contract) violations are documented, not fixed. PLT-01 and
-PLT-04 are still skeleton-only — see their sections below for exactly
-what's real versus stubbed.
+structural scaffolding for all seven; five (SEC-01, SEC-02, REG-02,
+DPD-01, PLT-01) are now fully wired and enforced. REG-01 is partially
+done — its mechanically-safe surfaces are enforced in CI, its deeper
+(LLM prompt / API contract) violations are documented, not fixed. PLT-04
+is still skeleton-only — see its section below for exactly what's real
+versus stubbed.
 
 This file is the map. Each item below links to where its pieces live and
 states plainly what's real versus stubbed — read it before assuming
@@ -152,16 +152,50 @@ Noted only because SEC-01 unblocks it: `app/api/v1/routes/jobs.py`'s
   `app/api/v1/routes/consent.py`'s docstring rather than presented as
   solved.
 
-## PLT-01 — organisation hierarchy
+## PLT-01 — organisation hierarchy — **DONE for the one endpoint that needed it**
 
-- **Real:** `app/models/organisation.py` (`Organisation`, `Department`),
-  `User.org_id` / `User.department_id` (nullable), and the migration for
-  all of it.
-- **Not done:** JWTs don't carry an `org_id` claim yet (no org onboarding
-  flow to populate it from); `app/core/tenancy.py`'s `scope_to_org` helper
-  exists but nothing calls it — there's no repository layer for it to sit
-  in front of, since routes query models directly today. Cross-org
-  isolation is **not** enforced by this skeleton.
+- `app/models/organisation.py` (`Organisation`, `Department`),
+  `User.org_id` / `User.department_id` (nullable), migration — as before.
+- **New write side:** `app/api/v1/routes/orgs.py` — admin-only
+  `POST/GET /api/v1/admin/orgs`, `POST /api/v1/admin/orgs/{org_id}/departments`,
+  `POST /api/v1/admin/orgs/users/{user_id}/assign`. None of this existed
+  before — Organisation/Department could never actually be populated.
+- **JWT now carries `org_id`** (`app/routes/auth.py`) when the user has
+  one. Reassigning a user via the endpoint above doesn't retroactively
+  update tokens already issued — they need to log in again (documented
+  in `orgs.py`, not silently glossed over).
+- **`scope_to_org` has a real caller:** `GET /api/v1/jobs` (SEC-03, built
+  out properly as part of this — it was still a hardcoded `[]` stub)
+  defaults to the caller's own jobs; `?org=true` (admin role only) lists
+  every job across the caller's org, via `scope_to_org`. The org_id it
+  filters by always comes from the caller's own verified JWT — there is
+  no request parameter, header, or body field it could be read from
+  instead, which is what makes cross-org access impossible *by
+  construction* rather than by an if-check someone could get wrong.
+  `tests/test_tenancy.py` verifies this by compiling the query to SQL
+  and asserting the bound parameter is the caller's own org_id, for two
+  different admins in two different orgs.
+- **Narrower than "all data queries," on purpose:** the acceptance
+  criteria says "all data queries scoped by org_id at the repository
+  layer." Only `GET /api/v1/jobs`'s org-listing path is actually scoped
+  — because it's the only endpoint that lists *across* users at all.
+  Every other route (`reports.py`, `images.py`, `claims.py`,
+  `pdf_reports.py`, `signoff.py`, `consent.py`) is already scoped more
+  tightly, by SEC-01's per-*user* ownership check — which is a strictly
+  stronger guarantee than per-org, so there's no cross-org gap on those
+  routes today. There's still no general-purpose repository layer;
+  `scope_to_org` is called directly from the one route that needs it,
+  not from an abstraction other routes also go through. Building that
+  abstraction ahead of a second real caller felt like premature
+  structure, not a shortcut.
+- **Also not done:** role taxonomy mismatch — `User.role` is
+  `admin | clinician | reviewer` (existing, pre-Phase-1); the
+  requirements doc's PLT-01 wording says
+  `clinician | admin | auditor`. Not reconciled — a rename either way is
+  a product/naming call, not mine to make unilaterally. No self-serve
+  "create my organisation" flow either: the first admin account still
+  has to be bootstrapped via `/auth/register` plus a manual DB role
+  flip, same gap already flagged for DPD-01's consent-grant endpoints.
 
 ## PLT-04 — frontend build pipeline
 
