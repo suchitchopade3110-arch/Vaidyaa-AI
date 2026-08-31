@@ -214,3 +214,16 @@ if os.path.isdir(_FRONTEND_DIR):
     app.mount("/ui", StaticFiles(directory=_FRONTEND_DIR, html=True), name="ui")
 else:
     log.warning(f"Frontend directory not found at {_FRONTEND_DIR} — /ui not mounted")
+
+# PLT-04: the Vite-built app (ui/dist/, from `npm run build` in ui/) is
+# mounted separately at /app rather than replacing the /ui mount above —
+# ui/index.html (the marketing landing page) and ui/VAIDYAAI.html (the old
+# CDN + in-browser-Babel demo) still live directly under ui/, and pointing
+# /ui at ui/dist/ instead would make both unreachable. /app is not built
+# by default (ui/dist/ doesn't exist until someone runs the build), so
+# this mount is skipped, not broken, until that happens.
+_FRONTEND_DIST_DIR = os.path.join(_FRONTEND_DIR, "dist")
+if os.path.isdir(_FRONTEND_DIST_DIR):
+    app.mount("/app", StaticFiles(directory=_FRONTEND_DIST_DIR, html=True), name="app")
+else:
+    log.info(f"Vite build not found at {_FRONTEND_DIST_DIR} — /app not mounted (run `npm run build` in ui/)")

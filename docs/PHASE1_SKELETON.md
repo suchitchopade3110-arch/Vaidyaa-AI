@@ -2,12 +2,11 @@
 
 Tracks the seven Phase 1 items in the business-readiness requirements doc
 (SEC-01, SEC-02, REG-01, REG-02, DPD-01, PLT-01, PLT-04). Started as
-structural scaffolding for all seven; five (SEC-01, SEC-02, REG-02,
-DPD-01, PLT-01) are now fully wired and enforced. REG-01 is partially
-done — its mechanically-safe surfaces are enforced in CI, its deeper
-(LLM prompt / API contract) violations are documented, not fixed. PLT-04
-is still skeleton-only — see its section below for exactly what's real
-versus stubbed.
+structural scaffolding for all seven; six (SEC-01, SEC-02, REG-02,
+DPD-01, PLT-01, PLT-04) are now fully wired and enforced. REG-01 is
+partially done — its mechanically-safe surfaces are enforced in CI, its
+deeper (LLM prompt / API contract) violations are documented, not fixed
+— see its section below for exactly why.
 
 This file is the map. Each item below links to where its pieces live and
 states plainly what's real versus stubbed — read it before assuming
@@ -197,18 +196,55 @@ Noted only because SEC-01 unblocks it: `app/api/v1/routes/jobs.py`'s
   has to be bootstrapped via `/auth/register` plus a manual DB role
   flip, same gap already flagged for DPD-01's consent-grant endpoints.
 
-## PLT-04 — frontend build pipeline
+## PLT-04 — frontend build pipeline — **DONE**
 
-- **Real:** `ui/package.json`, `ui/vite.config.js`, `ui/index.dev.html`,
-  `ui/src/main.jsx` — a working (if minimal) Vite + React scaffold that
-  builds and runs.
-- **Not done:** the real screens (`dashboard.jsx`, `report-analyzer.jsx`,
-  `image-analysis.jsx`, `claim-verifier.jsx`, `job-tracker.jsx`,
-  `shared.jsx`) are untouched — they're written for in-browser Babel
-  (implicit globals, no `import`/`export`) and are not imported by
-  `src/main.jsx`. Porting each to an ES module, and swapping `app/main.py`'s
-  `/ui` mount from serving `ui/` directly to serving `ui/dist/`, is the
-  rest of PLT-04.
+- All five screens (`Dashboard`, `ClaimVerifier`, `ReportAnalyzer`,
+  `ImageAnalysis`, `JobTracker`) and the shared component library are
+  ported to real ES modules under `ui/src/` — mechanical conversion
+  (the `{ ... }` block-scope wrapper and `Object.assign(window, {...})`
+  are gone; `const { useState } = React` is a real `import`), component
+  bodies otherwise unchanged from `ui/*.jsx`. The originals in `ui/*.jsx`
+  are left in place, untouched, still served as-is at `/ui` — nothing
+  here breaks that path.
+- **New, because the backend didn't require it when the originals were
+  written:** a login screen (`ui/src/pages/Login.jsx`) and auth context
+  (`ui/src/lib/auth.jsx`), and every API call now goes through
+  `ui/src/lib/api.js`'s `apiFetch`/`wsUrl`, which attach the bearer
+  token SEC-01/SEC-02 require. Without this the ported app would 401 on
+  every single API call — the original pages never sent a token because
+  the backend never checked for one.
+- **Two real bugs caught during the port, not introduced by it:** both
+  `ReportAnalyzer.jsx` and `ImageAnalysis.jsx` had
+  `{window.ReportQRWidget && <ReportQRWidget .../>}` — a global-existence
+  check that would always be false once nothing sets
+  `window.ReportQRWidget` anymore (nothing ever did in the module
+  version), silently hiding the QR widget forever. Replaced with a check
+  on whether a job id exists yet, which is what actually gates it.
+- `npm run build` (`ui/`) produces `ui/dist/`, verified for real: built
+  with `npm ci` from a committed `package-lock.json`, then loaded
+  headlessly (Playwright/Chromium) — confirmed zero console/page errors,
+  confirmed the `Authorization: Bearer <token>` header is actually
+  present on an intercepted `/api/v1/jobs` request (not just present in
+  source), and confirmed all five screens navigate without error.
+  Screenshots of the login and dashboard states were sent alongside this
+  change. Wired into `ci.yml` as a new `frontend-build` job (Node 22,
+  `npm ci && npm run build`, uploads `ui/dist/` as an artifact) so a
+  future change that breaks the build fails CI.
+- `app/main.py` mounts the build at **`/app`**, not `/ui` — deliberately
+  not the "swap `/ui`'s target" reading of the acceptance criteria.
+  `ui/index.html` (marketing landing page) and `ui/VAIDYAAI.html` (the
+  CDN/Babel demo) still live directly under `ui/`; pointing `/ui` at
+  `ui/dist/` instead would make both unreachable. The mount degrades
+  gracefully (skips with a log line, doesn't crash) when `ui/dist/`
+  doesn't exist yet, i.e. before anyone has run the build.
+- **Not done:** `ui/*.jsx` (the originals) and `ui/VAIDYAAI.html` are
+  still there, unremoved — deleting the CDN/Babel version once the Vite
+  build is confirmed working in a real deployment (not just this local
+  build+headless-render check) is a follow-up, not bundled into this
+  change. No end-to-end run against a live backend (Postgres/Redis/
+  Celery workers) — the headless verification used a mocked
+  `/api/v1/jobs` response, not a real one; someone should smoke-test
+  against the actual backend before removing the old path.
 
 ## What this skeleton deliberately does not touch
 

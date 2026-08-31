@@ -1,0 +1,47 @@
+/* Ported from ui/VAIDYAAI.html's <style> block. */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg-base:       #f5faf6;
+  --bg-surface:    #ffffff;
+  --bg-elevated:   oklch(0.96 0.04 145);
+  --bg-hover:      oklch(0.93 0.06 145);
+  --border:        oklch(0.87 0.015 145);
+  --border-strong: oklch(0.82 0.016 145);
+  --text-primary:  oklch(0.18 0.02 145);
+  --text-secondary:oklch(0.38 0.02 145);
+  --text-muted:    oklch(0.58 0.01 145);
+  --accent:        oklch(0.46 0.19 145);
+  --green-dark:    oklch(0.92 0.08 145);
+  --green-light:   oklch(0.88 0.08 145);
+  --green-pale:    oklch(0.96 0.04 145);
+  --font-sans: 'DM Sans', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+html, body, #root { height: 100%; }
+html, body { background: var(--bg-base); color: var(--text-primary); font-family: var(--font-sans); }
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.85); }
+}
+@keyframes fade-in-out {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+@keyframes slide-in-right {
+  from { transform: translateX(30px); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }
+
+button { font-family: var(--font-sans); }
+input, textarea { font-family: var(--font-sans); }
