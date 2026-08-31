@@ -42,6 +42,9 @@ jobs:
       - name: Lint (ruff)
         run: ruff check app/
 
+      - name: Non-diagnostic language check (REG-01)
+        run: python scripts/check_prohibited_terms.py
+
       - name: Unit tests with coverage
         # NOTE ON THE THRESHOLD: measured locally at 2.4% with `-m "not
         # integration"` (correctly excluding the two rag_integration tests
@@ -55,7 +58,7 @@ jobs:
           pytest tests/test_pipelines.py tests/test_rag_integration.py \
             tests/test_file_validator.py tests/test_errors.py \
             tests/test_retry.py tests/test_auth.py tests/test_ownership.py \
-            tests/test_signoff.py tests/test_consent.py \
+            tests/test_signoff.py tests/test_consent.py tests/test_language_guard.py \
             -m "not integration" \
             --cov=app --cov-report=term-missing --cov-report=xml \
             --cov-fail-under=2

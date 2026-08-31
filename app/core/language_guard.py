@@ -5,14 +5,23 @@ approval, ISO 13485 QMS, adverse-event reporting) by construction: nothing
 in a response should read as a diagnosis, a patient-specific probability, a
 severity ranking, or a recommended clinical action.
 
-What's here: the vocabulary this is measured against, and the constants
-routes/services should use going forward.
+`scan_text` is the real detector, used by scripts/check_prohibited_terms.py
+(the CI-side sweep over README.md, route docstrings/summaries, and schema
+Field descriptions — the surfaces that are safe to mechanically police
+without touching pipeline behavior).
 
-What's NOT here: this module is not called from anywhere yet. Sweeping the
-existing API descriptions, PDF headers, and user-facing copy for the banned
-words (README included) is a larger, mostly-mechanical pass — see
-scripts/check_prohibited_terms.py for the CI-side half of that, also a stub.
+Deliberately NOT swept here, and not something this module can safely
+catch: prohibited terms inside LLM prompts, internal module/function names,
+NER label taxonomies borrowed from a pretrained model's own vocabulary
+("problem" / "diagnosis" as a spaCy/med7 entity type, say), or JSON
+response field *names* like `"diagnosis"` that existing frontend code
+already reads. Fixing those means either a coordinated breaking API change
+(tracked against PLT-04, which hasn't ported the frontend off those field
+names yet) or a clinical-prompt rewrite that needs its own validation, not
+a mechanical find-and-replace. See docs/PHASE1_SKELETON.md for exactly
+which files carry that gap.
 """
+import re
 
 # Case-insensitive substring match. Kept short and specific on purpose —
 # a broad list produces false positives on legitimate clinical vocabulary
@@ -35,18 +44,42 @@ FINDING_REVIEW_LABEL = "finding requires clinician review"
 # label attached to it. See REG-01 acceptance criteria.
 CONFIDENCE_LABEL = "retrieval/extraction confidence"
 
+# Matched immediately before a prohibited term, this means the sentence is
+# disclaiming it ("NOT a medical diagnosis", "Do not diagnose", "isn't a
+# screening tool") rather than claiming it — which is exactly the
+# compliant pattern REG-01 wants in a medical disclaimer. A blanket ban on
+# the word itself would make it impossible to say "this is not a
+# diagnosis," which defeats the point.
+_DISCLAIMER_PATTERN = re.compile(r"\b(not|no|never|isn't|aren't|don't|doesn't)\b", re.IGNORECASE)
+_DISCLAIMER_WINDOW_CHARS = 20
+# A negation only disclaims a term in the same clause — stop the window at
+# the nearest sentence/line break so an unrelated "no" earlier in the
+# paragraph ("no Celery job/polling. Returns diagnosis...") can't shield a
+# real violation two sentences later.
+_CLAUSE_BREAK = re.compile(r"[.\n]")
+
 
 def contains_prohibited_term(text: str) -> str | None:
-    """Return the first prohibited term found in `text` (case-insensitive),
-    or None if it's clean.
+    """Return the first prohibited term found in `text` (case-insensitive,
+    disclaiming uses excluded), or None if it's clean."""
+    findings = scan_text(text)
+    return findings[0][1] if findings else None
 
-    TODO(REG-01): wire this into a CI check (scripts/check_prohibited_terms.py)
-    over API response models' descriptions, PDF templates, and README.md,
-    and into a pre-response guard in the report/image/claim result builders
-    so a bad string can't ship even if the sweep misses a spot.
-    """
+
+def scan_text(text: str) -> list[tuple[int, str]]:
+    """Return every (character offset, term) prohibited-term match in
+    `text`, skipping ones that read as a disclaimer (see
+    _DISCLAIMER_PATTERN above)."""
     lowered = text.lower()
+    findings: list[tuple[int, str]] = []
     for term in PROHIBITED_TERMS:
-        if term in lowered:
-            return term
-    return None
+        for match in re.finditer(r"\b" + re.escape(term), lowered):
+            window_start = max(0, match.start() - _DISCLAIMER_WINDOW_CHARS)
+            window = lowered[window_start:match.start()]
+            last_break = list(_CLAUSE_BREAK.finditer(window))
+            if last_break:
+                window = window[last_break[-1].end():]
+            if _DISCLAIMER_PATTERN.search(window):
+                continue
+            findings.append((match.start(), term))
+    return findings

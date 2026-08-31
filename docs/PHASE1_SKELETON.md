@@ -3,9 +3,11 @@
 Tracks the seven Phase 1 items in the business-readiness requirements doc
 (SEC-01, SEC-02, REG-01, REG-02, DPD-01, PLT-01, PLT-04). Started as
 structural scaffolding for all seven; four (SEC-01, SEC-02, REG-02,
-DPD-01) are now fully wired and enforced, not just modeled. REG-01,
-PLT-01, and PLT-04 are still skeleton-only — see their sections below for
-exactly what's real versus stubbed.
+DPD-01) are now fully wired and enforced. REG-01 is partially done —
+its mechanically-safe surfaces are enforced in CI, its deeper (LLM
+prompt / API contract) violations are documented, not fixed. PLT-01 and
+PLT-04 are still skeleton-only — see their sections below for exactly
+what's real versus stubbed.
 
 This file is the map. Each item below links to where its pieces live and
 states plainly what's real versus stubbed — read it before assuming
@@ -47,14 +49,47 @@ Noted only because SEC-01 unblocks it: `app/api/v1/routes/jobs.py`'s
 `list_recent_jobs` still hardcodes `[]`; a TODO there points at
 `AsyncJobRecord` as the read path once SEC-01's write side exists.
 
-## REG-01 — non-diagnostic output contract
+## REG-01 — non-diagnostic output contract — **PARTIALLY DONE, scope narrowed on purpose**
 
-- **Real:** `app/core/language_guard.py` — the banned-term list and the
-  `FINDING_REVIEW_LABEL` / `CONFIDENCE_LABEL` constants routes should use.
-- **Not done:** nothing calls `contains_prohibited_term` yet.
-  `scripts/check_prohibited_terms.py` is a CI-check stub with an empty
-  surface list — the actual sweep (API descriptions, PDF headers,
-  README.md) is unwritten, and no CI step calls the script.
+- `app/core/language_guard.py`'s `scan_text` is a real detector — disclaiming
+  uses ("NOT a medical diagnosis", "Do not diagnose", "isn't a screening
+  tool") are correctly excluded via a clause-bounded negation check, not
+  just a blind substring ban (a blind ban would make it impossible to
+  *disclaim* the very thing REG-01 cares about).
+- `scripts/check_prohibited_terms.py` is a real, working sweep — not a
+  stub — over: `README.md` in full, every route handler's docstring and
+  `summary=`/`description=` kwargs (`app/api/v1/routes/`, `app/routes/`),
+  every schema `Field(description=...)` (`app/schemas/`), and the
+  top-level `FastAPI(title=..., description=...)` call in `app/main.py`.
+  Wired into `ci.yml` as a blocking step (`Non-diagnostic language check`),
+  right after ruff. Currently clean — the one real finding it caught
+  (`reports.py`'s pipeline-diagram docstring: "Anomaly Detection" →
+  "Outlier Flagging") is fixed.
+- **Deliberately not swept, and why:** this only polices the surfaces
+  above — copy that's clearly just labelling/description text, safe to
+  reword without changing behavior. It does **not** touch:
+  - **LLM prompts.** `app/services/differential_diagnosis.py`'s system
+    prompt literally instructs the model to produce differential
+    diagnoses with a `"primary_diagnosis"` JSON field — the deepest,
+    most substantive violation found. Rewriting a clinical LLM prompt
+    changes actual model output and needs its own validation pass, not
+    a mechanical find-and-replace done blind.
+  - **API response field names.** `app/routes/text_routes.py`'s `/api/text`
+    response has a literal `"diagnosis"` key; `app/services/
+    pipeline_controller.py` builds a `"diagnosis"` field from a risk
+    label. `ui/report-analyzer.jsx` reads `item.diagnosis` directly —
+    renaming the field is a breaking API change that needs coordinating
+    with PLT-04 (the frontend hasn't been ported off the old contract
+    yet), not something to do unilaterally here.
+  - **Internal identifiers.** Module/function names like
+    `yolo_detector.py`, `differential_diagnosis.py`, or NER entity-type
+    labels borrowed from a pretrained model's own taxonomy
+    (`app/services/preprocessor.py`'s `"diagnosis"` as a med-NER label)
+    aren't user-facing copy and renaming them is unrelated churn.
+  - **Confidence labelling.** Checked already: `ConfidenceSignal` in
+    `app/schemas/common.py` labels scores High/Medium/Low/Insufficient,
+    never "diagnostic confidence" — this part of the acceptance
+    criteria was already satisfied, nothing to change.
 
 ## REG-02 — mandatory clinician sign-off — **DONE**
 

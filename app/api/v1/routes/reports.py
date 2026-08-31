@@ -81,7 +81,7 @@ async def submit_report_analysis(
     Supported formats: .pdf, .csv
     
     Pipeline (async):
-    OCR → ClinicalBERT NER → XGBoost → SHAP → Anomaly Detection → LLM Explain
+    OCR → ClinicalBERT NER → XGBoost → SHAP → Outlier Flagging → LLM Explain
     
     Returns immediately. Poll /api/v1/analyze/report/status/{task_id} for result (~10–20s).
     """
