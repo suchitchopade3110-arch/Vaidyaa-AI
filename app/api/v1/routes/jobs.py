@@ -4,6 +4,9 @@ from typing import List, Optional
 from datetime import datetime, timezone
 from uuid import UUID
 from celery.result import AsyncResult
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, func
+from app.db.session import get_db
 
 from app.core.auth import get_current_user
 from app.core.ownership import require_job_owner
@@ -92,28 +95,49 @@ async def cancel_job(
 
 @router.get(
     "/",
-    response_model=List[JobStatusResponse],
+    response_model=RecentJobsResponse,
     summary="List recent jobs across all pipelines",
 )
 @router.get(
     "",
-    response_model=List[JobStatusResponse],
+    response_model=RecentJobsResponse,
     summary="List recent jobs across all pipelines",
 )
 async def list_recent_jobs(
     limit: int = 20,
     user=Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """
-    Celery result backends do not provide portable task listing. The frontend
-    handles an empty list; production can replace this with async_jobs DB reads.
-
-    TODO(SEC-03): submission routes now write to async_jobs
-    (app/models/async_job.py, wired as part of SEC-01) — replace this stub
-    with `select(AsyncJobRecord).where(AsyncJobRecord.user_id == user["sub"])`,
-    paginated, newest first, per the RecentJobsResponse model above. Left
-    as a stub here deliberately: SEC-03 is its own Phase 1/2 item.
+    Returns recent jobs for the authenticated user, paginated.
     """
     if limit < 1 or limit > 100:
         raise HTTPException(status_code=400, detail={"code": "INVALID_LIMIT", "message": "limit must be 1-100"})
-    return []
+
+    user_id = UUID(user["sub"])
+
+    # Get total count
+    count_stmt = select(func.count()).select_from(AsyncJobRecord).where(AsyncJobRecord.user_id == user_id)
+    total = (await db.execute(count_stmt)).scalar() or 0
+
+    # Get items
+    stmt = (
+        select(AsyncJobRecord)
+        .where(AsyncJobRecord.user_id == user_id)
+        .order_by(AsyncJobRecord.created_at.desc())
+        .limit(limit)
+    )
+    result = await db.execute(stmt)
+    records = result.scalars().all()
+
+    jobs = []
+    for r in records:
+        jobs.append(RecentJobItem(
+            job_id=r.id,
+            pipeline=r.pipeline,
+            celery_task_id=r.id,
+            status=r.status,
+            created_at=r.created_at,
+        ))
+
+    return RecentJobsResponse(jobs=jobs, total=total)
