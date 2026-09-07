@@ -1,0 +1,86 @@
+name: Jules Daily Development
+
+on:
+  schedule:
+    # Every day at 9:00 PM IST
+    # GitHub cron uses UTC, so 15:30 UTC = 9:00 PM IST
+    - cron: "30 15 * * *"
+
+  workflow_dispatch:
+
+jobs:
+  jules:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Run Jules
+        uses: google-labs-code/jules-invoke@v1
+        with:
+          jules_api_key: ${{ secrets.JULES_API_KEY }}
+
+          starting_branch: main
+
+          include_last_commit: true
+          include_commit_log: true
+
+          prompt: |
+            You are the autonomous daily development agent for this repository.
+
+            Your job is to make ONE meaningful improvement to the project.
+
+            Follow these rules:
+
+            1. Inspect the existing codebase before making changes.
+            2. Check recent commits to understand what has already been worked on.
+            3. Identify one useful improvement.
+            4. Prefer:
+               - bug fixes
+               - performance improvements
+               - UI/UX improvements
+               - code quality
+               - tests
+               - documentation
+               - dependency maintenance
+               - accessibility
+               - security improvements
+
+            5. Do NOT randomly rewrite working code.
+            6. Do NOT introduce unnecessary dependencies.
+            7. Do NOT change the project's architecture unless absolutely necessary.
+            8. Preserve the existing design language.
+            9. Run the appropriate tests, linting and build commands.
+            10. Fix any issues caused by your changes.
+            11. Keep the change focused and reasonably small.
+
+            Before finishing:
+
+            - Verify the application builds.
+            - Verify tests pass if tests exist.
+            - Verify linting passes if configured.
+
+            Create a concise commit describing the change.
+
+            Create a pull request against main.
+
+            PR title format:
+
+            chore(jules): <short description>
+
+            PR description must contain:
+
+            ## What changed
+            - Brief explanation
+
+            ## Why
+            - Reason for the change
+
+            ## Verification
+            - Tests/build/lint commands executed
+
+            ## Risk
+            - Low/Medium/High with explanation
+
+            Never merge the PR automatically.
