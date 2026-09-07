@@ -4,10 +4,10 @@ from typing import List, Optional
 from datetime import datetime, timezone
 from uuid import UUID
 from celery.result import AsyncResult
-
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from app.db.session import get_db
+
 from app.core.auth import get_current_user
 from app.core.ownership import require_job_owner
 from app.models.async_job import AsyncJobRecord

@@ -12,12 +12,9 @@ from app.main import app
 
 client = TestClient(app)
 
-import pytest
 from unittest.mock import patch, AsyncMock
 from app.db.session import get_db
 from app.core.ownership import require_job_owner
-import uuid
-from datetime import datetime, timezone
 from app.models.async_job import AsyncJobRecord
 
 class _FakeResult:
@@ -59,9 +56,9 @@ def mock_dependencies_and_celery():
     patcher2 = patch('app.api.v1.routes.images.record_job_ownership', new=AsyncMock())
     patcher3 = patch('app.api.v1.routes.reports.record_job_ownership', new=AsyncMock())
 
-    m1 = patcher1.start()
-    m2 = patcher2.start()
-    m3 = patcher3.start()
+    patcher1.start()
+    patcher2.start()
+    patcher3.start()
 
     patcher_celery = patch('app.api.v1.routes.claims.verify_claim_task.apply_async')
     m_celery = patcher_celery.start()
@@ -107,103 +104,6 @@ def mock_dependencies_and_celery():
     patcher_celery6.stop()
     patcher_celery7.stop()
     app.dependency_overrides.clear()
-
-
-import pytest
-from unittest.mock import patch
-from app.core.ownership import record_job_ownership
-from unittest.mock import AsyncMock
-
-async def fake_record_job_ownership(*args, **kwargs):
-    pass
-
-patcher = patch('app.api.v1.routes.claims.record_job_ownership', new=AsyncMock())
-patcher.start()
-patcher2 = patch('app.api.v1.routes.images.record_job_ownership', new=AsyncMock())
-patcher2.start()
-patcher3 = patch('app.api.v1.routes.reports.record_job_ownership', new=AsyncMock())
-patcher3.start()
-
-patcher_celery = patch('app.api.v1.routes.claims.verify_claim_task.apply_async')
-m_celery = patcher_celery.start()
-m_celery.return_value.id = "test-task-id"
-patcher_celery2 = patch('app.api.v1.routes.images.analyze_image_task.apply_async')
-m_celery2 = patcher_celery2.start()
-m_celery2.return_value.id = "test-task-id"
-patcher_celery3 = patch('app.api.v1.routes.reports.analyze_report_task.apply_async')
-m_celery3 = patcher_celery3.start()
-m_celery3.return_value.id = "test-task-id"
-
-
-from app.db.session import get_db
-
-class _FakeResult:
-    def scalar_one_or_none(self):
-        return None
-
-
-class _FakeSession:
-    async def execute(self, stmt):
-        return _FakeResult()
-    async def add(self, record):
-        pass
-    async def commit(self):
-        pass
-    async def rollback(self):
-        pass
-    async def close(self):
-        pass
-
-async def override_get_db():
-    yield _FakeSession()
-
-app.dependency_overrides[get_db] = override_get_db
-
-import pytest
-from unittest.mock import patch, AsyncMock
-
-# We need to patch celery app in jobs status
-patcher_celery = patch('app.api.v1.routes.jobs.AsyncResult')
-m_async = patcher_celery.start()
-m_async.return_value.state = "SUCCESS"
-m_async.return_value.result = {"mock": "result"}
-m_async.return_value.info = {"mock": "result"}
-
-patcher_celery2 = patch('app.api.v1.routes.claims.AsyncResult')
-m_async2 = patcher_celery2.start()
-m_async2.return_value.state = "SUCCESS"
-m_async2.return_value.result = {"mock": "result"}
-m_async2.return_value.info = {"mock": "result"}
-
-patcher_celery3 = patch('app.api.v1.routes.images.AsyncResult')
-m_async3 = patcher_celery3.start()
-m_async3.return_value.state = "SUCCESS"
-m_async3.return_value.result = {"mock": "result"}
-m_async3.return_value.info = {"mock": "result"}
-
-patcher_celery4 = patch('app.api.v1.routes.reports.AsyncResult')
-m_async4 = patcher_celery4.start()
-m_async4.return_value.state = "SUCCESS"
-m_async4.return_value.result = {"mock": "result"}
-m_async4.return_value.info = {"mock": "result"}
-
-from app.core.ownership import require_job_owner
-
-async def override_require_job_owner():
-    from app.models.async_job import AsyncJobRecord
-    import uuid
-    from datetime import datetime, timezone
-    return AsyncJobRecord(
-        id="test-task-id",
-        user_id=uuid.uuid4(),
-        org_id=uuid.uuid4(),
-        pipeline="report",
-        status="completed",
-        created_at=datetime.now(timezone.utc)
-    )
-
-app.dependency_overrides[require_job_owner] = override_require_job_owner
-
 
 
 
