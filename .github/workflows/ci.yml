@@ -26,6 +26,19 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+      postgres:
+        image: postgres:15-alpine
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_USER: vaidya
+          POSTGRES_PASSWORD: ci-only-password
+          POSTGRES_DB: vaidyaai
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v4
 
@@ -52,6 +65,7 @@ jobs:
         # higher. 2% is a conservative floor, not a target — re-measure
         # after the first CI run and raise it to just under the real number.
         run: |
+          alembic upgrade head
           pytest tests/test_pipelines.py tests/test_rag_integration.py \
             tests/test_file_validator.py tests/test_errors.py \
             tests/test_retry.py tests/test_auth.py tests/test_ownership.py \
