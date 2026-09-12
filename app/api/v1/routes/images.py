@@ -143,16 +143,7 @@ async def get_image_status_or_result(
     db: AsyncSession = Depends(get_db),
     user=Depends(get_current_user),
 ):
-    """Poll image analysis job status and get result when complete.
-
-    TODO(SEC-01): this route is keyed by `analysis_id` (an ImageAnalysis
-    row PK), not a Celery task_id, so `require_job_owner` (which looks up
-    AsyncJobRecord by task_id) doesn't apply here as-is. ImageAnalysis has
-    no `user_id` column — the same ownership gap exists on this endpoint
-    and needs its own fix (add user_id to ImageAnalysis, or resolve
-    analysis_id -> celery_task_id -> AsyncJobRecord and reuse the same
-    check). Not covered by this pass.
-    """
+    """Poll image analysis job status and get result when complete."""
     from app.services.image_service import ImageService
     
     service = ImageService(db)
@@ -160,7 +151,12 @@ async def get_image_status_or_result(
     
     if not image_record:
         raise HTTPException(status_code=404, detail="Analysis not found")
-        
+
+    if not image_record.celery_task_id:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    await require_job_owner(image_record.celery_task_id, user, db)
+
     request_id = str(uuid.uuid4())
     
     if image_record.status.value in ["pending", "processing"]:
