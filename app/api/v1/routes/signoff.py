@@ -30,7 +30,8 @@ router = APIRouter()
 
 
 class SignOffRequest(BaseModel):
-    model_versions: str  # e.g. "chexnet:v1;xgb:v3" — see SignOff.model_versions
+    model_versions: str
+    model_config = {"protected_namespaces": ()}  # e.g. "chexnet:v1;xgb:v3" — see SignOff.model_versions
 
 
 class SignOffResponse(BaseModel):
@@ -38,6 +39,7 @@ class SignOffResponse(BaseModel):
     clinician_id: str
     signed_at: str
     model_versions: str
+    model_config = {"protected_namespaces": ()}
 
 
 @router.post("/{job_id}/sign-off", response_model=SignOffResponse, status_code=201)

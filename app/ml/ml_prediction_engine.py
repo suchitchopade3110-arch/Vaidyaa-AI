@@ -44,7 +44,7 @@ logger = logging.getLogger("vaidya.ml")
 # SECTION 1 - CONFIGURATION
 # ============================================================================
 
-class Config:
+class EngineConfig:
     """Central config. Override via env vars in production."""
 
     MODEL_DIR = Path(os.getenv("VAIDYA_MODEL_DIR", "app/ml/models"))
@@ -76,7 +76,7 @@ class Config:
             return "cpu"
 
 
-Config.ARTIFACTS_DIR.mkdir(parents=True, exist_ok=True)
+EngineConfig.ARTIFACTS_DIR.mkdir(parents=True, exist_ok=True)
 
 
 # ============================================================================
@@ -601,19 +601,19 @@ def _require(package: str, install_hint: str):
 def get_xgb_model():
     """Calibrated XGBoost classifier."""
     joblib = _require("joblib", "pip install joblib")
-    if not Config.XGB_PATH.exists():
-        raise FileNotFoundError(f"XGBoost model not found: {Config.XGB_PATH}")
-    logger.info("Loading XGBoost from %s", Config.XGB_PATH)
-    return joblib.load(Config.XGB_PATH)
+    if not EngineConfig.XGB_PATH.exists():
+        raise FileNotFoundError(f"XGBoost model not found: {EngineConfig.XGB_PATH}")
+    logger.info("Loading XGBoost from %s", EngineConfig.XGB_PATH)
+    return joblib.load(EngineConfig.XGB_PATH)
 
 
 @lru_cache(maxsize=1)
 def get_scaler():
     """StandardScaler fit on training data."""
     joblib = _require("joblib", "pip install joblib")
-    if not Config.SCALER_PATH.exists():
-        raise FileNotFoundError(f"Scaler not found: {Config.SCALER_PATH}")
-    return joblib.load(Config.SCALER_PATH)
+    if not EngineConfig.SCALER_PATH.exists():
+        raise FileNotFoundError(f"Scaler not found: {EngineConfig.SCALER_PATH}")
+    return joblib.load(EngineConfig.SCALER_PATH)
 
 
 @lru_cache(maxsize=1)
@@ -622,19 +622,19 @@ def get_shap_explainer():
     joblib = _require("joblib", "pip install joblib")
     shap = _require("shap", "pip install shap")
 
-    if Config.SHAP_EXPLAINER_PATH.exists():
+    if EngineConfig.SHAP_EXPLAINER_PATH.exists():
         try:
-            return joblib.load(Config.SHAP_EXPLAINER_PATH)
+            return joblib.load(EngineConfig.SHAP_EXPLAINER_PATH)
         except Exception as exc:
             logger.warning("SHAP explainer cache incompatible, regenerating: %s", exc)
-    if Config.LEGACY_SHAP_EXPLAINER_PATH.exists():
+    if EngineConfig.LEGACY_SHAP_EXPLAINER_PATH.exists():
         try:
-            logger.info("Using legacy SHAP explainer: %s", Config.LEGACY_SHAP_EXPLAINER_PATH)
-            return joblib.load(Config.LEGACY_SHAP_EXPLAINER_PATH)
+            logger.info("Using legacy SHAP explainer: %s", EngineConfig.LEGACY_SHAP_EXPLAINER_PATH)
+            return joblib.load(EngineConfig.LEGACY_SHAP_EXPLAINER_PATH)
         except Exception as exc:
             logger.warning("Legacy SHAP explainer incompatible, regenerating: %s", exc)
 
-    logger.info("Regenerating SHAP explainer: %s", Config.SHAP_EXPLAINER_PATH)
+    logger.info("Regenerating SHAP explainer: %s", EngineConfig.SHAP_EXPLAINER_PATH)
     model = get_xgb_model()
     base_model = (
         model.calibrated_classifiers_[0].estimator
@@ -642,8 +642,8 @@ def get_shap_explainer():
         else model
     )
     explainer = shap.TreeExplainer(base_model)
-    Config.SHAP_EXPLAINER_PATH.parent.mkdir(parents=True, exist_ok=True)
-    joblib.dump(explainer, Config.SHAP_EXPLAINER_PATH)
+    EngineConfig.SHAP_EXPLAINER_PATH.parent.mkdir(parents=True, exist_ok=True)
+    joblib.dump(explainer, EngineConfig.SHAP_EXPLAINER_PATH)
     return explainer
 
 
@@ -653,11 +653,11 @@ def get_ner_pipeline():
     try:
         from transformers import pipeline as hf_pipeline
 
-        logger.info("Loading ClinicalBERT NER: %s", Config.NER_MODEL_NAME)
-        device = Config.device()
+        logger.info("Loading ClinicalBERT NER: %s", EngineConfig.NER_MODEL_NAME)
+        device = EngineConfig.device()
         return hf_pipeline(
             "ner",
-            model=Config.NER_MODEL_NAME,
+            model=EngineConfig.NER_MODEL_NAME,
             aggregation_strategy="simple",
             device=0 if getattr(device, "type", "") == "cuda" else -1,
         )
@@ -716,18 +716,18 @@ def _cxr_transform():
 def get_chexnet():
     """Load CheXNet once and cache it in memory."""
     torch, _, _, _ = _torch_modules()
-    model = _build_chexnet_class()(num_classes=2).to(Config.device())
-    if Config.CHEXNET_PATH.exists():
-        logger.info("Loading CheXNet weights: %s", Config.CHEXNET_PATH)
+    model = _build_chexnet_class()(num_classes=2).to(EngineConfig.device())
+    if EngineConfig.CHEXNET_PATH.exists():
+        logger.info("Loading CheXNet weights: %s", EngineConfig.CHEXNET_PATH)
         try:
-            state = torch.load(Config.CHEXNET_PATH, map_location=Config.device())
+            state = torch.load(EngineConfig.CHEXNET_PATH, map_location=EngineConfig.device())
             if isinstance(state, dict) and "state_dict" in state:
                 state = state["state_dict"]
             model.load_state_dict(state, strict=False)
         except Exception as exc:
             logger.warning("CheXNet weight load failed, using ImageNet baseline: %s", exc)
     else:
-        logger.warning("CheXNet weights not found at %s; using ImageNet baseline.", Config.CHEXNET_PATH)
+        logger.warning("CheXNet weights not found at %s; using ImageNet baseline.", EngineConfig.CHEXNET_PATH)
     model.eval()
     return model
 
@@ -848,9 +848,9 @@ def _build_feature_dataframe(lab_dict: Dict[str, Any]):
 
 
 def _confidence_label(prob: float) -> str:
-    if prob > Config.CONF_HIGH_THRESHOLD:
+    if prob > EngineConfig.CONF_HIGH_THRESHOLD:
         return "HIGH"
-    if prob > Config.CONF_MEDIUM_THRESHOLD:
+    if prob > EngineConfig.CONF_MEDIUM_THRESHOLD:
         return "MEDIUM"
     return "LOW"
 
@@ -935,7 +935,7 @@ def classify_image(img_pil) -> ImageClassification:
         raise TypeError(f"Expected PIL.Image, got {type(img_pil)}")
 
     img_pil = img_pil.convert("RGB")
-    img_tensor = _cxr_transform()(img_pil).unsqueeze(0).to(Config.device())
+    img_tensor = _cxr_transform()(img_pil).unsqueeze(0).to(EngineConfig.device())
     model = get_chexnet()
 
     with torch.no_grad():
@@ -945,10 +945,10 @@ def classify_image(img_pil) -> ImageClassification:
     pred_idx = int(np.argmax(probs))
     probabilities = {
         label: round(float(prob), 4)
-        for label, prob in zip(Config.CHEXNET_LABELS, probs)
+        for label, prob in zip(EngineConfig.CHEXNET_LABELS, probs)
     }
     return ImageClassification(
-        label=Config.CHEXNET_LABELS[pred_idx],
+        label=EngineConfig.CHEXNET_LABELS[pred_idx],
         confidence=round(float(probs[pred_idx]), 4),
         probabilities=probabilities,
         gradcam_path="",
@@ -1010,7 +1010,7 @@ def generate_gradcam_overlay(img_pil, job_id: Optional[str] = None) -> Dict[str,
         job_id = str(uuid.uuid4())
 
     img_pil = img_pil.convert("RGB")
-    img_tensor = _cxr_transform()(img_pil).unsqueeze(0).to(Config.device())
+    img_tensor = _cxr_transform()(img_pil).unsqueeze(0).to(EngineConfig.device())
     img_tensor.requires_grad_()
 
     gradcam = GradCAM(get_chexnet(), _get_chexnet_target_layer())
@@ -1022,7 +1022,7 @@ def generate_gradcam_overlay(img_pil, job_id: Optional[str] = None) -> Dict[str,
     original = np.array(img_pil.resize((224, 224))) / 255.0
     overlay = 0.38 * original + 0.62 * heatmap
 
-    save_path = Config.ARTIFACTS_DIR / f"gradcam_{job_id}.png"
+    save_path = EngineConfig.ARTIFACTS_DIR / f"gradcam_{job_id}.png"
     fig, axes = plt.subplots(1, 3, figsize=(12, 4))
     axes[0].imshow(original)
     axes[0].set_title("Original")
@@ -1036,7 +1036,7 @@ def generate_gradcam_overlay(img_pil, job_id: Optional[str] = None) -> Dict[str,
     plt.savefig(save_path, dpi=100, bbox_inches="tight")
     plt.close(fig)
 
-    return {"predicted_class": Config.CHEXNET_LABELS[pred_class], "gradcam_path": str(save_path)}
+    return {"predicted_class": EngineConfig.CHEXNET_LABELS[pred_class], "gradcam_path": str(save_path)}
 
 
 # ============================================================================
@@ -1068,7 +1068,7 @@ def ensemble_predict(
             gradcam_path = generate_gradcam_overlay(img_pil, job_id=job_id)["gradcam_path"]
         except Exception as exc:
             logger.warning("GradCAM generation failed: %s", exc)
-        ensemble_score = Config.XGB_WEIGHT * xgb_score + Config.CXR_WEIGHT * cxr_score
+        ensemble_score = EngineConfig.XGB_WEIGHT * xgb_score + EngineConfig.CXR_WEIGHT * cxr_score
 
     return EnsembleResult(
         xgb_risk_score=round(xgb_score, 4),
@@ -1141,10 +1141,10 @@ def run_bias_audit(dataset_path: str = "vaidyaai_dataset_final.csv") -> Dict[str
 def export_chexnet_onnx(output_path: Optional[str] = None) -> str:
     """Export CheXNet to ONNX for optimized inference."""
     torch, _, _, _ = _torch_modules()
-    output_path = output_path or str(Config.CHEXNET_ONNX_PATH)
+    output_path = output_path or str(EngineConfig.CHEXNET_ONNX_PATH)
     model = get_chexnet()
     model.eval()
-    dummy = torch.randn(1, 3, 224, 224).to(Config.device())
+    dummy = torch.randn(1, 3, 224, 224).to(EngineConfig.device())
     torch.onnx.export(
         model,
         dummy,
@@ -1196,9 +1196,9 @@ def _self_test() -> None:
     print("=" * 60)
     print("VaidyaAI ML Prediction Engine - Self Test")
     print("=" * 60)
-    print(f"Device:        {Config.device()}")
-    print(f"Model dir:     {Config.MODEL_DIR}")
-    print(f"Artifacts dir: {Config.ARTIFACTS_DIR}")
+    print(f"Device:        {EngineConfig.device()}")
+    print(f"Model dir:     {EngineConfig.MODEL_DIR}")
+    print(f"Artifacts dir: {EngineConfig.ARTIFACTS_DIR}")
 
     test_labs = {
         "age": 55,
