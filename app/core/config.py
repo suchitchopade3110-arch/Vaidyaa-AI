@@ -73,10 +73,11 @@ class Settings(BaseSettings):
     # Request-level safety net (long-running work belongs in Celery, not here)
     REQUEST_TIMEOUT_SECONDS: int = 30
 
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
-        extra = "ignore"
+    model_config = {
+        "env_file": ".env",
+        "case_sensitive": True,
+        "extra": "ignore"
+    }
 
 
 settings = Settings()
