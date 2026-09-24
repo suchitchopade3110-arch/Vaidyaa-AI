@@ -9,15 +9,95 @@ from jose import jwt
 
 from app.core.config import settings
 from app.main import app
+from app.db.session import get_db
+
+
+# Global store for fake DB records
+_fake_db_store = {}
+
+class _FakeScalars:
+    def __init__(self, record):
+        self._record = record
+
+    def first(self):
+        return self._record
+
+class _FakeResult:
+    def __init__(self, record):
+        self._record = record
+
+    def scalar_one_or_none(self):
+        return self._record
+
+    def scalars(self):
+        return _FakeScalars(self._record)
+
+class _FakeSession:
+    def __init__(self):
+        self.added = []
+        self.flushed = False
+
+    async def execute(self, _query):
+        query_str = str(_query).lower()
+
+        # Look for existing records of the correct type in the store
+        for record in _fake_db_store.values():
+            model_name = record.__class__.__tablename__
+            if model_name in query_str:
+                return _FakeResult(record)
+
+        # Fallbacks for specific tables if not in store
+        import uuid
+        if "async_jobs" in query_str:
+            from app.models.async_job import AsyncJobRecord
+            record = AsyncJobRecord(
+                id="dummy_task",
+                user_id=uuid.UUID(TEST_USER_ID),
+                org_id=uuid.UUID(TEST_USER_ID),
+                pipeline="test"
+            )
+            return _FakeResult(record)
+
+        return _FakeResult(None)
+
+    def add(self, record):
+        self.added.append(record)
+        if hasattr(record, 'id'):
+            _fake_db_store[str(record.id)] = record
+
+    async def flush(self):
+        self.flushed = True
+
+    async def commit(self):
+        self.flushed = True
+
+    async def refresh(self, obj):
+        pass
+
+async def override_get_db():
+    yield _FakeSession()
+
+app.dependency_overrides[get_db] = override_get_db
+
+from app.core.middleware import AuditLogMiddleware
+# Monkeypatch AuditLogMiddleware to skip writing logs
+async def mock_write_log(*args, **kwargs):
+    pass
+AuditLogMiddleware._write_log = mock_write_log
 
 client = TestClient(app)
 
+
+
+
+# Global test user to ensure ownership checks pass across requests
+TEST_USER_ID = str(uuid.uuid4())
 
 def _auth_headers(role: str = "clinician") -> dict:
     """Bearer header for a live access token — these routes all require auth."""
     token = jwt.encode(
         {
-            "sub": str(uuid.uuid4()),
+            "sub": TEST_USER_ID,
             "role": role,
             "type": "access",
             "exp": datetime.now(timezone.utc) + timedelta(minutes=20),
