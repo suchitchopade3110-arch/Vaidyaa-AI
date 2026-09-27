@@ -10,7 +10,13 @@ from jose import jwt
 from app.core.config import settings
 from app.main import app
 
-client = TestClient(app)
+
+import pytest
+
+@pytest.fixture(scope="function")
+def client():
+    with TestClient(app, backend="asyncio") as c:
+        yield c
 
 
 def _auth_headers(role: str = "clinician") -> dict:
@@ -32,14 +38,14 @@ def _auth_headers(role: str = "clinician") -> dict:
 #  HEALTH
 # ─────────────────────────────────────────────────────────────────────────────
 
-def test_health():
+def test_health(client):
     r = client.get("/api/v1/health")
     assert r.status_code == 200
     data = r.json()
     assert data["status"] == "ok"
 
 
-def test_root():
+def test_root(client):
     r = client.get("/")
     assert r.status_code == 200
     data = r.json()
@@ -51,14 +57,14 @@ def test_root():
 #  MIDDLEWARE
 # ─────────────────────────────────────────────────────────────────────────────
 
-def test_disclaimer_header_on_all_responses():
+def test_disclaimer_header_on_all_responses(client):
     """X-Medical-Disclaimer header MUST appear on every response."""
     for path in ["/api/v1/health", "/"]:
         r = client.get(path)
         assert r.headers.get("X-Medical-Disclaimer") == "AI-assisted analysis. NOT diagnostic."
 
 
-def test_request_id_header():
+def test_request_id_header(client):
     r = client.get("/api/v1/health")
     assert "X-Request-ID" in r.headers
     assert len(r.headers["X-Request-ID"]) == 36
@@ -70,7 +76,7 @@ def test_request_id_header():
 
 SAMPLE_CLAIM = "Aspirin reduces the risk of heart attack in adults over 50 with hypertension."
 
-def test_claim_pipeline_flow():
+def test_claim_pipeline_flow(client):
     # 1. Submit — claim_id is generated server-side (job_id), not passed in the URL.
     r = client.post(
         "/api/v1/verify/claim",
@@ -104,7 +110,7 @@ def _make_fake_png() -> bytes:
         b"\x00\x00\x03\x01\x01\x00\xc9\xfe\x92\xef\x00\x00\x00\x00IEND\xaeB`\x82"
     )
 
-def test_image_pipeline_flow():
+def test_image_pipeline_flow(client):
     fake_img = _make_fake_png()
     # 1. Submit
     r = client.post(
@@ -126,7 +132,7 @@ def test_image_pipeline_flow():
 
 SAMPLE_CSV = b"parameter,value,unit\nHbA1c,7.8,%\nGlucose,142,mg/dL"
 
-def test_report_pipeline_flow():
+def test_report_pipeline_flow(client):
     # 1. Submit
     r = client.post(
         "/api/v1/analyze/report/lab",
@@ -145,7 +151,7 @@ def test_report_pipeline_flow():
 #  PHASE 2 E2E SCENARIOS — TEXT PIPELINE (T1–T6)
 # ─────────────────────────────────────────────────────────────────────────────
 
-def test_T1_claim_too_short_rejected():
+def test_T1_claim_too_short_rejected(client):
     """Claim under min_length returns 422."""
     r = client.post(
         "/api/v1/verify/claim",
@@ -155,7 +161,7 @@ def test_T1_claim_too_short_rejected():
     assert r.status_code == 422
 
 
-def test_T2_claim_missing_field_rejected():
+def test_T2_claim_missing_field_rejected(client):
     """Missing claim_text returns 422."""
     r = client.post(
         "/api/v1/verify/claim",
@@ -165,7 +171,7 @@ def test_T2_claim_missing_field_rejected():
     assert r.status_code == 422
 
 
-def test_T3_report_csv_anomaly_flagged():
+def test_T3_report_csv_anomaly_flagged(client):
     """CSV with high HbA1c — response must contain task metadata."""
     csv = b"parameter,value,unit\nHbA1c,9.5,%\nGlucose,210,mg/dL"
     r = client.post(
@@ -178,7 +184,7 @@ def test_T3_report_csv_anomaly_flagged():
     assert "task_id" in data
 
 
-def test_T4_unsupported_file_format_rejected():
+def test_T4_unsupported_file_format_rejected(client):
     """Uploading an unsupported extension returns 415.
 
     .txt is deliberately in REPORT_EXTENSIONS (plain-text clinical notes),
@@ -192,7 +198,7 @@ def test_T4_unsupported_file_format_rejected():
     assert r.status_code == 415
 
 
-def test_T5_oversized_file_rejected():
+def test_T5_oversized_file_rejected(client):
     """File exceeding size limit returns 413."""
     big = io.BytesIO(b"x" * (51 * 1024 * 1024))
     r = client.post(
@@ -203,7 +209,7 @@ def test_T5_oversized_file_rejected():
     assert r.status_code == 413
 
 
-def test_T6_disclaimer_in_all_text_responses():
+def test_T6_disclaimer_in_all_text_responses(client):
     """Every text pipeline response includes medical disclaimer."""
     r = client.post(
         "/api/v1/verify/claim",
@@ -219,7 +225,7 @@ def test_T6_disclaimer_in_all_text_responses():
 #  PHASE 2 E2E SCENARIOS — IMAGE PIPELINE (I1–I5)
 # ─────────────────────────────────────────────────────────────────────────────
 
-def test_I1_invalid_analysis_type_rejected():
+def test_I1_invalid_analysis_type_rejected(client):
     """Unknown analysis_type returns 422."""
     r = client.post(
         "/api/v1/analyze/image/ultrasound",
@@ -229,7 +235,7 @@ def test_I1_invalid_analysis_type_rejected():
     assert r.status_code == 422
 
 
-def test_I2_image_ct_accepted():
+def test_I2_image_ct_accepted(client):
     r = client.post(
         "/api/v1/analyze/image/ct",
         files={"file": ("ct.png", io.BytesIO(_make_fake_png()), "image/png")},
@@ -238,7 +244,7 @@ def test_I2_image_ct_accepted():
     assert r.status_code in (202, 422)
 
 
-def test_I3_image_mri_accepted():
+def test_I3_image_mri_accepted(client):
     r = client.post(
         "/api/v1/analyze/image/mri",
         files={"file": ("mri.png", io.BytesIO(_make_fake_png()), "image/png")},
@@ -247,7 +253,7 @@ def test_I3_image_mri_accepted():
     assert r.status_code in (202, 422)
 
 
-def test_I4_image_skin_accepted():
+def test_I4_image_skin_accepted(client):
     r = client.post(
         "/api/v1/analyze/image/skin",
         files={"file": ("skin.png", io.BytesIO(_make_fake_png()), "image/png")},
@@ -256,7 +262,7 @@ def test_I4_image_skin_accepted():
     assert r.status_code in (202, 422)
 
 
-def test_I5_image_pathology_accepted():
+def test_I5_image_pathology_accepted(client):
     r = client.post(
         "/api/v1/analyze/image/pathology",
         files={"file": ("path.png", io.BytesIO(_make_fake_png()), "image/png")},
