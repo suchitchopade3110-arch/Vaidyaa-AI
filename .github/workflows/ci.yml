@@ -9,8 +9,11 @@ env:
   # Ephemeral, CI-only values. Never used outside a throwaway workflow run.
   SECRET_KEY: ci-only-secret-not-for-real-use
   POSTGRES_PASSWORD: ci-only-password
+  POSTGRES_USER: vaidya
+  POSTGRES_DB: vaidyaai
   APP_ENV: development
   CORS_ORIGINS: http://localhost:3000
+  DATABASE_URL: postgresql+asyncpg://vaidya:ci-only-password@localhost:5432/vaidyaai
 
 jobs:
   lint-and-unit:
@@ -23,6 +26,19 @@ jobs:
           - 6379:6379
         options: >-
           --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      postgres:
+        image: postgres:14-alpine
+        env:
+          POSTGRES_USER: vaidya
+          POSTGRES_PASSWORD: ci-only-password
+          POSTGRES_DB: vaidyaai
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U vaidya -d vaidyaai"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -44,6 +60,11 @@ jobs:
 
       - name: Check prohibited terms (REG-01)
         run: PYTHONPATH=. python scripts/check_prohibited_terms.py
+
+      - name: Run migrations
+        run: |
+          sed -i 's/vaidya:vaidya123/vaidya:ci-only-password/g' alembic.ini
+          alembic upgrade head
 
       - name: Unit tests with coverage
         # NOTE ON THE THRESHOLD: measured locally at 2.4% with `-m "not
