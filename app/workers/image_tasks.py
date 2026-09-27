@@ -121,7 +121,7 @@ def analyze_image(self, analysis_id: str, file_path: str, image_type: str, file_
             "plain_language_summary": payload.get("plain_language_summary") or "",
             "confidence_score": confidence,
             "uncertainty_flag": payload.get("uncertainty_flag", True),
-            "anomaly_detected": label not in {"No Finding", "No_Finding", "normal", "unknown"},
+            "anomaly_flagged": label not in {"No Finding", "No_Finding", "normal", "unknown"},
             "medical_disclaimer": MEDICAL_DISCLAIMER,
             "processing_time_ms": payload.get("processing_time_ms") or round((time.time() - start_time) * 1000, 2),
             "completed_at": payload.get("completed_at") or datetime.now(UTC).isoformat(),

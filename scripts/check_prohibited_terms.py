@@ -15,27 +15,50 @@ TODO(REG-01):
 import sys
 
 from app.core.language_guard import contains_prohibited_term
+import os
+from pathlib import Path
 
 # Placeholder surface list. TODO(REG-01): replace with an actual file walk.
 SURFACES_TO_CHECK: list[tuple[str, str]] = []
 
+def get_surfaces() -> list[tuple[str, str]]:
+    surfaces = []
+
+    # 1. README.md
+    readme_path = Path("README.md")
+    if readme_path.exists():
+        surfaces.append((str(readme_path), readme_path.read_text(encoding="utf-8")))
+
+    # 2. app/schemas/*.py
+    schemas_dir = Path("app/schemas")
+    if schemas_dir.exists():
+        for file in schemas_dir.rglob("*.py"):
+            if file.is_file():
+                surfaces.append((str(file), file.read_text(encoding="utf-8")))
+
+    # 3. app/services/pdf_report.py
+    pdf_report_path = Path("app/services/pdf_report.py")
+    if pdf_report_path.exists():
+        surfaces.append((str(pdf_report_path), pdf_report_path.read_text(encoding="utf-8")))
+
+    return surfaces
 
 def main() -> int:
     failures = 0
-    for source, text in SURFACES_TO_CHECK:
+    surfaces = get_surfaces()
+    for source, text in surfaces:
         hit = contains_prohibited_term(text)
         if hit:
             print(f"{source}: prohibited term {hit!r}")
             failures += 1
 
-    if not SURFACES_TO_CHECK:
+    if not surfaces:
         print(
             "check_prohibited_terms: SURFACES_TO_CHECK is empty — this is a "
             "stub (REG-01), not a real sweep. See module docstring."
         )
 
     return 1 if failures else 0
-
 
 if __name__ == "__main__":
     sys.exit(main())

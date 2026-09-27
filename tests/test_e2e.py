@@ -250,7 +250,7 @@ class TestAC3HallucinationDetection:
             data = submit_claim(client, claim_text, timeout=90)
             verdict = str(data.get("verdict", "")).lower()
             uncertainty = bool(data.get("uncertainty_flag", False))
-            hallucination = bool(data.get("hallucination_detected", False))
+            hallucination = bool(data.get("hallucination_flagged", False))
             if verdict not in {"verified", "supported"} or uncertainty or hallucination:
                 detected += 1
 

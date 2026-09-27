@@ -42,6 +42,9 @@ jobs:
       - name: Lint (ruff)
         run: ruff check app/
 
+      - name: Check prohibited terms (REG-01)
+        run: PYTHONPATH=. python scripts/check_prohibited_terms.py
+
       - name: Unit tests with coverage
         # NOTE ON THE THRESHOLD: measured locally at 2.4% with `-m "not
         # integration"` (correctly excluding the two rag_integration tests

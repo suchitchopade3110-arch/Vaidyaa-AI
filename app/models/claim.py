@@ -40,7 +40,7 @@ class Claim(Base):
     retrieved_sources: Mapped[list] = mapped_column(JSON, nullable=True)
     disclaimer: Mapped[str] = mapped_column(Text, nullable=True)
     uncertainty_flag: Mapped[bool] = mapped_column(Boolean, default=False)
-    hallucination_detected: Mapped[bool] = mapped_column(Boolean, default=False)
+    hallucination_flagged: Mapped[bool] = mapped_column(Boolean, default=False)
     hallucination_details: Mapped[dict] = mapped_column(JSON, nullable=True)
     celery_task_id: Mapped[str] = mapped_column(String, nullable=True)
     created_at: Mapped[DateTime] = mapped_column(

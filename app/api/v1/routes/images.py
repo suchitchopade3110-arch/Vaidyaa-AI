@@ -227,7 +227,7 @@ async def get_image_status_or_result(
         "yolo_annotated_path": image_record.segmentation_overlay,
         "confidence": confidence_data,
         "uncertainty": image_record.uncertainty_flag,
-        "anomaly_detected": image_record.anomaly_detected,
+        "anomaly_flagged": image_record.anomaly_flagged,
         "citations": image_record.source_citations or [],
         "sources": image_record.source_citations or [],
         "gradcam": {

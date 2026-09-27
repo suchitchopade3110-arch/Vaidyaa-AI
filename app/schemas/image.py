@@ -45,6 +45,6 @@ class ImageResult(BaseResponse):
     explanation: str
     sources: List[SourceCitation]
     confidence: ConfidenceSignal
-    anomaly_detected: bool
+    anomaly_flagged: bool
     dicom_metadata: Optional[Dict] = None
     processing_time_ms: Optional[float] = None
