@@ -75,7 +75,7 @@ def verify_claim(self, claim_id: str, claim_text: str, patient_id: str = None):
                 "source_count":          evidence["count"],
                 "confidence_score":      0.0,
                 "uncertainty_flag":      True,
-                "hallucination_detected": False,
+                "hallucination_flagged": False,
                 "hallucination_details": {},
                 "shap_values":           {},
                 "ner_engine":            entities["_source"],
@@ -94,7 +94,7 @@ def verify_claim(self, claim_id: str, claim_text: str, patient_id: str = None):
 
         # ── Step 4: Hallucination Check (Phase 2: real 3-layer) ───────────
         self.update_state(state="PROGRESS", meta={"step": "hallucination_check", "pct": 80})
-        hallucination_detected = llm_result.get("hallucination_detected", False)
+        hallucination_flagged = llm_result.get("hallucination_flagged", False)
         hallucination_details  = llm_result.get("hallucination_details", {})
 
         # ── Step 5: Confidence ────────────────────────────────────────────
@@ -118,7 +118,7 @@ def verify_claim(self, claim_id: str, claim_text: str, patient_id: str = None):
             "source_count":          source_count,
             "confidence_score":      raw_confidence,
             "uncertainty_flag":      uncertainty_flag,
-            "hallucination_detected": hallucination_detected,
+            "hallucination_flagged": hallucination_flagged,
             "hallucination_details": hallucination_details,
             "shap_values":           {},
             "ner_engine":            entities["_source"],

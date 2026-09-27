@@ -118,7 +118,7 @@ def _claim_fallback(self, claim_text: str, entities: dict, sources: list[dict]) 
     return {
         "verdict": "uncertain",
         "explanation": "Insufficient evidence. Reasoning service unavailable after retries.",
-        "hallucination_detected": False,
+        "hallucination_flagged": False,
         "hallucination_details": {"retry_exhausted": True},
         "confidence_score": 0.2,
         "disclaimer": MEDICAL_DISCLAIMER,
@@ -320,7 +320,7 @@ class RAGPipeline:
             return {
                 "verdict": "uncertain",
                 "explanation": "Insufficient evidence retrieved from the knowledge base. Unable to verify claim.",
-                "hallucination_detected": False,
+                "hallucination_flagged": False,
                 "hallucination_details": {},
                 "confidence_score": 0.15,
                 "disclaimer": MEDICAL_DISCLAIMER,
@@ -343,7 +343,7 @@ Return ONLY valid JSON:
   "verdict": "verified" | "refuted" | "uncertain",
   "explanation": "2-3 sentence explanation citing the evidence",
   "confidence_score": 0.0,
-  "hallucination_detected": false,
+  "hallucination_flagged": false,
   "hallucination_details": {{}}
 }}"""
 
@@ -355,7 +355,7 @@ Return ONLY valid JSON:
                 max_tokens=500,
             )
             result = _parse_json(response.choices[0].message.content)
-            result.setdefault("hallucination_detected", False)
+            result.setdefault("hallucination_flagged", False)
             result.setdefault("hallucination_details", {})
             result["disclaimer"] = MEDICAL_DISCLAIMER
             return result
@@ -364,7 +364,7 @@ Return ONLY valid JSON:
             return {
                 "verdict": "uncertain",
                 "explanation": "Evidence was retrieved, but reasoning could not be completed.",
-                "hallucination_detected": False,
+                "hallucination_flagged": False,
                 "hallucination_details": {"error": str(exc)},
                 "confidence_score": 0.2,
                 "disclaimer": MEDICAL_DISCLAIMER,

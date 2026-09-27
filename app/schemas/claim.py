@@ -31,7 +31,7 @@ class ClaimResult(BaseResponse):
     explanation: str
     sources: List[SourceCitation]
     confidence: ConfidenceSignal
-    hallucination_detected: bool
+    hallucination_flagged: bool
     hallucination_details: Optional[Dict] = None
     shap_values: Optional[Dict] = None
     processing_time_ms: Optional[float] = None

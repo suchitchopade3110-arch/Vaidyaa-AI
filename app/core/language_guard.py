@@ -45,7 +45,12 @@ def contains_prohibited_term(text: str) -> str | None:
     and into a pre-response guard in the report/image/claim result builders
     so a bad string can't ship even if the sweep misses a spot.
     """
-    lowered = text.lower()
+    import re
+
+    # Exempt the exact disclaimer phrases that contain prohibited terms
+    text_to_check = re.sub(r'(?i)NOT A MEDICAL DIAGNOSIS', '', text)
+
+    lowered = text_to_check.lower()
     for term in PROHIBITED_TERMS:
         if term in lowered:
             return term

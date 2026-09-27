@@ -409,7 +409,7 @@ def _verify_claim_safe(claim_text: str, entities: Dict[str, Any]) -> Dict[str, A
             "explanation": verdict.get("explanation"),
             "sources": sources,
             "uncertainty_flag": len(sources) == 0,
-            "hallucination_flagged": bool(verdict.get("hallucination_detected", False)),
+            "hallucination_flagged": bool(verdict.get("hallucination_flagged", False)),
         }
     except Exception as exc:
         logger.warning("Claim RAG fallback: %s", exc)

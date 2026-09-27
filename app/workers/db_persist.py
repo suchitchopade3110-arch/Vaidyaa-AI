@@ -48,7 +48,7 @@ def persist_claim(result: dict) -> bool:
                 explanation            = %s,
                 confidence             = %s,
                 uncertainty_flag       = %s,
-                hallucination_detected = %s,
+                hallucination_flagged = %s,
                 hallucination_details  = %s,
                 shap_values            = %s,
                 disclaimer             = %s,
@@ -64,7 +64,7 @@ def persist_claim(result: dict) -> bool:
             result.get("explanation"),
             result.get("confidence_score"),
             result.get("uncertainty_flag", False),
-            result.get("hallucination_detected", False),
+            result.get("hallucination_flagged", False),
             json.dumps(result.get("hallucination_details", {})),
             json.dumps(result.get("shap_values", {})),
             result.get("medical_disclaimer"),
@@ -165,7 +165,7 @@ def persist_image_analysis(result: dict) -> bool:
                 retrieved_sources        = %s,
                 confidence               = %s,
                 uncertainty_flag         = %s,
-                anomaly_detected         = %s,
+                anomaly_flagged         = %s,
                 medical_disclaimer       = %s,
                 completed_at             = %s
             WHERE id = %s
@@ -184,7 +184,7 @@ def persist_image_analysis(result: dict) -> bool:
             json.dumps(result.get("sources", [])),
             result.get("confidence_score"),
             result.get("uncertainty_flag", True),
-            result.get("anomaly_detected", False),
+            result.get("anomaly_flagged", False),
             result.get("medical_disclaimer"),
             _utc_now(),
             result["analysis_id"],
@@ -238,7 +238,7 @@ def insert_claim(claim_id: str, claim_text: str, task_id: str, patient_id: str =
         conn = _get_conn()
         cur  = conn.cursor()
         cur.execute("""
-            INSERT INTO claims (id, claim_text, status, celery_task_id, created_at, uncertainty_flag, hallucination_detected)
+            INSERT INTO claims (id, claim_text, status, celery_task_id, created_at, uncertainty_flag, hallucination_flagged)
             VALUES (%s, %s, 'PENDING', %s, %s, FALSE, FALSE)
             ON CONFLICT (id) DO NOTHING
         """, (claim_id, claim_text, task_id, _utc_now()))
@@ -278,7 +278,7 @@ def insert_image_analysis(analysis_id: str, image_type: str, file_path: str,
         conn = _get_conn()
         cur  = conn.cursor()
         cur.execute("""
-            INSERT INTO image_analyses (id, image_type, file_path, file_format, status, celery_task_id, created_at, uncertainty_flag, anomaly_detected)
+            INSERT INTO image_analyses (id, image_type, file_path, file_format, status, celery_task_id, created_at, uncertainty_flag, anomaly_flagged)
             VALUES (%s, %s, %s, %s, 'PENDING', %s, %s, FALSE, FALSE)
             ON CONFLICT (id) DO NOTHING
         """, (analysis_id, image_type, file_path, file_format, task_id, _utc_now()))

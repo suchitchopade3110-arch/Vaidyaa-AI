@@ -43,7 +43,7 @@ class ImageAnalysis(Base):
     source_citations: Mapped[list] = mapped_column(JSON, nullable=True)
     retrieved_sources: Mapped[list] = mapped_column(JSON, nullable=True)
     uncertainty_flag: Mapped[bool] = mapped_column(Boolean, default=False)
-    anomaly_detected: Mapped[bool] = mapped_column(Boolean, default=False)
+    anomaly_flagged: Mapped[bool] = mapped_column(Boolean, default=False)
     medical_disclaimer: Mapped[str] = mapped_column(Text, nullable=True)
     celery_task_id: Mapped[str] = mapped_column(String(255), nullable=True)
     created_at: Mapped[DateTime] = mapped_column(

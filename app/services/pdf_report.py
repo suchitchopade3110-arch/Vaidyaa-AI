@@ -335,14 +335,14 @@ def generate_report_pdf(report_data: dict, signed: bool = True) -> bytes:
                 {
                     "label": classification.get("label") or classification.get("top_class", ""),
                     "severity": classification.get("severity", "MODERATE"),
-                    "detection_confidence": classification.get("detection_confidence") or classification.get("confidence") or confidence,
+                    "extraction_confidence": classification.get("extraction_confidence") or classification.get("confidence") or confidence,
                     "description": classification.get("primary_finding") or "",
                 }
             ]
         for finding in findings[:6]:
             label = finding.get("label") or finding.get("field") or ""
             severity = str(finding.get("severity") or "MODERATE").upper()
-            detection = _to_percent(finding.get("detection_confidence") or finding.get("classification_prob") or finding.get("probability") or finding.get("confidence"))
+            confidence_val = _to_percent(finding.get("extraction_confidence") or finding.get("classification_prob") or finding.get("probability") or finding.get("confidence"))
             note = finding.get("description") or finding.get("clinical_meaning") or ""
             color = _severity_color(severity)
             card = Table(
@@ -351,7 +351,7 @@ def generate_report_pdf(report_data: dict, signed: bool = True) -> bytes:
                         Paragraph(f'<font color="#111827"><b>{label}</b></font>', styles["Body"]),
                         Paragraph(f'<font color="{_hex(color)}">{severity}</font>', ParagraphStyle("Severity", fontName="Helvetica-Bold", fontSize=8, alignment=TA_RIGHT, leading=12)),
                     ],
-                    [Paragraph(f"{detection:.0f}%  {str(note)[:120]}".strip(), styles["Small"]), Paragraph("", styles["Small"])],
+                    [Paragraph(f"{confidence_val:.0f}%  {str(note)[:120]}".strip(), styles["Small"]), Paragraph("", styles["Small"])],
                 ],
                 colWidths=[100 * mm, 65 * mm],
             )
@@ -451,7 +451,7 @@ def generate_report_pdf(report_data: dict, signed: bool = True) -> bytes:
 
     anomalies = report_data.get("anomalies") or []
     if anomalies:
-        story.append(Paragraph("ANOMALIES DETECTED", styles["SectionTitle"]))
+        story.append(Paragraph("ANOMALIES FLAGGED", styles["SectionTitle"]))
         for anomaly in anomalies:
             field = anomaly.get("field") or anomaly.get("test") or anomaly.get("parameter", "")
             severity = anomaly.get("severity") or anomaly.get("flag") or ""

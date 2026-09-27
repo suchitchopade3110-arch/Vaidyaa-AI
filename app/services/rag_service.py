@@ -50,7 +50,7 @@ class RAGPipeline:
         """
         GPT-4/Llama reasoning: claim + entities + evidence → verdict + explanation.
         
-        Returns: {verdict, explanation, hallucination_detected, hallucination_details}
+        Returns: {verdict, explanation, hallucination_flagged, hallucination_details}
         Phase 1: Returns uncertain (no LLM connected).
         Phase 2: Replace with real LLM call below.
         """
@@ -63,7 +63,7 @@ class RAGPipeline:
             return {
                 "verdict": "uncertain",
                 "explanation": getattr(settings, "UNCERTAINTY_MESSAGE", "Insufficient sources for verification."),
-                "hallucination_detected": False,
+                "hallucination_flagged": False,
                 "hallucination_details": {},
             }
 
@@ -74,14 +74,14 @@ class RAGPipeline:
         # return {
         #     "verdict":                verified["verdict"],
         #     "explanation":            verified["explanation"],
-        #     "hallucination_detected": verified["hallucination_detected"],
+        #     "hallucination_flagged": verified["hallucination_flagged"],
         #     "hallucination_details":  verified["details"],
         # }
 
         return {
             "verdict": "uncertain",
             "explanation": "[Phase 1] LLM reasoning not yet connected.",
-            "hallucination_detected": False,
+            "hallucination_flagged": False,
             "hallucination_details": {},
         }
 
@@ -181,7 +181,7 @@ class RAGPipeline:
         # layer1 = self._check_rag_grounding(llm_output["explanation"], sources)
         # layer2 = self._self_verify(llm_output["explanation"], sources)
         # layer3 = llm_output["confidence"] > settings.MIN_CONFIDENCE_THRESHOLD
-        # hallucination_detected = not (layer1 and layer2 and layer3)
+        # hallucination_flagged = not (layer1 and layer2 and layer3)
         # return {...}
         raise NotImplementedError("Phase 2")
 
