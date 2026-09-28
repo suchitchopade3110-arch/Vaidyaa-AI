@@ -13,11 +13,13 @@ from app.main import app
 client = TestClient(app)
 
 
-def _auth_headers(role: str = "clinician") -> dict:
+_test_user_id = str(uuid.uuid4())
+def _auth_headers(role: str = "clinician", user_id: str = None) -> dict:
     """Bearer header for a live access token — these routes all require auth."""
+    uid = user_id or _test_user_id
     token = jwt.encode(
         {
-            "sub": str(uuid.uuid4()),
+            "sub": uid,
             "role": role,
             "type": "access",
             "exp": datetime.now(timezone.utc) + timedelta(minutes=20),
