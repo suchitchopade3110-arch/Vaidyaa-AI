@@ -11,6 +11,7 @@ env:
   POSTGRES_PASSWORD: ci-only-password
   APP_ENV: development
   CORS_ORIGINS: http://localhost:3000
+  DATABASE_URL: postgresql+asyncpg://vaidya:ci-only-password@localhost:5432/vaidyaai
 
 jobs:
   lint-and-unit:
@@ -23,6 +24,19 @@ jobs:
           - 6379:6379
         options: >-
           --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      postgres:
+        image: postgres:14-alpine
+        env:
+          POSTGRES_USER: vaidya
+          POSTGRES_PASSWORD: ci-only-password
+          POSTGRES_DB: vaidyaai
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -41,6 +55,11 @@ jobs:
 
       - name: Lint (ruff)
         run: ruff check app/
+
+      - name: Run migrations
+        run: |
+          sed -i 's/vaidya123/ci-only-password/' alembic.ini
+          alembic upgrade head
 
       - name: Unit tests with coverage
         # NOTE ON THE THRESHOLD: measured locally at 2.4% with `-m "not
