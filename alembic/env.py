@@ -6,10 +6,15 @@ import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from app.db.base import Base  # noqa: F401 — imports every model onto Base.metadata
+from app.core.config import settings
 
 config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
+
+# Override sqlalchemy.url with the app's config so credentials match the environment
+sync_url = settings.DATABASE_URL.replace("+asyncpg", "+psycopg2", 1)
+config.set_main_option("sqlalchemy.url", sync_url)
 
 target_metadata = Base.metadata
 
