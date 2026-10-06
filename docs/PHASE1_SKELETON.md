@@ -40,11 +40,10 @@ something is enforced just because a file with the right name exists.
 - **Not done:** accepting the WS token via Sec-WebSocket-Protocol as a
   fallback to the query param — TODO in `websocket_routes.py`.
 
-## SEC-03 — job listing (Phase 2, not built here)
+## SEC-03 — job listing — **DONE**
 
-Noted only because SEC-01 unblocks it: `app/api/v1/routes/jobs.py`'s
-`list_recent_jobs` still hardcodes `[]`; a TODO there points at
-`AsyncJobRecord` as the read path once SEC-01's write side exists.
+`app/api/v1/routes/jobs.py`'s `list_recent_jobs` now queries `AsyncJobRecord`
+and filters by the current user's ID, returning paginated results with a total count.
 
 ## REG-01 — non-diagnostic output contract
 
