@@ -43,6 +43,7 @@ def test_verify_claim_stub_is_insufficient_evidence():
     assert result["uncertain"] is True
 
 
+@pytest.mark.integration
 def test_verify_claim_task_exists():
     from app.workers.tasks_rag import verify_claim_task
 

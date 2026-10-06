@@ -12,6 +12,8 @@ from app.main import app
 
 client = TestClient(app)
 
+pytestmark = pytest.mark.integration
+
 
 def _auth_headers(role: str = "clinician") -> dict:
     """Bearer header for a live access token — these routes all require auth."""
