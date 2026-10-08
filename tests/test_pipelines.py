@@ -70,6 +70,7 @@ def test_request_id_header():
 
 SAMPLE_CLAIM = "Aspirin reduces the risk of heart attack in adults over 50 with hypertension."
 
+@pytest.mark.integration
 def test_claim_pipeline_flow():
     # 1. Submit — claim_id is generated server-side (job_id), not passed in the URL.
     r = client.post(
@@ -104,6 +105,7 @@ def _make_fake_png() -> bytes:
         b"\x00\x00\x03\x01\x01\x00\xc9\xfe\x92\xef\x00\x00\x00\x00IEND\xaeB`\x82"
     )
 
+@pytest.mark.integration
 def test_image_pipeline_flow():
     fake_img = _make_fake_png()
     # 1. Submit
@@ -126,6 +128,7 @@ def test_image_pipeline_flow():
 
 SAMPLE_CSV = b"parameter,value,unit\nHbA1c,7.8,%\nGlucose,142,mg/dL"
 
+@pytest.mark.integration
 def test_report_pipeline_flow():
     # 1. Submit
     r = client.post(
@@ -165,6 +168,7 @@ def test_T2_claim_missing_field_rejected():
     assert r.status_code == 422
 
 
+@pytest.mark.integration
 def test_T3_report_csv_anomaly_flagged():
     """CSV with high HbA1c — response must contain task metadata."""
     csv = b"parameter,value,unit\nHbA1c,9.5,%\nGlucose,210,mg/dL"
@@ -203,6 +207,7 @@ def test_T5_oversized_file_rejected():
     assert r.status_code == 413
 
 
+@pytest.mark.integration
 def test_T6_disclaimer_in_all_text_responses():
     """Every text pipeline response includes medical disclaimer."""
     r = client.post(
@@ -229,6 +234,7 @@ def test_I1_invalid_analysis_type_rejected():
     assert r.status_code == 422
 
 
+@pytest.mark.integration
 def test_I2_image_ct_accepted():
     r = client.post(
         "/api/v1/analyze/image/ct",
@@ -238,6 +244,7 @@ def test_I2_image_ct_accepted():
     assert r.status_code in (202, 422)
 
 
+@pytest.mark.integration
 def test_I3_image_mri_accepted():
     r = client.post(
         "/api/v1/analyze/image/mri",
@@ -247,6 +254,7 @@ def test_I3_image_mri_accepted():
     assert r.status_code in (202, 422)
 
 
+@pytest.mark.integration
 def test_I4_image_skin_accepted():
     r = client.post(
         "/api/v1/analyze/image/skin",
@@ -256,6 +264,7 @@ def test_I4_image_skin_accepted():
     assert r.status_code in (202, 422)
 
 
+@pytest.mark.integration
 def test_I5_image_pathology_accepted():
     r = client.post(
         "/api/v1/analyze/image/pathology",
