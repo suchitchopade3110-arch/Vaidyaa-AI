@@ -21,11 +21,9 @@ something is enforced just because a file with the right name exists.
   `images.py`, `claims.py`, `pdf_reports.py`) depend on
   `require_job_owner`; `websocket_routes.py`'s `/ws/{job_id}` does the
   same check manually (it can't use `Depends(get_current_user)` — the
-  token arrives as a query param, not a header).
-- **Known gap, not covered:** `images.py`'s `/image/{analysis_id}` route
-  is keyed by an `ImageAnalysis` row PK, not a Celery task_id, and that
-  table has no `user_id` column. Needs its own fix — see the TODO on that
-  route.
+  token arrives as a query param, not a header). `images.py`'s `/image/{analysis_id}`
+  route enforces the same ownership mapping manually since the route is keyed by
+  `analysis_id` which acts as the job's Celery task_id.
 - **Integration test still needed:** the acceptance criteria calls for
   "user A submits a job, user B requests it by ID, receives 404" as an
   automated test. Not added in this pass — `tests/` wasn't touched.
