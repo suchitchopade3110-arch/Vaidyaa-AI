@@ -1,12 +1,15 @@
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from typing import List, Optional
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, func
 from datetime import datetime, timezone
 from uuid import UUID
 from celery.result import AsyncResult
 
 from app.core.auth import get_current_user
 from app.core.ownership import require_job_owner
+from app.db.session import get_db
 from app.models.async_job import AsyncJobRecord
 from app.workers.job_status import revoke_task
 from app.workers.celery_app import celery_app
@@ -92,28 +95,49 @@ async def cancel_job(
 
 @router.get(
     "/",
-    response_model=List[JobStatusResponse],
+    response_model=RecentJobsResponse,
     summary="List recent jobs across all pipelines",
 )
 @router.get(
     "",
-    response_model=List[JobStatusResponse],
+    response_model=RecentJobsResponse,
     summary="List recent jobs across all pipelines",
 )
 async def list_recent_jobs(
     limit: int = 20,
     user=Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """
-    Celery result backends do not provide portable task listing. The frontend
-    handles an empty list; production can replace this with async_jobs DB reads.
-
-    TODO(SEC-03): submission routes now write to async_jobs
-    (app/models/async_job.py, wired as part of SEC-01) — replace this stub
-    with `select(AsyncJobRecord).where(AsyncJobRecord.user_id == user["sub"])`,
-    paginated, newest first, per the RecentJobsResponse model above. Left
-    as a stub here deliberately: SEC-03 is its own Phase 1/2 item.
+    List recent jobs for the authenticated user from the async_jobs table.
     """
     if limit < 1 or limit > 100:
         raise HTTPException(status_code=400, detail={"code": "INVALID_LIMIT", "message": "limit must be 1-100"})
-    return []
+
+    user_id = UUID(user["sub"])
+
+    query = (
+        select(AsyncJobRecord)
+        .where(AsyncJobRecord.user_id == user_id)
+        .order_by(AsyncJobRecord.created_at.desc())
+        .limit(limit)
+    )
+    result = await db.execute(query)
+    records = result.scalars().all()
+
+    # Also get the total count
+    count_query = select(func.count()).select_from(AsyncJobRecord).where(AsyncJobRecord.user_id == user_id)
+    count_result = await db.execute(count_query)
+    total = count_result.scalar() or 0
+
+    jobs = [
+        RecentJobItem(
+            job_id=r.id,
+            pipeline=r.pipeline,
+            celery_task_id=r.id,
+            status=r.status,
+            created_at=r.created_at,
+        ) for r in records
+    ]
+
+    return RecentJobsResponse(jobs=jobs, total=total)
