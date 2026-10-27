@@ -70,6 +70,8 @@ jobs:
         # will actually run here and should push the true number a bit
         # higher. 2% is a conservative floor, not a target — re-measure
         # after the first CI run and raise it to just under the real number.
+        env:
+          APP_ENV: test
         run: |
           pytest tests/test_pipelines.py tests/test_rag_integration.py \
             tests/test_file_validator.py tests/test_errors.py \
