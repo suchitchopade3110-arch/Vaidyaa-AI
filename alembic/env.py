@@ -21,8 +21,17 @@ def run_migrations_offline():
         context.run_migrations()
 
 def run_migrations_online():
+    configuration = config.get_section(config.config_ini_section, {})
+    db_url = os.environ.get("DATABASE_URL")
+    if db_url:
+        if db_url.startswith("postgresql://"):
+            db_url = db_url.replace("postgresql://", "postgresql+psycopg2://", 1)
+        elif db_url.startswith("postgresql+asyncpg://"):
+            db_url = db_url.replace("postgresql+asyncpg://", "postgresql+psycopg2://", 1)
+        configuration["sqlalchemy.url"] = db_url
+
     connectable = engine_from_config(
-        config.get_section(config.config_ini_section, {}),
+        configuration,
         prefix="sqlalchemy.", poolclass=pool.NullPool,
     )
     with connectable.connect() as connection:
