@@ -9,6 +9,9 @@ env:
   # Ephemeral, CI-only values. Never used outside a throwaway workflow run.
   SECRET_KEY: ci-only-secret-not-for-real-use
   POSTGRES_PASSWORD: ci-only-password
+  POSTGRES_USER: vaidya
+  POSTGRES_DB: vaidyaai
+  DATABASE_URL: postgresql://vaidya:ci-only-password@localhost:5432/vaidyaai
   APP_ENV: development
   CORS_ORIGINS: http://localhost:3000
 
@@ -17,6 +20,19 @@ jobs:
     name: Lint + unit tests
     runs-on: ubuntu-latest
     services:
+      postgres:
+        image: postgres:14-alpine
+        env:
+          POSTGRES_USER: vaidya
+          POSTGRES_PASSWORD: ci-only-password
+          POSTGRES_DB: vaidyaai
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
       redis:
         image: redis:7-alpine
         ports:
@@ -42,6 +58,9 @@ jobs:
       - name: Lint (ruff)
         run: ruff check app/
 
+      - name: Run database migrations
+        run: alembic upgrade head
+
       - name: Unit tests with coverage
         # NOTE ON THE THRESHOLD: measured locally at 2.4% with `-m "not
         # integration"` (correctly excluding the two rag_integration tests
@@ -51,6 +70,8 @@ jobs:
         # will actually run here and should push the true number a bit
         # higher. 2% is a conservative floor, not a target — re-measure
         # after the first CI run and raise it to just under the real number.
+        env:
+          APP_ENV: test
         run: |
           pytest tests/test_pipelines.py tests/test_rag_integration.py \
             tests/test_file_validator.py tests/test_errors.py \
