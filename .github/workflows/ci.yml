@@ -86,6 +86,20 @@ jobs:
   bias-audit:
     name: Bias audit (informational)
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: vaidya
+          POSTGRES_PASSWORD: ci-only-password
+          POSTGRES_DB: vaidyaai
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     # Never blocks the build — this is a domain-lead-review artifact, not a
     # pass/fail gate. Uses the same dependency install as lint-and-unit.
     continue-on-error: true
