@@ -1,12 +1,22 @@
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from app.core.config import settings
 
+import sys
+from sqlalchemy.pool import NullPool
+
+# Fix for "Event loop is closed" errors during pytest teardown
+pool_kwargs = {}
+if 'pytest' in sys.modules or settings.APP_ENV == 'test':
+    pool_kwargs['poolclass'] = NullPool
+else:
+    pool_kwargs['pool_size'] = 10
+    pool_kwargs['max_overflow'] = 20
+
 engine = create_async_engine(
     settings.DATABASE_URL,
     echo=settings.APP_ENV == "development",
     pool_pre_ping=True,
-    pool_size=10,
-    max_overflow=20,
+    **pool_kwargs
 )
 
 AsyncSessionLocal = async_sessionmaker(
