@@ -8,7 +8,9 @@ on:
 env:
   # Ephemeral, CI-only values. Never used outside a throwaway workflow run.
   SECRET_KEY: ci-only-secret-not-for-real-use
-  POSTGRES_PASSWORD: ci-only-password
+  POSTGRES_USER: postgres
+  POSTGRES_DB: postgres
+  POSTGRES_PASSWORD: postgres
   APP_ENV: development
   CORS_ORIGINS: http://localhost:3000
 
@@ -20,9 +22,9 @@ jobs:
       postgres:
         image: postgres:15-alpine
         env:
-          POSTGRES_USER: vaidya
-          POSTGRES_PASSWORD: ci-only-password
-          POSTGRES_DB: vaidyaai
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
         ports:
           - 5432:5432
         options: >-
@@ -90,9 +92,9 @@ jobs:
       postgres:
         image: postgres:15-alpine
         env:
-          POSTGRES_USER: vaidya
-          POSTGRES_PASSWORD: ci-only-password
-          POSTGRES_DB: vaidyaai
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
         ports:
           - 5432:5432
         options: >-
