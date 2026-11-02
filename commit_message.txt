@@ -1,0 +1,18 @@
+chore(jules): implement SEC-03 job listing route
+
+## What changed
+- Replaced the hardcoded empty list stub in `app/api/v1/routes/jobs.py`'s `list_recent_jobs` endpoints with a real database query.
+- Queries `AsyncJobRecord` filtered by the current user's UUID.
+- Maps the result into `RecentJobsResponse` including `total` count and a paginated list of `RecentJobItem`.
+- Created `tests/test_jobs.py` using a fake DB session to test pagination and response mapping.
+
+## Why
+- Implements SEC-03 (Job Listing) to wire up the frontend job tracker to actual database persistence from job submission routes.
+
+## Verification
+- Executed `ruff check app/ tests/` (All checks passed).
+- Executed `PYTHONPATH=. SECRET_KEY=1 POSTGRES_PASSWORD=1 POSTGRES_USER=1 POSTGRES_DB=1 python -m pytest tests/test_jobs.py` (Passed).
+- Executed `PYTHONPATH=. SECRET_KEY=1 POSTGRES_PASSWORD=1 POSTGRES_USER=1 POSTGRES_DB=1 python -m pytest tests/ -m "not integration"` (Passed).
+
+## Risk
+- Low. This route was previously returning an empty list, now it uses standard, isolated SQLAlchemy queries. Read-only impact.
