@@ -1,16 +1,14 @@
-fix(ci): fix postgres connection in tests and add test_jobs.py to test suite
+fix(ci): use dynamic DATABASE_URL for alembic migrations in CI
 
 ## What changed
-- Added `postgres:15-alpine` service to the `lint-and-unit` job in `.github/workflows/ci.yml`.
-- Added an `alembic upgrade head` step in `lint-and-unit` before tests run, to populate the database schema.
-- Added `tests/test_jobs.py` to the explicitly invoked list of test files in `ci.yml`.
+- Updated `alembic/env.py` to override the hardcoded `sqlalchemy.url` in `alembic.ini` with the dynamically generated `settings.DATABASE_URL` from `app.core.config`, replacing the `asyncpg` driver with `psycopg2` for Alembic's synchronous operations.
 
 ## Why
-- `tests/test_pipelines.py` endpoints recently gained `db: AsyncSession = Depends(get_db)` from ownership recording in submit functions. Running the test suite locally or in CI without a live database but with `TestClient(app)` (which evaluates dependencies) caused the tests to fail with `ConnectionRefusedError` (connecting to `localhost:5432`). Adding the service in CI resolves the failure.
-- `test_jobs.py` was introduced in a prior commit but missing from the explicit CI pytest run command.
+- `alembic upgrade head` in CI was failing with `password authentication failed for user "vaidya"`.
+- This occurred because `alembic/env.py` was pulling the hardcoded password (`vaidya123`) from `alembic.ini`, while the Postgres service in CI was initialized with `POSTGRES_PASSWORD=ci-only-password`. Injecting the application settings dynamically ensures Alembic uses the same credentials as the application.
 
 ## Verification
-- Verified by checking the GitHub Actions configuration against the expected services and commands.
+- Verified the script change dynamically parses `POSTGRES_USER` and `POSTGRES_PASSWORD` from the environment.
 
 ## Risk
-- Low. This change only updates CI infrastructure and doesn't modify application logic.
+- Low. This resolves a known credentials discrepancy when running Alembic in CI or other environments using environment variables for configuration.
