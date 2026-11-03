@@ -14,6 +14,10 @@ if config.config_file_name is not None:
 target_metadata = Base.metadata
 
 def run_migrations_offline():
+    from app.core.config import settings
+    db_url = settings.DATABASE_URL.replace("postgresql+asyncpg://", "postgresql+psycopg2://")
+    config.set_main_option("sqlalchemy.url", db_url)
+
     url = config.get_main_option("sqlalchemy.url")
     context.configure(url=url, target_metadata=target_metadata,
                       literal_binds=True, dialect_opts={"paramstyle": "named"})
@@ -21,6 +25,12 @@ def run_migrations_offline():
         context.run_migrations()
 
 def run_migrations_online():
+    from app.core.config import settings
+    # Override the hardcoded alembic.ini URL with the dynamic one from settings,
+    # but replace asyncpg with psycopg2 for alembic (which uses synchronous operations)
+    db_url = settings.DATABASE_URL.replace("postgresql+asyncpg://", "postgresql+psycopg2://")
+    config.set_main_option("sqlalchemy.url", db_url)
+
     connectable = engine_from_config(
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.", poolclass=pool.NullPool,

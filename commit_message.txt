@@ -1,0 +1,13 @@
+fix(ci): prevent event loop closed errors by using NullPool in tests
+
+## What changed
+- Added logic in `app/db/session.py` to use `NullPool` instead of the default connection pool when running in the test environment (e.g. `APP_ENV="test"` or `pytest` in `sys.modules`).
+
+## Why
+- During pytest teardowns with FastAPI's `TestClient`, SQLAlchemy's async queue pool tries to keep connections open or returns them to the pool after the async event loop has already closed, raising `RuntimeError: Event loop is closed`. Using `NullPool` resolves this by disabling connection pooling entirely in tests.
+
+## Verification
+- Checked that tests execute locally.
+
+## Risk
+- Low. This applies only to testing contexts.
