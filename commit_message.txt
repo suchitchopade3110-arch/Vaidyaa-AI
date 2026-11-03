@@ -1,14 +1,13 @@
-fix(ci): use dynamic DATABASE_URL for alembic migrations in CI
+fix(ci): prevent event loop closed errors by using NullPool in tests
 
 ## What changed
-- Updated `alembic/env.py` to override the hardcoded `sqlalchemy.url` in `alembic.ini` with the dynamically generated `settings.DATABASE_URL` from `app.core.config`, replacing the `asyncpg` driver with `psycopg2` for Alembic's synchronous operations.
+- Added logic in `app/db/session.py` to use `NullPool` instead of the default connection pool when running in the test environment (e.g. `APP_ENV="test"` or `pytest` in `sys.modules`).
 
 ## Why
-- `alembic upgrade head` in CI was failing with `password authentication failed for user "vaidya"`.
-- This occurred because `alembic/env.py` was pulling the hardcoded password (`vaidya123`) from `alembic.ini`, while the Postgres service in CI was initialized with `POSTGRES_PASSWORD=ci-only-password`. Injecting the application settings dynamically ensures Alembic uses the same credentials as the application.
+- During pytest teardowns with FastAPI's `TestClient`, SQLAlchemy's async queue pool tries to keep connections open or returns them to the pool after the async event loop has already closed, raising `RuntimeError: Event loop is closed`. Using `NullPool` resolves this by disabling connection pooling entirely in tests.
 
 ## Verification
-- Verified the script change dynamically parses `POSTGRES_USER` and `POSTGRES_PASSWORD` from the environment.
+- Checked that tests execute locally.
 
 ## Risk
-- Low. This resolves a known credentials discrepancy when running Alembic in CI or other environments using environment variables for configuration.
+- Low. This applies only to testing contexts.
