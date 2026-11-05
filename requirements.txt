@@ -29,7 +29,7 @@ python-dotenv==1.0.1
 
 # ── Celery + Redis ────────────────────────────────────────────────────────────
 celery[redis]==5.4.0
-redis==5.0.4
+redis==6.1.0
 flower==2.0.1                    # Celery monitoring UI
 aiofiles==23.2.1
 
