@@ -11,10 +11,6 @@ Wired in on both sides:
     (jobs.py, reports.py, images.py, claims.py, pdf_reports.py,
     websocket_routes.py) depends on `require_job_owner` (or, for the
     websocket route, the same check done manually — see its docstring).
-
-Known gap: `app/api/v1/routes/images.py`'s `/image/{analysis_id}` route is
-keyed by a different identifier (an ImageAnalysis row PK, not a Celery
-task_id) and isn't covered by this — see the TODO on that route.
 """
 import uuid
 
