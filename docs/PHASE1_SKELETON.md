@@ -36,9 +36,7 @@ something is enforced just because a file with the right name exists.
   `GET /report/{job_id}/pdf` requires auth + ownership (now via
   `require_job_owner`, since SEC-01 landed). `POST /api/text` requires
   auth. `WS /ws/{job_id}` authenticates via a `?token=` query param and
-  checks ownership before accepting the connection.
-- **Not done:** accepting the WS token via Sec-WebSocket-Protocol as a
-  fallback to the query param — TODO in `websocket_routes.py`.
+  checks ownership before accepting the connection. Also accepts token via `Sec-WebSocket-Protocol` header for clients unable to put bearer tokens in the query string.
 
 ## SEC-03 — job listing (Phase 2, not built here)
 

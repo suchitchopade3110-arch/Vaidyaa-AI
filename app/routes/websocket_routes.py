@@ -26,8 +26,15 @@ async def websocket_endpoint(websocket: WebSocket, job_id: str):
     predates this check) is refused too, not silently allowed.
     """
     token = websocket.query_params.get("token")
-    # TODO(SEC-02): also accept the token via Sec-WebSocket-Protocol, for
-    # clients that can't put a bearer token in a URL query string.
+    if not token:
+        sec_protocol = websocket.headers.get("sec-websocket-protocol")
+        if sec_protocol:
+            # Browsers send protocols as a comma-separated string
+            protocols = [p.strip() for p in sec_protocol.split(",")]
+            # Assuming the token is the first protocol if present
+            if protocols:
+                token = protocols[0]
+
     try:
         user = decode_access_token(token)
     except ValueError:
@@ -42,7 +49,7 @@ async def websocket_endpoint(websocket: WebSocket, job_id: str):
         await websocket.close(code=4404)  # not found / not yours
         return
 
-    await websocket.accept()
+    await websocket.accept(subprotocol=token if not websocket.query_params.get("token") and token else None)
     try:
         while True:
             try:
