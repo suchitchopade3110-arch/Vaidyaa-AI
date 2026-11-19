@@ -60,3 +60,7 @@ data/yolo_outputs/
 
 # PLT-04 — Vite frontend build (ui/)
 node_modules/
+
+# v2
+.ruff_cache/
+.claude/settings.local.json
