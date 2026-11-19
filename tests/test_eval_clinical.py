@@ -569,3 +569,42 @@ def test_seeding_is_deterministic_and_purpose_separated():
     assert cfg.DEVTEST_SEED != cfg.HELDOUT_SEED
     a = sc.build_patients(40, random.Random(1))
     assert a == sc.build_patients(40, random.Random(1))
+
+
+# ---------------------------------------------------------------- T16 (zoro) deferred GT finding F1
+
+# Range-absent rows printed in an SI or alternative unit, compared with the conventional-unit consensus interval.
+# Each value is clearly normal: (key, printed value, printed unit, sex, value in the conventional unit).
+SI_ABSENT_NORMAL = [
+    ("creatinine", 80, "umol/L", "M"),  # 0.90 mg/dL vs M 0.7-1.3
+    ("hemoglobin", 140, "g/L", "M"),  # 14.0 g/dL vs M 13.0-17.0
+    ("glucose_fasting", 5.0, "mmol/L", "F"),  # 90 mg/dL vs 70-100
+    ("bilirubin_total", 10, "umol/L", "F"),  # 0.58 mg/dL vs 0.3-1.2
+    ("calcium", 2.35, "mmol/L", "M"),  # 9.4 mg/dL vs 8.5-10.5
+]
+
+
+@pytest.mark.xfail(strict=True, reason="T16 HIGH F1 (reviews/P1-zoro.md): clinical.effective_range compares the printed "
+                   "value with the conventional consensus without converting units; fixing it moves every split "
+                   "fingerprint and one heldout GT row, so it is deferred to the lead (DECISIONS + re-baseline)")
+@pytest.mark.parametrize("key,value,unit,sex", SI_ABSENT_NORMAL)
+def test_range_absent_si_value_is_judged_in_canonical_units(key, value, unit, sex):
+    from tools.eval import review_sim as rs
+
+    t = cl.derive_row(key, value=value, unit=unit, unit_true=unit, printed_range=PR("none"), input_sex=sex,
+                      input_age=40, true_sex=sex, true_age=40)
+    assert (t.flag, t.flag_true) == ("NORMAL", "NORMAL")
+    # the confirmed row the simulated clinician builds from GT (unit_true + effective_range_true) must agree
+    g = {"name": key, "analyte_key": key, "value": value, "value_text": str(value), "qualifier": None,
+         "text_value": None, "unit_true": unit, "specimen": "serum", "range": {"text": ""},
+         "effective_range_true": t.effective_range_true}
+    assert cl.ClinicalRulesScorer().score([rs.true_row(g)], sex, 40).headline == "normal"
+
+
+@pytest.mark.xfail(strict=True, reason="T16 LOW F1b (reviews/P1-zoro.md): latent; flag_true of a unit-less count is "
+                   "computed on the raw value, wrong when the lab's unit is /cumm (no shared family emits it today)")
+def test_unitless_count_true_flag_uses_the_true_unit():
+    t = cl.derive_row("wbc", value=7200, unit="", unit_true="/cumm", printed_range=PR("none"), input_sex="M",
+                      input_age=40, true_sex="M", true_age=40)
+    assert t.flag == "UNKNOWN" and t.ambiguity == ["AMB_UNITLESS_COUNT"]
+    assert t.flag_true == "NORMAL"  # 7.2 x10^3/uL vs 4.0-11.0
