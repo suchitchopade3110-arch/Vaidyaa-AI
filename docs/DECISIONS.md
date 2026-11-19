@@ -12,3 +12,27 @@ One line per decision: date · decision · reason.
 - 2026-11-19 · `requirements.txt` pins `torch==2.3.0+cpu` via the blocked PyTorch index; left unchanged (CI uses it). Locally torch/torchvision 2.3.0 come from PyPI and requirements are installed with the `+cpu`/`--extra-index-url` lines filtered. · Sandbox proxy blocks download.pytorch.org.
 - 2026-11-19 · X-ray weights (`densenet121-res224-nih`, `101-elastic`) fetched from GitHub releases with `HF_HUB_OFFLINE=0`, mirroring the CI prefetch step, so the 3 weight-dependent tests run instead of skipping. · Honest P0 gate (no skips).
 - 2026-11-19 · Added `scripts/dev_up.sh` to restart Postgres/Redis/API/worker after container restarts. · The container restarted once mid-P0; services do not survive it.
+- 2026-11-19 · **P1 design decisions (from plans/P1.md §15):**
+  - P1 changes no product code; the harness observes `run_report_pipeline` via spies and stubs (`PipelineV0Adapter`). P1 measures the offline, no-LLM configuration (no Groq; RAG and the urinalysis KB stubbed; `_call_groq` fails fast).
+  - The v0 needs_review rules are NR0-UNKNOWN, NR0-VALUETYPE, NR0-NOANALYTE, NR0-FLAGCONFLICT, NR0-WARNING and NR0-CRITICAL. Per-row OCR confidence, column-parser origin and unread-line rows are absent in v0, because the current product does not surface them; they arrive with P2.
+  - M1 counts silent inventions and silent omissions as well as wrong rows; the M3 denominator includes unmatched extracted rows. This is the stricter, conservative reading of PRD §3.
+  - A job where nothing was extracted and the product tells the clinician to review it manually covers omissions for M1 but **not** for M2.
+  - The headline is judged on three levels (critical, abnormal, normal); "high" versus "moderate" is not judged (no independent GT exists).
+  - M5 uses a conservative simulated clinician and the v0 engine-floor scorer (ensemble not modelled). M5-pre and M5-oracle are reported. P2 swaps in the real scorer.
+  - The M6 denominator excludes reports with genuinely ambiguous rows. M6 and M7 are gated on native and csv only. rot90 takes the scan thresholds and csv takes the native ones.
+  - Table C: independent critical values (Kost 1990 consensus) with guard bands covering institutional variation; blood specimens only. The generator never emits values in a guard band or exactly at a printed bound. Caps apply where there is no consensus (bilirubin, TG, Hct, aPTT/PT, CK, ALT/AST, amylase/lipase, uric acid, vitamin D, CSF glucose < 20). The engine's INR > 3.0 limit and its missing limits for high Hb, pCO2, pO2 and HCO3 are expected P3 findings; Table C is never edited to match the engine.
+  - Paediatric ages are 2–17 only (no neonates); paediatric reports always print age-appropriate ranges. Range-absent rows only occur for adults of known age, with clear-margin values.
+  - Trace dipstick counts as POSITIVE. CSF differential, urine colour, appearance and crystals, and blood group are INFO. The specimen value "serum" means any blood specimen (FR-1.2 enum).
+  - GT keys for specimen-specific and qualitative analytes (urine_*, csf_*, serology) are a contract for the P3 registry. Qualitative and info analytes are key-optional for name matching.
+  - The corpus is generated on demand into git-ignored `eval/corpus/`. Committed: generator, seeds, 3 dev golden samples, `gate.json`, `baseline.json`, and the phase-end `metrics.json` and `report.md`.
+  - Seeds: dev and test 20261119, heldout 61700529. Split fingerprints are recorded. Any later generator change needs a DECISIONS line and a re-baseline, and may never remove failing cases.
+  - Gate: ratchet on M1–M5 against `eval/baseline.json` (tolerance 0 for native and csv, 1 count for image renderings) in P1–P2. M6 and M7 are target-only (never ratcheted), because more review flags are a safety trade-off. Targets mode applies from the P3 gate. Exit codes 0/1/2/3. Re-baselining needs a DECISIONS line.
+  - `make eval` = the CI profile (test split; native and csv 100%; scan and photo the same stratified 25% sample; rot90 100%). `make eval-full` = everything; heldout is aggregate only.
+  - The OCR cache memoises `ocr_service.ocr_image`, keyed by the preprocessed image plus a model and `ocr_service.py` fingerprint. CI caches OCR JSON and the test GT, native and csv files, and regenerates image renderings.
+  - The nightly is `eval-full.yml` (schedule, dispatch and `workflow_call`), sharded by split × rendering. `schedule` only fires from the default branch; before merge, label the PR `eval-full` or run locally.
+  - Photos are evaluated through `run_report_pipeline` even though the report route accepts only `.pdf` and `.csv`; image upload is a P2 item. Photos are 1800 px on the long side and stay under 10 MB.
+  - Degradations use numpy and Pillow only. Three cv2 wheels are installed, so cv2 is not used at generation time. No new dependencies; no scipy.
+  - Fictional identity policy: invented names; no real accreditation bodies or regulators named; fiction-reserved or invalid phone ranges; `example.org` and `example.com` only; a deny-list test enforces it.
+  - The heldout-only family code lives in `tools/eval/layouts/heldout/` (DO NOT READ for engine work), with canary tokens and a leak test. Heldout outputs are whitelisted aggregates, produced in quiet mode.
+  - `tools/` is linted by ruff in CI.
+  - Observation for P3 and M11: the current pipeline OCRs every native page (≈ 2.9 s/page); P1 does not change it.
