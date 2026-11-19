@@ -83,3 +83,357 @@ def test_gn15_invariants_on_sampled_reports():
             assert not ct.violates_cap(d.key, canon)
             crit += ct.critical_direction(d.key, canon) is not None
     assert seen > 1000 and crit > 0
+
+
+# ======================================================================================================
+# T05: layout kit and template families IN-A, IN-B, IN-C, US-A (GN-07, GN-08, GN-10)
+# ======================================================================================================
+
+import json  # noqa: E402
+import re  # noqa: E402
+
+import fitz  # noqa: E402
+
+from tools.eval import clinical  # noqa: E402
+from tools.eval.layouts import base as lbase  # noqa: E402
+from tools.eval.layouts import templates as tpl  # noqa: E402
+
+T05_FAMILIES = ("IN-A", "IN-B", "IN-C", "US-A")
+
+# Independent copy of the plan section 3.9 deny-list (the test does not import the generator's copy).
+DENY = ("Lal", "PathLabs", "SRL", "Agilus", "Metropolis", "Thyrocare", "Quest", "LabCorp", "NHS", "Apollo", "Fortis",
+        "Medanta", "Manipal", "Neuberg", "Vijaya", "Suburban", "Redcliffe", "Healthians", "Pathkind", "1mg", "Mayo",
+        "ARUP", "BioReference", "Sonic", "Eurofins", "NABL", "CAP", "AIIMS")
+DENY_RE = re.compile(r"(?<![A-Za-z0-9])(?:" + "|".join(map(re.escape, DENY)) + r")(?![A-Za-z0-9])", re.I)
+
+
+def _t05_patients():
+    pts = sc.build_patients(80, random.Random(7))
+    adult = next(p for p in pts if p.input_sex and p.input_age is not None and p.age_group == "adult")
+    unknown = next(p for p in pts if p.input_sex is None and p.input_age is None)
+    kid = next(p for p in pts if p.age_group == "paediatric")
+    return adult, unknown, kid
+
+
+# (patient index, scenario class, pages): adult/critical/2, unknown demographics/severe/1, paediatric/mild/2
+T05_CASES = ((0, "critical", 2), (1, "severe", 1), (2, "mild", 2))
+
+
+@pytest.fixture(scope="module")
+def t05_reports(tmp_path_factory):
+    out = {}
+    pts = _t05_patients()
+    d = tmp_path_factory.mktemp("t05")
+    for fam in T05_FAMILIES:
+        for n, (pi, cls, pages) in enumerate(T05_CASES):
+            rep = tpl.build_report(fam, split="dev", index=n, patient=pts[pi], scenario_class=cls, target_pages=pages)
+            path = d / f"{fam}_{n}.pdf"
+            tpl.native_pdf(rep, str(path))
+            out[(fam, n)] = (rep, lbase.build_gt(rep).to_dict(), path)
+    return out
+
+
+def _words(page):
+    return [(w[0], w[1], w[2], w[3], w[4]) for w in page.get_text("words")]
+
+
+def _inside(w, bbox, tol=2.0):
+    return w[0] >= bbox[0] - tol and w[1] >= bbox[1] - tol and w[2] <= bbox[2] + tol and w[3] <= bbox[3] + tol
+
+
+def test_gn07_bbox_text(t05_reports):
+    for (fam, n), (rep, gt, path) in t05_reports.items():
+        doc = fitz.open(str(path))
+        words = {i + 1: _words(pg) for i, pg in enumerate(doc)}
+        assert gt["rows"], (fam, n)
+        for r in gt["rows"]:
+            inbox = [w[4] for w in words[r["page"]] if _inside(w, r["bbox"])]
+            assert r["value_text"] in inbox, (fam, n, r["row_id"], r["value_text"], inbox)
+            assert any(t in inbox for t in r["name"].split()), (fam, n, r["row_id"], r["name"], inbox)
+        for dcy in gt["decoys"]:
+            inbox = [w[4] for w in words[dcy["page"]] if _inside(w, dcy["bbox"])]
+            for tok in dcy["text"].split():
+                assert tok in inbox, (fam, n, dcy["kind"], tok)
+
+
+def test_gn07_rows_do_not_overlap_and_stay_on_page(t05_reports):
+    for (fam, n), (rep, gt, _) in t05_reports.items():
+        w, h = rep.page_size
+        by_page = {}
+        for r in gt["rows"]:
+            x0, y0, x1, y1 = r["bbox"]
+            assert 0 <= x0 < x1 <= w and 0 <= y0 < y1 <= h, (fam, n, r["row_id"])
+            by_page.setdefault(r["page"], []).append(r["bbox"])
+        for boxes in by_page.values():
+            boxes.sort(key=lambda b: b[1])
+            for a, b in zip(boxes, boxes[1:], strict=False):
+                assert a[3] <= b[1] + 0.5, (fam, n, a, b)  # successive rows are vertically disjoint
+
+
+def test_gn08_pages(t05_reports):
+    for (fam, n), (rep, gt, path) in t05_reports.items():
+        doc = fitz.open(str(path))
+        assert 1 <= len(doc) <= 3
+        assert len(doc) == len(gt["pages"]) == T05_CASES[n][2], (fam, n)
+        assert {r["page"] for r in gt["rows"]} <= set(range(1, len(doc) + 1))
+        for pg, meta in zip(doc, gt["pages"], strict=True):
+            assert (round(pg.rect.width, 1), round(pg.rect.height, 1)) == (round(meta["width_pt"], 1),
+                                                                             round(meta["height_pt"], 1))
+
+
+@pytest.mark.parametrize("fam", T05_FAMILIES)
+def test_gn08_three_page_target_and_repeated_headers(fam, tmp_path):
+    pt = sc.build_patients(40, random.Random(11))[0]
+    pt = next(p for p in sc.build_patients(80, random.Random(7)) if p.input_sex and p.input_age and not p.is_paediatric)
+    rep = tpl.build_report(fam, split="dev", index=9, patient=pt, scenario_class="normal", target_pages=3)
+    path = tmp_path / "r.pdf"
+    tpl.native_pdf(rep, str(path))
+    doc = fitz.open(str(path))
+    assert len(doc) == 3
+    for i, pg in enumerate(doc, 1):  # header repeats on every page; footer carries 'Page i of 3'
+        txt = pg.get_text()
+        assert pt.patient_id in txt and f"Page {i} of 3" in txt
+    assert "End of Report" in doc[2].get_text() and "End of Report" not in doc[0].get_text()
+    gt = lbase.build_gt(rep).to_dict()
+    # a panel continuing across a page break repeats its title with (contd.)
+    titles_by_page = {}
+    for s in gt["sections"]:
+        for p in s["pages"]:
+            titles_by_page.setdefault(p, []).append(s["title"])
+    for s in gt["sections"]:
+        if len(s["pages"]) > 1:
+            assert "(contd.)" in doc[s["pages"][1] - 1].get_text()
+
+
+def test_t05_build_is_deterministic(tmp_path):
+    pt = _t05_patients()[0]
+    outs = []
+    for k in range(2):
+        rep = tpl.build_report("IN-A", split="dev", index=3, patient=pt, scenario_class="severe", target_pages=2)
+        p = tmp_path / f"a{k}.pdf"
+        tpl.native_pdf(rep, str(p))
+        outs.append((p.read_bytes(), json.dumps(lbase.build_gt(rep).to_dict(), sort_keys=True)))
+    assert outs[0] == outs[1]
+
+
+# ---- hand-derived clinical expectations on the printed page
+
+_NUM = r"\d[\d,]*\.?\d*"
+
+
+def _num(s):
+    return float(s.replace(",", ""))
+
+
+def _hand_region(text, value, sex, age):
+    """LOW/NORMAL/HIGH from the printed range text alone, written from the plan's range syntaxes."""
+    lines = re.split(r"\s+(?=(?:M|F|Male|Female|Adult|Child):)", text.strip())
+    chosen = None
+    for ln in lines:
+        m = re.match(r"^(M|F|Male|Female|Adult|Child):\s*(.*)$", ln.strip())
+        if m:
+            tag = m.group(1)
+            if tag in ("M", "Male") and sex == "male" or tag in ("F", "Female") and sex == "female" \
+                    or tag == "Adult" and age >= 18 or tag == "Child" and age < 18:
+                chosen = m.group(2)
+        elif chosen is None:
+            chosen = ln.strip()
+    t = chosen
+    m = re.search(rf"^[\[(]?({_NUM})\s*(?:-|–|to)\s*({_NUM})[\])]?", t)
+    if m:
+        lo, hi = _num(m.group(1)), _num(m.group(2))
+        return "LOW" if value < lo else "HIGH" if value > hi else "NORMAL"
+    m = re.search(rf"^(?:<|Up to)\s*({_NUM})", t)
+    if m:
+        return "HIGH" if value >= _num(m.group(1)) else "NORMAL"
+    m = re.search(rf"^>\s*({_NUM})", t)
+    if m:
+        return "LOW" if value <= _num(m.group(1)) else "NORMAL"
+    return None
+
+
+def test_t05_flags_match_hand_reading_of_the_printed_range(t05_reports):
+    checked = 0
+    for (fam, n), (rep, gt, _) in t05_reports.items():
+        pat = gt["patient"]
+        for r in gt["rows"]:
+            if r["value_type"] != "numeric" or r["range"]["kind"] in ("interpretive", "none") or r["qualifier"]:
+                continue
+            if r["is_critical"] or r["flag"] == "UNKNOWN":
+                continue
+            exp = _hand_region(r["range"]["text"], r["value"], pat["sex_true"], pat["age_true"])
+            assert exp is not None, (fam, r["range"]["text"])
+            assert r["flag_true"] == exp, (fam, n, r["name"], r["value_text"], r["range"]["text"], r["flag_true"])
+            checked += 1
+    assert checked > 150
+
+
+# Hand-copied from plan Table C (canonical conventional units): (critical below, critical above)
+HAND_TABLE_C = {
+    "potassium": (2.5, 6.5), "sodium": (118, 160), "hemoglobin": (6.0, 21.0), "platelets": (20, 1000),
+    "wbc": (1.0, 50), "glucose_fasting": (40, 500), "glucose_pp": (40, 500), "calcium": (6.0, 13.5),
+    "creatinine": (None, 10.0), "inr": (None, 5.0), "bicarbonate": (10, 45),
+}
+
+
+def test_t05_criticality_matches_hand_table_c(t05_reports):
+    n_crit = 0
+    for (fam, n), (rep, gt, _) in t05_reports.items():
+        for r in gt["rows"]:
+            if r["analyte_key"] not in HAND_TABLE_C or r["value_type"] != "numeric":
+                continue
+            lo, hi = HAND_TABLE_C[r["analyte_key"]]
+            v = r["canonical"]["value"]
+            exp = (lo is not None and v < lo) or (hi is not None and v > hi)
+            assert r["is_critical"] == exp, (fam, n, r["analyte_key"], v)
+            n_crit += exp
+        if T05_CASES[n][1] == "critical":
+            assert gt["expected"]["headline"] == "critical" and gt["expected"]["critical_rows"]
+        if T05_CASES[n][1] == "mild":
+            assert gt["expected"]["headline"] == "abnormal"
+    assert n_crit >= 1
+
+
+def test_t05_gt_schema_and_unknown_demographics(t05_reports):
+    from tools.eval.gt_schema import validate_gt
+
+    for (fam, n), (rep, gt, _) in t05_reports.items():
+        assert validate_gt(gt) == [], (fam, n)
+        pat = gt["patient"]
+        txt = rep.all_text()
+        if pat["input_sex"] is None and pat["input_age"] is None:
+            assert "Age" not in txt.split("Referred")[0] and "Sex:" not in txt  # unknown demographics are not printed
+        if pat["input_age"] is not None:
+            assert f"{pat['input_age']} Years" in txt or f"Age: {pat['input_age']}" in txt
+        for r in gt["rows"]:
+            assert r["unit_true"] == r["unit"] and r["value_text"] in r["line_text"]
+
+
+def test_t05_ldl_not_calculated_when_tg_high():
+    # Friedewald is invalid at TG >= 400 mg/dL (plan 3.6): the helper returns None and the template prints a decoy.
+    assert sc.ldl_friedewald(250.0, 40.0, 450.0) is None
+    assert sc.ldl_friedewald(200.0, 50.0, 150.0) == 120.0  # 200 - 50 - 150/5
+
+
+# ---- GN-10 fictional identity
+
+PHONE_ALLOWED = (r"\(\d{3}\) 555-01\d{2}", r"01632 960\d{3}", r"0000-2\d{6}", r"\+91 00000 0\d{4}",
+                 r"1800-000-0\d{3}")
+PHONE_ANY = re.compile(r"\(\d{3}\) \d{3}-\d{4}|\+91 \d{5} \d{5}|\b0000-\d{7}\b|\b1800-\d{3}-\d{4}\b|\b\d{4}-\d{7}\b")
+
+
+def test_gn10_deny_list_matcher_semantics():
+    assert DENY_RE.search("Report from QUEST labs") and DENY_RE.search("cap")
+    assert not DENY_RE.search("Questionnaire") and not DENY_RE.search("capsule") and not DENY_RE.search("CLIA")
+    assert lbase.deny_hits("Mayo and CLIA") == ["Mayo"]
+
+
+def test_gn10_name_pools_are_clean():
+    pools = (lbase.LAB_NAMES, lbase.STREETS_IN, lbase.CITIES_IN, lbase.STREETS_US, lbase.CITIES_US,
+             lbase.DOCTOR_FIRST, lbase.DOCTOR_LAST, cfg.FIRST_NAMES_F, cfg.FIRST_NAMES_M, cfg.SURNAMES)
+    for pool in pools:
+        for item in pool:
+            assert not DENY_RE.search(item), item
+
+
+def test_gn10_fictional_identity(t05_reports):
+    for (fam, n), (rep, gt, path) in t05_reports.items():
+        doc = fitz.open(str(path))
+        page_text = "\n".join(pg.get_text() for pg in doc)
+        blob = json.dumps(gt, ensure_ascii=False) + "\n" + page_text
+        assert not DENY_RE.search(blob), (fam, n, DENY_RE.search(blob).group(0))
+        assert gt["lab"]["fictional"] is True
+        phones = PHONE_ANY.findall(page_text)
+        assert phones, (fam, n)
+        for ph in phones:
+            assert any(re.fullmatch(p, ph) for p in PHONE_ALLOWED), (fam, n, ph)
+        for host in re.findall(r"[\w.+-]+@([\w.-]+)", page_text) + re.findall(r"www\.([\w.-]+)", page_text):
+            assert host.endswith(("example.org", "example.com")), (fam, n, host)
+        assert re.search(r"Accreditation Cert\. No\. FA-\d{4}", page_text)
+        assert re.search(r"Reg\. No\. FX-\d{5}", page_text)
+        if fam == "US-A":
+            assert re.search(r"\(\d{3}\) 555-01\d{2}", page_text)
+        else:
+            assert re.search(r"0000-2\d{6}|\+91 00000 0\d{4}", page_text) and re.search(r"1800-000-0\d{3}", page_text)
+        assert gt["decoys"] and {"phone", "tollfree", "page_x_of_y", "accreditation", "address"} <= {
+            d["kind"] for d in gt["decoys"]}
+
+
+def test_t05_standard14_fonts_only(t05_reports):
+    for (fam, n), (rep, gt, path) in t05_reports.items():
+        doc = fitz.open(str(path))
+        for pg in doc:
+            for f in pg.get_fonts():
+                assert f[3] in ("Helvetica", "Helvetica-Bold", "Helvetica-Oblique", "Times-Roman", "Times-Bold"), f
+        for pg in doc:
+            pg.get_text().encode("cp1252")  # WinAnsi only; the plan's '<=' / '>=' substitutes stay ASCII
+        assert not any(c in rep.all_text() for c in "\u2264\u2265")
+
+
+def test_t05_family_structure(t05_reports):
+    feats = {fam: set() for fam in T05_FAMILIES}
+    for (fam, n), (rep, gt, _) in t05_reports.items():
+        for r in gt["rows"]:
+            feats[fam].update(r["features"])
+    assert "method_column" in feats["IN-A"] and "technology_column" in feats["IN-B"] and "glued_flag" in feats["IN-B"]
+    assert "method_under_name" in feats["IN-C"] and "flag_column" in feats["US-A"]
+    for (fam, n), (rep, gt, path) in t05_reports.items():
+        txt = "\n".join(pg.get_text() for pg in fitz.open(str(path)))
+        if fam == "IN-A":
+            assert "Method" in txt and "Bio. Ref. Interval" in txt
+        if fam == "IN-B":
+            assert "Technology" in txt
+        if fam == "US-A":
+            assert "FINAL REPORT" in txt and "Flag" in txt and "Lab" in txt
+        if fam == "US-A":
+            assert gt["unit_system"] == "conventional"
+        flagged = [r for r in gt["rows"] if r["printed_flag"]]
+        if fam in ("IN-A", "IN-C"):
+            assert not flagged
+        else:
+            for r in flagged:
+                assert r["printed_flag"] in ("H", "L", "HH", "LL")
+                if fam == "IN-B":
+                    assert r["printed_flag"] in ("H", "L") and f"{r['value_text']} {r['printed_flag']}" in r["line_text"]
+
+
+def test_t05_sex_labelled_range_without_sex_is_ambiguous_only_when_sides_differ():
+    # Hand case: Hb 12.5 against 'M: 13.0 - 17.0 / F: 12.0 - 15.0' with sex unknown. Low for a man, normal for a
+    # woman -> not on the same side of every range -> UNKNOWN + AMB_SEX_RANGES_NO_SEX; truth follows the true sex.
+    pr = clinical.PrintedRange("sex", options=(clinical.OptionRange("M", 13.0, 17.0, sex="M"),
+                                               clinical.OptionRange("F", 12.0, 15.0, sex="F")))
+    t = clinical.derive_row("hemoglobin", value=12.5, unit="g/dL", printed_range=pr, input_sex=None, true_sex="female")
+    assert t.flag == "UNKNOWN" and t.ambiguity == ["AMB_SEX_RANGES_NO_SEX"] and t.flag_true == "NORMAL"
+    # Hb 10.5 is below both ranges: determinable LOW, not ambiguous (plan 3.8).
+    t2 = clinical.derive_row("hemoglobin", value=10.5, unit="g/dL", printed_range=pr, input_sex=None, true_sex="male")
+    assert t2.flag == "LOW" and not t2.ambiguity
+
+
+def test_t05_sample_invariants_class_and_pages():
+    """Across 20 reports per family: pages == target, headline follows the scenario class (plan 3.3/4.2.5),
+    no printed value sits in a Table C guard band or on a printed bound (GN-15 on these families)."""
+    n = 20
+    pts = sc.build_patients(n, random.Random(21))
+    classes = sc.allocate_scenario_classes(n, random.Random(22))
+    pages = [1] * 9 + [2] * 8 + [3] * 3
+    random.Random(23).shuffle(pages)
+    want = {"normal": "normal", "mild": "abnormal", "severe": "abnormal", "critical": "critical"}
+    for fam in T05_FAMILIES:
+        for i in range(n):
+            rep = tpl.build_report(fam, split="test", index=i, patient=pts[i], scenario_class=classes[i],
+                                   target_pages=pages[i])
+            gt = lbase.build_gt(rep).to_dict()
+            assert len(gt["pages"]) == pages[i], (fam, i)
+            assert gt["expected"]["headline"] == want[classes[i]], (fam, i, classes[i])
+            for r in gt["rows"]:
+                if r["value_type"] != "numeric":
+                    continue
+                key, c = r["analyte_key"], r["canonical"]["value"]
+                if not r["qualifier"]:
+                    assert not ct.in_guard(key, c, None), (fam, i, key, c)
+                bounds = [b for b in (r["range"]["low"], r["range"]["high"]) if b is not None]
+                bounds += [v for o in r["range"]["options"] for v in (o["low"], o["high"]) if v is not None]
+                assert r["value"] not in bounds or r["qualifier"], (fam, i, key, r["value"])
+                if r["analyte_key"] != "egfr" and CATALOGUE[key].plaus:
+                    lo, hi = CATALOGUE[key].plaus
+                    assert lo <= c <= hi, (fam, i, key, c)
