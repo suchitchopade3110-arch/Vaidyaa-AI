@@ -732,7 +732,8 @@ class _Gen:
 def _header_height(spec: FamilySpec, first: bool) -> float:
     if not first:
         return 60.0
-    return {"in_a": 128.0, "in_b": 140.0, "in_c": 126.0, "us_a": 120.0}[spec.header_style]
+    return {"in_a": 128.0, "in_b": 140.0, "in_c": 126.0, "us_a": 120.0, "in_d": 128.0, "in_e": 128.0,
+            "uk_a": 120.0}[spec.header_style]
 
 
 def _draw_header(doc: DocBuilder, spec: FamilySpec, lay: Lay, pt: Patient, page_no: int) -> None:
@@ -753,7 +754,7 @@ def _draw_header(doc: DocBuilder, spec: FamilySpec, lay: Lay, pt: Patient, page_
         doc.y = doc.top + _header_height(spec, False) - 14
         return
     style = spec.header_style
-    if style == "in_a":
+    if style in ("in_a", "in_d"):
         base.draw_logo(doc, mx, y, ident, 17)
         doc.put(mx + 44, y + 2, ident.lab_name, fb, 15)
         doc.put(mx + 44, y + 21, ident.address, f, 8, decoy="address")
@@ -761,7 +762,19 @@ def _draw_header(doc: DocBuilder, spec: FamilySpec, lay: Lay, pt: Patient, page_
         doc.put(rx, y + 13, f"Toll Free: {ident.tollfree}", f, 8, align="r", decoy="tollfree")
         doc.put(rx, y + 24, f"{ident.email}  |  {ident.web}", f, 7.5, align="r")
         doc.line(mx, y + 42, rx, y + 42, 1.2)
+        if style == "in_d":
+            doc.put(W / 2, y + 2, "CUMULATIVE LABORATORY REPORT", fb, 10, align="c")
         _patient_two_col(doc, spec, lay, pl, y + 50, ("name", "agesex", "ref"), ("pid", "labno", "sample"))
+    elif style == "in_e":
+        base.draw_logo(doc, mx, y, ident, 17)
+        doc.put(mx + 44, y + 2, ident.lab_name.upper(), fb, 13)
+        doc.put(mx + 44, y + 19, "Hospital Laboratory Services", f, 8)
+        doc.put(mx + 44, y + 30, ident.address, f, 7.5, decoy="address")
+        doc.put(rx, y + 2, f"Tel: {ident.phone}", f, 8, align="r", decoy="phone")
+        doc.put(rx, y + 13, f"Toll Free: {ident.tollfree}", f, 8, align="r", decoy="tollfree")
+        doc.line(mx, y + 42, rx, y + 42, 1.0)
+        _patient_two_col(doc, spec, lay, pl, y + 50, ("name", "agesex", "ref"), ("pid", "labno", "sample"))
+        doc.put(mx + 4, y + 87.5, f"Ward/Bed: {lay.ward}", f, 8.5, decoy="header_id")
     elif style == "in_b":
         base.draw_logo(doc, (W - 34) / 2, y, ident, 17)
         doc.put(W / 2, y + 38, ident.lab_name.upper(), fb, 14, align="c")
@@ -777,6 +790,13 @@ def _draw_header(doc: DocBuilder, spec: FamilySpec, lay: Lay, pt: Patient, page_
         doc.put(rx - 4, y + 5, f"Tel: {ident.phone}", f, 8, align="r", decoy="phone")
         doc.put(rx - 4, y + 16, f"{ident.address_street}, {ident.address_city}", f, 7, align="r", decoy="address")
         _patient_two_col(doc, spec, lay, pl, y + 40, ("name", "agesex", "ref"), ("pid", "labno", "sample"))
+    elif style == "uk_a":
+        doc.put(mx, y, ident.lab_name, fb, 15)
+        doc.put(mx, y + 19, f"{ident.address}", f, 8, decoy="address")
+        doc.put(mx, y + 30, f"Telephone: {ident.phone}", f, 8, decoy="phone")
+        doc.rect(rx - 150, y, 150, 24, width=1.0)
+        doc.put(rx - 75, y + 6, "PATHOLOGY REPORT", fb, 11, align="c")
+        _patient_two_col(doc, spec, lay, pl, y + 52, ("name", "agesex", "pid"), ("labno", "sample", "ref"))
     else:  # us_a
         doc.put(mx, y, ident.lab_name, fb, 15)
         doc.put(mx, y + 19, f"{ident.address}", f, 8, decoy="address")
@@ -806,7 +826,17 @@ def _patient_two_col(doc: DocBuilder, spec: FamilySpec, lay: Lay, pl: dict, y: f
     doc.put(mid + 140, yy, f"Reported: {lay.reported}", f, 8.5, decoy="date")
 
 
-def _col_header(doc: DocBuilder, spec: FamilySpec, title: str, cont: bool) -> None:
+def _cols(spec: FamilySpec, lay: Lay) -> tuple[Column, ...]:
+    """Columns for this report: IN-D keeps only the last ``len(lay.dates)`` dated columns, headed by their dates."""
+    if not spec.cumulative:
+        return spec.columns
+    dated = [c for c in spec.columns if c.key.startswith("d")]
+    keep = dated[len(dated) - len(lay.dates):]
+    return tuple(Column(c.key, lay.dates[keep.index(c)], c.x) if c in keep else c
+                 for c in spec.columns if c in keep or c not in dated)
+
+
+def _col_header(doc: DocBuilder, spec: FamilySpec, title: str, cont: bool, lay: Lay | None = None) -> None:
     """Panel title band and column headings (title repeats with '(contd.)' after a page break)."""
     mx = doc.margin_x
     rx = doc.size[0] - mx
@@ -814,6 +844,21 @@ def _col_header(doc: DocBuilder, spec: FamilySpec, title: str, cont: bool) -> No
     doc.rect(mx, doc.y, rx - mx, 15, fill=0.9)
     doc.put(mx + 4, doc.y + 3, t, spec.bold, spec.size + 0.5)
     doc.y += 18
+    if spec.cumulative and lay is not None:
+        lab = 10.0 if lay.current_label else 0.0
+        cols = _cols(spec, lay)
+        newest = [c for c in cols if c.key.startswith("d")][-1]
+        for c in cols:
+            if c.key.startswith("d"):
+                if lab and c is newest:
+                    doc.put(c.x, doc.y, "Current", spec.bold, spec.size - 0.5)
+                doc.put(c.x, doc.y + lab, c.header, spec.bold, spec.size - 0.5, decoy="date")
+            else:
+                doc.put(c.x, doc.y + lab, c.header, spec.bold, spec.size - 0.5, align=c.align)
+        doc.y += 12 + lab
+        doc.line(mx, doc.y - 1, rx, doc.y - 1, 0.6)
+        doc.y += 3
+        return
     for c in spec.columns:
         doc.put(c.x, doc.y, c.header, spec.bold, spec.size - 0.5, align=c.align)
     doc.y += 12
@@ -838,6 +883,22 @@ def _cells(spec: FamilySpec, lay: Lay, r: PrintedRow) -> list[Cell]:
         name = Cell(40, [(r.name, f, sz)] + ([(r.method, FONT_ITALIC, 6.5)] if r.method else []))
         return [name, simple_cell(300, val, bold, sz), simple_cell(372, r.unit, f, sz),
                 simple_cell(448, r.range_lines, f, sz + spec.range_size_delta)]
+    if sid == "IN-D":
+        cols = _cols(spec, lay)
+        xs = [c.x for c in cols if c.key.startswith("d")]
+        vals = [p["value_text"] for p in r.previous] + [val]
+        if r.unlabelled_multivalue:  # all values squeezed into one cell: no column or date says which is current
+            vcells = [simple_cell(xs[0], "  ".join(vals), f, sz)]
+        else:
+            vcells = [simple_cell(x, v, f, sz) for x, v in zip(xs, vals, strict=True)]
+        ux = next(c.x for c in cols if c.key == "unit")
+        rx_ = next(c.x for c in cols if c.key == "range")
+        return [simple_cell(40, r.name, f, sz), *vcells, simple_cell(ux, r.unit, f, sz),
+                simple_cell(rx_, r.range_lines, f, sz)]
+    if sid == "UK-A":
+        name = f"{r.name} ({r.unit})" if lay.uk_style == 1 and r.unit else r.name
+        res = f"{val} {r.unit}" if lay.uk_style == 0 and r.unit else val
+        return [simple_cell(40, name, f, sz), simple_cell(270, res, f, sz), simple_cell(390, r.range_lines, f, sz)]
     return [simple_cell(36, r.name, f, sz), simple_cell(250, val, bold, sz, "r"),
             simple_cell(268, r.printed_flag, fb, sz), simple_cell(322, r.range_lines, f, sz),
             simple_cell(440, r.unit, f, sz), simple_cell(520, lay.lab_codes.get(r.section, "01"), f, sz)]
@@ -861,8 +922,101 @@ def _draw_interpretive(doc: DocBuilder, spec: FamilySpec, keys: list[str]) -> No
         doc.y += h
 
 
+def _cells_e(spec: FamilySpec, r: PrintedRow, off: float) -> list[Cell]:
+    """IN-E half-panel row: name / result / unit (header-unit and unitless rows leave it empty) / range."""
+    f, sz = spec.font, spec.size
+    val = f"{r.qualifier} {r.value_text}" if r.qualifier else r.value_text
+    return [simple_cell(36 + off, r.name, f, sz), simple_cell(128 + off, val, f, sz),
+            simple_cell(172 + off, r.unit if r.unit_placement == "cell" else "", f, sz),
+            simple_cell(218 + off, r.range_lines, f, sz - 0.5)]
+
+
+_E_OFF = 270.0
+
+
+def _col_header_e(doc: DocBuilder, spec: FamilySpec, lay: Lay, title: str, off: float, cont: bool) -> None:
+    """One half-panel band and its column headings at the cursor (cursor is not moved)."""
+    x0 = doc.margin_x if off == 0 else doc.margin_x + off
+    x1 = 296.0 if off == 0 else doc.size[0] - doc.margin_x
+    t = f"{title} (contd.)" if cont else title
+    if title == "HAEMATOLOGY" and lay.hdr_unit_text:
+        t += f" (x{lay.hdr_unit_text})"
+    doc.rect(x0, doc.y, x1 - x0, 15, fill=0.9)
+    doc.put(x0 + 4, doc.y + 3, t, spec.bold, spec.size + 0.5)
+    for c in spec.columns:
+        doc.put(c.x + off, doc.y + 18, c.header, spec.bold, spec.size - 0.5)
+    doc.line(x0, doc.y + 29, x1, doc.y + 29, 0.6)
+
+
+def _layout_e(spec: FamilySpec, lay: Lay, pt: Patient, rows: list[PrintedRow], notes: dict[str, str], pad: float,
+              tg_text: str) -> DocBuilder:
+    """IN-E: panels in consecutive pairs, drawn side by side; per page the LEFT half is drawn fully, then the RIGHT."""
+    def on_page(doc: DocBuilder, n: int, is_break: bool) -> None:
+        _draw_header(doc, spec, lay, pt, n)
+
+    doc = DocBuilder(spec.page, margin_x=36.0, top=34.0, bottom=84.0, on_new_page=on_page)
+    for k in range(0, len(spec.panels) - 1, 2):
+        lt, rt = spec.panels[k][0], spec.panels[k + 1][0]
+        sides: list[tuple[str, float, list]] = []
+        for title, off in ((lt, 0.0), (rt, _E_OFF)):
+            items: list = [r for r in rows if r.section == title]
+            if notes.get("LIPID") == "tg" and any(r.key == "triglycerides" for r in items) \
+                    and not any(r.key == "ldl" for r in items):
+                items.append(f"LDL: Not calculated (TG > {tg_text})")
+            sides.append((title, off, items))
+        n = max(len(items) for _, _, items in sides)
+        if n == 0:
+            continue
+
+        def lh(j: int) -> float:
+            hs = []
+            for _, off, items in sides:
+                if j < len(items):
+                    it = items[j]
+                    hs.append(doc.row_height(_cells_e(spec, it, off), pad) if isinstance(it, PrintedRow)
+                              else base.line_height(8) + pad)
+            return max(hs)
+
+        doc.ensure(33 + lh(0) * 2)
+        i = 0
+        while i < n:
+            y0 = doc.y + 33
+            cum = [0.0]
+            j = i
+            while j < n and y0 + cum[-1] + lh(j) <= doc.limit:
+                cum.append(cum[-1] + lh(j))
+                j += 1
+            if j == i:
+                doc.new_page()
+                continue
+            for title, off, items in sides:
+                if i >= len(items):
+                    continue
+                hy = y0 - 33
+                doc.y = hy
+                _col_header_e(doc, spec, lay, title, off, i > 0)
+                for m in range(i, min(j, len(items))):
+                    doc.y = y0 + cum[m - i]
+                    it = items[m]
+                    if isinstance(it, PrintedRow):
+                        doc.row(it, _cells_e(spec, it, off), pad)
+                    else:
+                        doc.put(doc.margin_x + off + 4, doc.y + pad / 2, it, FONT_ITALIC, 8, decoy="not_calculated")
+            doc.y = y0 + cum[-1]
+            i = j
+            if i < n:
+                doc.new_page()
+        doc.y += 8
+    doc.finish(lambda d, pg, total: base.draw_standard_footer(
+        d, pg, total, lay.ident, size=7.0, right_edge=d.size[0] - d.margin_x))
+    return doc
+
+
 def _layout(spec: FamilySpec, lay: Lay, pt: Patient, rows: list[PrintedRow], notes: dict[str, str], pad: float,
             tg_text: str) -> DocBuilder:
+    if spec.two_panel:
+        return _layout_e(spec, lay, pt, rows, notes, pad, tg_text)
+
     def on_page(doc: DocBuilder, n: int, is_break: bool) -> None:
         _draw_header(doc, spec, lay, pt, n)
 
@@ -876,12 +1030,12 @@ def _layout(spec: FamilySpec, lay: Lay, pt: Patient, rows: list[PrintedRow], not
         srows = [r for r in rows if r.section == title]
         first_h = 18 + 15 + doc.row_height(_cells(spec, lay, srows[0]), pad) * 2
         doc.ensure(first_h)
-        _col_header(doc, spec, title, False)
+        _col_header(doc, spec, title, False, lay)
         for r in srows:
             cells = _cells(spec, lay, r)
             if doc.y + doc.row_height(cells, pad) > doc.limit:
                 doc.new_page()
-                _col_header(doc, spec, title, True)
+                _col_header(doc, spec, title, True, lay)
             doc.row(r, cells, pad)
         if notes.get(title) == "tg" and any(r.key == "triglycerides" for r in srows) \
                 and not any(r.key == "ldl" for r in srows):
@@ -971,20 +1125,49 @@ def _headline_ok(cls: str, rows: list[PrintedRow], pt: Patient) -> bool:
     return h == {"normal": "normal", "mild": "abnormal", "severe": "abnormal", "critical": "critical"}[cls]
 
 
-def build_report(family: str, *, split: str, index: int, patient: Patient, scenario_class: str, target_pages: int,
-                 report_id: str | None = None) -> PrintedReport:
-    """Build the printed report (rows, decoys, pages) for one template family.
+UK_STREETS = ("Hawthorn Close", "Millers Row", "Ashgrove Road", "Kingfisher Way", "Linden Terrace")
+UK_CITIES = ("Leeds", "Bristol", "Norwich", "Exeter", "Derby", "Lincoln")
 
-    Fully determined by (family, split, index, patient, scenario_class, target_pages): per-purpose seeds come from
-    ``config.seed_for``. The value draw is repeated (attempt counter added to the seed) until pagination matches
-    ``target_pages`` and the GT headline matches the scenario class.
-    """
-    spec = SPECS[family]
+
+def _uk_identity(ident: Identity, rng: random.Random) -> Identity:
+    """UK-A identity: Ofcom drama-range phones (01632 960NNN), fictional street, no regulator named (plan 3.9)."""
+    street = f"{rng.randint(2, 98)} {rng.choice(UK_STREETS)}"
+    city = f"{rng.choice(UK_CITIES)} {rng.choice('ABCDEFGH')}{rng.choice('JKLMNPRS')}{rng.randint(1, 9)} " \
+           f"{rng.randint(1, 9)}{rng.choice('QXZ')}{rng.choice('QXZ')}"
+    doc = ident.pathologist.split(",")[0]
+    return replace(
+        ident, address=f"{street}, {city}", address_street=street, address_city=city,
+        phone=f"01632 960{rng.randint(0, 999):03d}", tollfree=f"01632 960{rng.randint(0, 999):03d}",
+        pathologist=f"{doc}, FRCPath", locale="UK",
+    )
+
+
+def _extend_lay(spec: FamilySpec, lay: Lay, xrng: random.Random, collected: datetime.date) -> Lay:
+    """T06 per-report choices, drawn from their own rng stream so the T05 draws (and hashes) are untouched."""
+    kw: dict = {}
+    if spec.cumulative:
+        n = xrng.choice((2, 3))
+        gaps = sorted(xrng.sample(range(28, 400), n - 1), reverse=True)  # oldest first
+        prev = [base.fmt_date(collected - datetime.timedelta(days=g), spec.date_style) for g in gaps]
+        kw.update(dates=tuple(prev + [lay.collected]), current_label=xrng.random() < 0.5)
+    if spec.two_panel:
+        amb = xrng.random() < 0.15  # AMB_UNITLESS_COUNT: 15% of count rows (report-level draw)
+        kw.update(amb_counts=amb, hdr_unit_text="" if amb else ("10^9/L" if lay.si else "10^3/uL"),
+                  ward=f"{xrng.choice('ABCD')}{xrng.randint(1, 6)} / Bed {xrng.randint(1, 40)}")
+    if spec.fid == "UK-A":
+        st = xrng.randrange(3)
+        kw.update(uk_style=st, range_bracket_unit=st == 2)
+    return replace(lay, **kw)
+
+
+def setup(spec: FamilySpec, *, split: str, index: int, target_pages: int):
+    """Per-report layout choices shared by the PDF families and GEN-CSV: ``(spec_with_panel_order, lay, seed_fn)``."""
     master = cfg.master_seed(split)
     seed = lambda purpose: cfg.seed_for(master, split, index, purpose)  # noqa: E731
-    rid = report_id or f"{split[0].upper()}{index + 1:03d}"
     lrng = random.Random(seed("layout"))
     ident = base.make_identity(random.Random(seed("names")), spec.locale)
+    if spec.fid == "UK-A":
+        ident = _uk_identity(ident, random.Random(seed("names") + 1))
     collected, reported = base.fixed_dates(lrng)
     n_foot = lrng.randint(1, 2)
     foots = ("01 = Main Laboratory, " + ident.address, "** Fasting specimen recommended for glucose and lipid tests.",
@@ -997,11 +1180,35 @@ def build_report(family: str, *, split: str, index: int, patient: Patient, scena
         footnotes=foots, lab_codes={}, start_pad=lrng.uniform(3.0, 6.0) if target_pages == 1
         else lrng.uniform(5.0, 8.0) if target_pages == 2 else lrng.uniform(9.0, 12.0),
     )
+    lay = _extend_lay(spec, lay, random.Random(seed("layout") + 7919), collected)
     panels = list(spec.panels)
     head = panels[0]
     rest = panels[1:]
     lrng.shuffle(rest)
-    spec2 = FamilySpec(**{**spec.__dict__, "panels": tuple([head] + rest)})  # panel order varies per report
+    if spec.two_panel:
+        spec2 = spec  # panel pairs are fixed: haematology | biochemistry first
+    else:
+        spec2 = FamilySpec(**{**spec.__dict__, "panels": tuple([head] + rest)})  # panel order varies per report
+    return spec2, lay, seed
+
+
+def build_report(family: str, *, split: str, index: int, patient: Patient, scenario_class: str, target_pages: int,
+                 report_id: str | None = None) -> PrintedReport:
+    """Build the printed report (rows, decoys, pages) for one template family.
+
+    Fully determined by (family, split, index, patient, scenario_class, target_pages): per-purpose seeds come from
+    ``config.seed_for``. The value draw is repeated (attempt counter added to the seed) until pagination matches
+    ``target_pages`` and the GT headline matches the scenario class. GEN-CSV is delegated to ``csv_export``.
+    """
+    spec = SPECS[family]
+    if spec.csv:
+        from tools.eval.layouts import csv_export  # local import: csv_export imports this module
+
+        return csv_export.build_report(family, split=split, index=index, patient=patient,
+                                       scenario_class=scenario_class, target_pages=target_pages, report_id=report_id)
+    rid = report_id or f"{split[0].upper()}{index + 1:03d}"
+    spec2, lay, seed = setup(spec, split=split, index=index, target_pages=target_pages)
+    ident = lay.ident
     tg_text = "4.5 mmol/L" if lay.si else "400 mg/dL"
     for attempt in range(MAX_ATTEMPTS):
         srng = random.Random(seed("scenario") + attempt)
@@ -1029,7 +1236,9 @@ def build_report(family: str, *, split: str, index: int, patient: Patient, scena
 
 
 def native_pdf(report: PrintedReport, path: str) -> None:
+    if SPECS[report.family].csv:
+        raise ValueError(f"{report.family} has no native PDF rendering (csv only); use csv_export.write_csv")
     base.write_pdf(report.pages, report.page_size, path, title=f"{report.lab['name']} - Laboratory Report")
 
 
-__all__ = ["DERIVED", "SPECS", "FamilySpec", "build_report", "native_pdf"]
+__all__ = ["DERIVED", "SPECS", "FamilySpec", "build_report", "native_pdf", "setup"]

@@ -437,3 +437,520 @@ def test_t05_sample_invariants_class_and_pages():
                 if r["analyte_key"] != "egfr" and CATALOGUE[key].plaus:
                     lo, hi = CATALOGUE[key].plaus
                     assert lo <= c <= hi, (fam, i, key, c)
+
+
+# ======================================================================================================
+# T06 section: IN-D, IN-E, UK-A (native PDF) and GEN-CSV (text export): GN-07, GN-08, GN-10 + family structure
+# ======================================================================================================
+
+import csv as _csv  # noqa: E402
+import datetime as _dt  # noqa: E402
+import io as _io  # noqa: E402
+
+from tools.eval import layouts as _layouts  # noqa: E402
+from tools.eval.layouts import csv_export as _csvx  # noqa: E402
+
+T06_PDF = ("IN-D", "IN-E", "UK-A")
+T06_ALL = (*T06_PDF, "GEN-CSV")
+
+
+def _t06_build(fam, n, pt, cls, pages, split="dev"):
+    return tpl.build_report(fam, split=split, index=n, patient=pt, scenario_class=cls, target_pages=pages)
+
+
+@pytest.fixture(scope="module")
+def t06_reports(tmp_path_factory):
+    out = {}
+    pts = _t05_patients()
+    d = tmp_path_factory.mktemp("t06")
+    for fam in T06_ALL:
+        for n, (pi, cls, pages) in enumerate(T05_CASES):
+            rep = _t06_build(fam, n, pts[pi], cls, pages)
+            path = d / f"{fam}_{n}.{'csv' if fam == 'GEN-CSV' else 'pdf'}"
+            if fam == "GEN-CSV":
+                _csvx.write_csv(rep, str(path))
+            else:
+                tpl.native_pdf(rep, str(path))
+            out[(fam, n)] = (rep, lbase.build_gt(rep).to_dict(), path)
+    return out
+
+
+def _pdf_items(t06):
+    return {k: v for k, v in t06.items() if k[0] in T06_PDF}
+
+
+def test_t06_families_are_registered_templates():
+    for fid in T06_ALL:
+        e = _layouts.FAMILIES[fid]
+        assert (e.kind, e.scope) == ("template", "shared")
+    rep = _layouts.FAMILIES["UK-A"].builder("UK-A", split="dev", index=0, patient=_t05_patients()[0],
+                                            scenario_class="normal", target_pages=1)
+    assert rep.family == "UK-A"
+
+
+# ---- GN-07 / GN-08 on the three PDF families
+
+def test_gn07_t06_bbox_text(t06_reports):
+    for (fam, n), (rep, gt, path) in _pdf_items(t06_reports).items():
+        doc = fitz.open(str(path))
+        words = {i + 1: _words(pg) for i, pg in enumerate(doc)}
+        assert gt["rows"], (fam, n)
+        for r in gt["rows"]:
+            inbox = [w[4] for w in words[r["page"]] if _inside(w, r["bbox"])]
+            assert r["value_text"] in inbox, (fam, n, r["row_id"], r["value_text"], inbox)
+            assert any(t in inbox for t in r["name"].split()), (fam, n, r["row_id"], r["name"], inbox)
+        for dcy in gt["decoys"]:
+            inbox = [w[4] for w in words[dcy["page"]] if _inside(w, dcy["bbox"])]
+            for tok in dcy["text"].split():
+                assert tok in inbox, (fam, n, dcy["kind"], tok)
+
+
+def _overlap(a, b):
+    return min(a[2], b[2]) - max(a[0], b[0]) > 0.5 and min(a[3], b[3]) - max(a[1], b[1]) > 0.5
+
+
+def test_gn07_t06_row_boxes_stay_on_page_and_never_overlap(t06_reports):
+    for (fam, n), (rep, gt, _) in _pdf_items(t06_reports).items():
+        w, h = rep.page_size
+        boxes = {}
+        for r in gt["rows"]:
+            x0, y0, x1, y1 = r["bbox"]
+            assert 0 <= x0 < x1 <= w and 0 <= y0 < y1 <= h, (fam, n, r["row_id"])
+            boxes.setdefault(r["page"], []).append(r["bbox"])
+        for bs in boxes.values():
+            for i, a in enumerate(bs):
+                for b in bs[i + 1:]:
+                    assert not _overlap(a, b), (fam, n, a, b)
+
+
+def test_gn08_t06_pages_and_orientation(t06_reports):
+    for (fam, n), (rep, gt, path) in _pdf_items(t06_reports).items():
+        doc = fitz.open(str(path))
+        assert len(doc) == len(gt["pages"]) == T05_CASES[n][2], (fam, n)
+        for pg, meta in zip(doc, gt["pages"], strict=True):
+            assert (round(pg.rect.width, 1), round(pg.rect.height, 1)) == (round(meta["width_pt"], 1),
+                                                                             round(meta["height_pt"], 1))
+            assert (pg.rect.width > pg.rect.height) == (fam == "IN-D")  # only the cumulative report is landscape
+
+
+@pytest.mark.parametrize("fam", T06_PDF)
+def test_gn08_t06_three_page_target_and_repeated_headers(fam, tmp_path):
+    pt = next(p for p in sc.build_patients(80, random.Random(7)) if p.input_sex and p.input_age and not p.is_paediatric)
+    rep = tpl.build_report(fam, split="dev", index=9, patient=pt, scenario_class="normal", target_pages=3)
+    path = tmp_path / "r.pdf"
+    tpl.native_pdf(rep, str(path))
+    doc = fitz.open(str(path))
+    assert len(doc) == 3
+    for i, pg in enumerate(doc, 1):
+        txt = pg.get_text()
+        assert pt.patient_id in txt and f"Page {i} of 3" in txt
+    assert "End of Report" in doc[2].get_text() and "End of Report" not in doc[0].get_text()
+    gt = lbase.build_gt(rep).to_dict()
+    for s in gt["sections"]:
+        if len(s["pages"]) > 1:
+            assert "(contd.)" in doc[s["pages"][1] - 1].get_text(), (fam, s["title"])
+
+
+def test_t06_builds_are_deterministic(tmp_path):
+    pt = _t05_patients()[0]
+    for fam in T06_ALL:
+        outs = []
+        for k in range(2):
+            rep = _t06_build(fam, 3, pt, "severe", 2)
+            if fam == "GEN-CSV":
+                outs.append((_csvx.csv_text(rep), json.dumps(lbase.build_gt(rep).to_dict(), sort_keys=True)))
+            else:
+                p = tmp_path / f"{fam}{k}.pdf"
+                tpl.native_pdf(rep, str(p))
+                outs.append((p.read_bytes(), json.dumps(lbase.build_gt(rep).to_dict(), sort_keys=True)))
+        assert outs[0] == outs[1], fam
+
+
+def test_t06_gt_schema_and_flags_match_hand_reading(t06_reports):
+    from tools.eval.gt_schema import validate_gt
+
+    checked = 0
+    for (fam, n), (rep, gt, _) in t06_reports.items():
+        assert validate_gt(gt) == [], (fam, n)
+        pat = gt["patient"]
+        for r in gt["rows"]:
+            assert r["unit_true"] == r["unit"] or r["unit_placement"] == "none", (fam, r["row_id"])
+            if r["value_type"] != "numeric" or r["range"]["kind"] in ("interpretive", "none") or r["qualifier"]:
+                continue
+            if r["is_critical"] or r["flag"] == "UNKNOWN":
+                continue
+            exp = _hand_region(r["range"]["text"], r["value"], pat["sex_true"], pat["age_true"])
+            assert exp is not None, (fam, r["range"]["text"])
+            assert r["flag_true"] == exp, (fam, n, r["name"], r["value_text"], r["range"]["text"], r["flag_true"])
+            checked += 1
+    assert checked > 150
+
+
+def test_t06_criticality_matches_hand_table_c_and_class_headline(t06_reports):
+    n_crit = 0
+    for (fam, n), (rep, gt, _) in t06_reports.items():
+        for r in gt["rows"]:
+            if r["analyte_key"] not in HAND_TABLE_C or r["value_type"] != "numeric":
+                continue
+            lo, hi = HAND_TABLE_C[r["analyte_key"]]
+            v = r["canonical"]["value"]
+            exp = (lo is not None and v < lo) or (hi is not None and v > hi)
+            assert r["is_critical"] == exp, (fam, n, r["analyte_key"], v)
+            n_crit += exp
+        if T05_CASES[n][1] == "critical":
+            assert gt["expected"]["headline"] == "critical" and gt["expected"]["critical_rows"], (fam, n)
+        if T05_CASES[n][1] == "mild":
+            assert gt["expected"]["headline"] == "abnormal", (fam, n)
+    assert n_crit >= 1
+
+
+def test_t06_sample_invariants_class_pages_guard_bands():
+    n = 12
+    pts = sc.build_patients(n, random.Random(31))
+    classes = sc.allocate_scenario_classes(n, random.Random(32))
+    pages = [1] * 5 + [2] * 5 + [3] * 2
+    random.Random(33).shuffle(pages)
+    want = {"normal": "normal", "mild": "abnormal", "severe": "abnormal", "critical": "critical"}
+    for fam in T06_ALL:
+        for i in range(n):
+            rep = _t06_build(fam, i, pts[i], classes[i], pages[i], split="test")
+            gt = lbase.build_gt(rep).to_dict()
+            assert len(gt["pages"]) == (1 if fam == "GEN-CSV" else pages[i]), (fam, i)
+            assert gt["expected"]["headline"] == want[classes[i]], (fam, i, classes[i])
+            for r in gt["rows"]:
+                if r["value_type"] != "numeric":
+                    continue
+                key, c = r["analyte_key"], r["canonical"]["value"]
+                if not r["qualifier"]:
+                    assert not ct.in_guard(key, c, None), (fam, i, key, c)
+                bounds = [b for b in (r["range"]["low"], r["range"]["high"]) if b is not None]
+                bounds += [v for o in r["range"]["options"] for v in (o["low"], o["high"]) if v is not None]
+                assert r["value"] not in bounds or r["qualifier"], (fam, i, key, r["value"])
+                if key != "egfr" and CATALOGUE[key].plaus:
+                    lo, hi = CATALOGUE[key].plaus
+                    assert lo <= c <= hi, (fam, i, key, c)
+
+
+# ---- GN-10 fictional identity (PDF families and CSV)
+
+PHONE_UK = re.compile(r"\b01632 960\d{3}\b")
+
+
+def test_gn10_t06_fictional_identity(t06_reports):
+    for (fam, n), (rep, gt, path) in t06_reports.items():
+        if fam == "GEN-CSV":
+            page_text = path.read_text(encoding="utf-8")
+        else:
+            page_text = "\n".join(pg.get_text() for pg in fitz.open(str(path)))
+        blob = json.dumps(gt, ensure_ascii=False) + "\n" + page_text
+        assert not DENY_RE.search(blob), (fam, n, DENY_RE.search(blob).group(0))
+        assert gt["lab"]["fictional"] is True
+        if fam == "GEN-CSV":
+            continue  # a CSV carries no phone, address or accreditation lines
+        phones = PHONE_ANY.findall(page_text) + PHONE_UK.findall(page_text)
+        assert phones, (fam, n)
+        allowed = PHONE_ALLOWED + (r"01632 960\d{3}",)
+        for ph in phones:
+            assert any(re.fullmatch(p, ph) for p in allowed), (fam, n, ph)
+        if fam == "UK-A":
+            assert PHONE_UK.search(page_text) and not PHONE_ANY.search(page_text)
+            assert "NHS" not in page_text.upper().split() and "nhs" not in page_text.lower()
+        else:
+            assert re.search(r"0000-2\d{6}|\+91 00000 0\d{4}", page_text) and re.search(r"1800-000-0\d{3}", page_text)
+        for host in re.findall(r"[\w.+-]+@([\w.-]+)", page_text) + re.findall(r"www\.([\w.-]+)", page_text):
+            assert host.endswith(("example.org", "example.com")), (fam, n, host)
+        assert re.search(r"Accreditation Cert\. No\. FA-\d{4}", page_text)
+        assert re.search(r"Reg\. No\. FX-\d{5}", page_text)
+        assert {"phone", "tollfree", "page_x_of_y", "accreditation", "address"} <= {d["kind"] for d in gt["decoys"]}
+
+
+def test_gn10_t06_uk_name_pools_are_clean():
+    for item in (*tpl.UK_STREETS, *tpl.UK_CITIES):
+        assert not DENY_RE.search(item), item
+
+
+def test_t06_standard14_fonts_only(t06_reports):
+    for (fam, n), (rep, gt, path) in _pdf_items(t06_reports).items():
+        doc = fitz.open(str(path))
+        for pg in doc:
+            for f in pg.get_fonts():
+                assert f[3] in ("Helvetica", "Helvetica-Bold", "Helvetica-Oblique"), (fam, f)
+            pg.get_text().encode("cp1252")
+        assert not any(c in rep.all_text() for c in "≤≥")
+
+
+# ---- IN-D: cumulative landscape
+
+_DATE_RE = re.compile(r"^\d{2}/\d{2}/\d{4}$")
+
+
+def _d(s):
+    return _dt.datetime.strptime(s, "%d/%m/%Y").date()
+
+
+def _ind_columns(words, row_bbox):
+    """Header date words (x0, text) of the column header closest above a row, found from the page alone."""
+    cand = [w for w in words if _DATE_RE.match(w[4]) and w[3] <= row_bbox[1] + 0.5]
+    ymax = max(w[1] for w in cand)
+    return sorted((w[0], w[4]) for w in cand if abs(w[1] - ymax) < 2.0)
+
+
+def test_t06_ind_current_column_holds_gt_value_and_previous_is_a_different_earlier_value(t06_reports):
+    checked = prev_checked = 0
+    for (fam, n), (rep, gt, path) in t06_reports.items():
+        if fam != "IN-D":
+            continue
+        doc = fitz.open(str(path))
+        collected = re.search(r"Collected: (\d{2}/\d{2}/\d{4})", doc[0].get_text()).group(1)
+        for r in gt["rows"]:
+            words = _words(doc[r["page"] - 1])
+            cols = _ind_columns(words, r["bbox"])
+            dates = [_d(t) for _, t in cols]
+            assert 2 <= len(cols) <= 3 and dates == sorted(dates) and len(set(dates)) == len(dates), (n, cols)
+            assert cols[-1][1] == collected  # the newest (rightmost) column is the current report's date
+            assert len(r["previous"]) == len(cols) - 1 and "cumulative" in r["features"]
+            xs = [x for x, _ in cols] + [cols[-1][0] + 70.0]
+            cells = []
+            for k in range(len(cols)):
+                inrow = [w for w in words if _inside(w, r["bbox"]) and xs[k] - 1.5 <= w[0] < xs[k + 1] - 1.5]
+                cells.append(" ".join(w[4] for w in sorted(inrow, key=lambda w: (w[0], w[1]))))
+            if "unlabelled_multivalue" in r["features"]:
+                assert "AMB_UNLABELLED_MULTIVALUE" in r["ambiguity"] and r["expected_needs_review"]
+                assert cells[0].split() == [p["value_text"] for p in r["previous"]] + [r["value_text"]]
+                continue
+            cur = f"{r['qualifier']} {r['value_text']}" if r["qualifier"] else r["value_text"]
+            assert cells[-1] == cur, (n, r["name"], cells, cur)  # current column = the GT value
+            same_analyte = {x["value_text"] for x in gt["rows"] if x["analyte_key"] == r["analyte_key"]}
+            for k, p in enumerate(r["previous"]):
+                assert cells[k] == p["value_text"], (n, r["name"], cells, p)
+                assert p["date"] == cols[k][1] and _d(p["date"]) < _d(collected)
+                assert p["value_text"] not in same_analyte and p["value"] != r["value"]  # earlier value is not in GT
+                prev_checked += 1
+            checked += 1
+    assert checked > 40 and prev_checked > 40
+
+
+def test_t06_ind_unlabelled_multivalue_rows_are_ambiguous_with_current_truth():
+    # Hand case: K 6.9 mmol/L is critical (Table C: > 6.5) but with an earlier 4.1 in the same unlabelled cell the page
+    # cannot say which is current -> UNKNOWN + AMB_UNLABELLED_MULTIVALUE; the truth follows the current value.
+    pr = clinical.PrintedRange("two_sided", 3.5, 5.1, text="3.5 - 5.1")
+    t = clinical.derive_row("potassium", value=6.9, unit="mmol/L", printed_range=pr, input_sex="male", input_age=40,
+                            true_sex="male", true_age=40, unlabelled_multivalue=True)
+    assert t.flag == "UNKNOWN" and t.ambiguity == ["AMB_UNLABELLED_MULTIVALUE"] and t.flag_true == "CRITICAL_HIGH"
+    # And the generator prints such rows (3% of IN-D rows) as ONE cell: "<older> <current>", current last.
+    pt = _t05_patients()[0]
+    found = 0
+    for i in range(60):
+        rep = tpl.build_report("IN-D", split="dev", index=i, patient=pt, scenario_class="severe", target_pages=2)
+        for r in rep.rows:
+            if r.unlabelled_multivalue:
+                found += 1
+                assert r.line_text.split(" | ")[1].split() == [p["value_text"] for p in r.previous] + [r.value_text]
+                g = next(x for x in lbase.build_gt(rep).rows if x.row_id.endswith(f"r{rep.rows.index(r) + 1:03d}"))
+                assert g.flag == "UNKNOWN" and g.expected_needs_review and "unlabelled_multivalue" in g.features
+    assert found >= 1
+
+
+def test_t06_ind_header_marks_current_in_about_half_the_reports():
+    labels = [tpl.setup(tpl.SPECS["IN-D"], split="dev", index=i, target_pages=1)[1].current_label for i in range(200)]
+    assert 0.40 <= sum(labels) / 200 <= 0.60
+    pt = _t05_patients()[0]
+    seen = set()
+    for i in range(12):
+        rep = tpl.build_report("IN-D", split="dev", index=i, patient=pt, scenario_class="mild", target_pages=1)
+        lay_label = tpl.setup(tpl.SPECS["IN-D"], split="dev", index=i, target_pages=1)[1].current_label
+        assert ("Current" in rep.all_text().split()) == lay_label
+        seen.add(lay_label)
+    assert seen == {True, False}
+
+
+# ---- IN-E: hospital two-panel
+
+def test_t06_ine_two_tests_share_a_line_left_panel_drawn_before_right(t06_reports):
+    paired = 0
+    for (fam, n), (rep, gt, path) in t06_reports.items():
+        if fam != "IN-E":
+            continue
+        doc = fitz.open(str(path))
+        assert "Ward/Bed:" in doc[0].get_text() and any(d["kind"] == "header_id" and "Ward/Bed" in d["text"]
+                                                          for d in gt["decoys"])
+        for r in gt["rows"]:
+            mates = [o for o in gt["rows"] if o is not r and o["page"] == r["page"]
+                     and min(o["bbox"][3], r["bbox"][3]) - max(o["bbox"][1], r["bbox"][1]) > 0.5 * (r["bbox"][3] - r["bbox"][1])]
+            assert len(mates) <= 1, (n, r["name"])  # at most two tests per visual line
+            if mates:
+                paired += 1
+                assert not _overlap(r["bbox"], mates[0]["bbox"])
+                assert (r["bbox"][2] < 300) != (mates[0]["bbox"][2] < 300)  # one in each half
+        # text-layer order: per page and block, the whole left panel comes before the right panel
+        for pgno, pg in enumerate(doc, 1):
+            order = {}
+            ws = _words(pg)
+            for r in gt["rows"]:
+                if r["page"] != pgno:
+                    continue
+                idx = min(i for i, w in enumerate(ws) if _inside(w, r["bbox"]) and w[4] == r["value_text"])
+                order[r["section"]] = order.get(r["section"], []) + [idx]
+            for left, right in (("HAEMATOLOGY", "BIOCHEMISTRY"), ("LIPID PROFILE", "LIVER FUNCTION TEST (LFT)")):
+                if left in order and right in order:
+                    assert max(order[left]) < min(order[right]), (n, pgno, left)
+    assert paired > 20
+
+
+def test_t06_ine_cbc_unit_only_in_panel_header_or_unitless_amb():
+    pts = _t05_patients()
+    amb_seen = hdr_seen = 0
+    for i in range(60):
+        rep = tpl.build_report("IN-E", split="dev", index=i, patient=pts[0], scenario_class="normal", target_pages=1)
+        gt = lbase.build_gt(rep).to_dict()
+        text = rep.all_text()
+        lay = tpl.setup(tpl.SPECS["IN-E"], split="dev", index=i, target_pages=1)[1]
+        counts = [r for r in gt["rows"] if r["analyte_key"] in ("wbc", "platelets", "rbc")]
+        if lay.amb_counts:
+            amb_seen += 1
+            assert "(x10" not in text  # no header unit anywhere
+            for r in counts:  # plan 3.8: no unit, no range, no header unit -> UNKNOWN, needs review
+                assert r["unit"] == "" and r["unit_placement"] == "none" and r["range"]["kind"] == "none"
+                assert r["flag"] == "UNKNOWN" and r["ambiguity"] == ["AMB_UNITLESS_COUNT"]
+                assert r["expected_needs_review"] and r["row_id"] in gt["expected"]["needs_review_min_set"]
+        else:
+            hdr_seen += 1
+            assert re.search(r"HAEMATOLOGY \(x10\^(3/uL|9/L)\)", text)
+            for r in counts:
+                if r["analyte_key"] in ("wbc", "platelets"):
+                    assert r["unit_placement"] == "header" and r["unit"] in ("10^3/uL", "10^9/L")
+                    assert r["unit"] not in r["line_text"] and r["flag"] != "UNKNOWN"
+                    assert (r["unit"] == "10^9/L") == (gt["unit_system"] == "SI" or "10^9/L" in text)
+    assert amb_seen >= 3 and hdr_seen >= 20
+    rate = sum(tpl.setup(tpl.SPECS["IN-E"], split="dev", index=i, target_pages=1)[1].amb_counts
+               for i in range(400)) / 400
+    assert 0.09 <= rate <= 0.21  # plan 3.8: 15% of count rows
+
+
+# ---- UK-A
+
+HAND_SI_UNITS = {  # plan 3.4 / UK practice: SI units
+    "sodium": "mmol/L", "potassium": "mmol/L", "hemoglobin": "g/L", "creatinine": "µmol/L",
+    "glucose_fasting": "mmol/L", "cholesterol": "mmol/L", "hba1c": "mmol/mol", "urea": "mmol/L",
+}
+
+
+def test_t06_uka_si_units_normal_range_and_bracket_styles(t06_reports):
+    checked = 0
+    for (fam, n), (rep, gt, path) in t06_reports.items():
+        if fam != "UK-A":
+            continue
+        txt = "\n".join(pg.get_text() for pg in fitz.open(str(path)))
+        assert gt["unit_system"] == "SI" and "Normal range" in txt and "Bio. Ref" not in txt
+        for r in gt["rows"]:
+            if r["analyte_key"] in HAND_SI_UNITS:
+                assert r["unit"] == HAND_SI_UNITS[r["analyte_key"]], (n, r["analyte_key"], r["unit"])
+                checked += 1
+            u = r["unit"]
+            assert r["unit_placement"] == ("inline" if u else "none") and not re.search(r"mg/dL", u)
+            if not u:
+                continue
+            if "unit_in_brackets" in r["features"]:
+                assert f"({u})" in r["line_text"] or f"[{u}]" in r["line_text"], r["line_text"]
+            else:
+                assert f"{r['value_text']} {u}" in r["line_text"], r["line_text"]
+    assert checked >= 5
+
+
+def test_t06_uka_range_syntaxes_and_three_unit_styles_occur():
+    styles = {tpl.setup(tpl.SPECS["UK-A"], split="dev", index=i, target_pages=1)[1].uk_style for i in range(30)}
+    assert styles == {0, 1, 2}
+    pt = _t05_patients()[0]
+    seen = set()
+    for i in range(30):
+        lay = tpl.setup(tpl.SPECS["UK-A"], split="dev", index=i, target_pages=1)[1]
+        rep = tpl.build_report("UK-A", split="dev", index=i, patient=pt, scenario_class="mild", target_pages=1)
+        for r in rep.rows:
+            t = " ".join(r.range_lines)
+            if r.printed_range.kind == "two_sided":
+                assert re.match(r"^(?:\(\d[\d.]* - \d[\d.]*\)|\[\d[\d.]* - \d[\d.]*\]|\d[\d.]* - \d[\d.]*)", t), t
+            if lay.uk_style == 2 and r.unit:  # unit in brackets inside the Normal range cell
+                assert t.endswith(f"[{r.unit}]"), (t, r.unit)
+        seen.add(lay.uk_style)
+    assert seen == {0, 1, 2}
+
+
+# ---- GEN-CSV
+
+CSV_DELIM = {"comma_basic": ",", "semicolon_decimal_comma": ";", "tab_split": "\t", "comma_result_unit_split": ",",
+             "semicolon_result_unit": ";"}
+
+
+def _csv_dialect(rep):
+    (name,) = [f[len("csv_dialect_"):] for f in rep.features if f.startswith("csv_dialect_")]
+    return name
+
+
+def test_t06_csv_rows_parse_back_to_gt(t06_reports):
+    for (fam, n), (rep, gt, path) in t06_reports.items():
+        if fam != "GEN-CSV":
+            continue
+        assert len(gt["pages"]) == 1 and rep.n_pages == 1
+        _check_csv(rep, gt, path.read_text(encoding="utf-8"))
+
+
+def _check_csv(rep, gt, text):
+    name = _csv_dialect(rep)
+    delim = CSV_DELIM[name]
+    lines = text.split("\n")
+    assert lines[-1] == ""
+    lines = lines[:-1]
+    meta = [d for d in gt["decoys"] if d["kind"] == "csv_metadata"]
+    assert 2 <= len(meta) <= 4 and len(meta) == len(gt["decoys"])
+    for d in meta:
+        assert lines[int(d["bbox"][1])] == d["text"]
+    hdr_i = len(meta)
+    header = next(_csv.reader([lines[hdr_i]], delimiter=delim))
+    assert ("Result (unit)" in header) == name.endswith(("result_unit", "result_unit_split"))
+    assert any(h in ("Ref Low", "RefLow") for h in header) == ("split" in name)
+    assert (delim == ";") == name.startswith("semicolon")
+    assert len(gt["rows"]) == len(lines) - hdr_i - 1
+    for r in gt["rows"]:
+        raw = lines[int(r["bbox"][1])]
+        assert r["bbox"][3] == r["bbox"][1] + 1 and r["page"] == 1
+        cells = next(_csv.reader([raw], delimiter=delim))
+        assert len(cells) == len(header) and " | ".join(cells) == r["line_text"]
+        res = cells[1]
+        val = f"{r['qualifier']} {r['value_text']}" if r["qualifier"] else r["value_text"]
+        combined = name.endswith(("result_unit", "result_unit_split"))
+        assert res == (f"{val} {r['unit']}".strip() if combined else val), (name, res, val)
+        if "semicolon" in name:
+            assert "." not in r["value_text"] and float(r["value_text"].replace(",", ".")) == r["value"]
+        else:
+            assert float(r["value_text"]) == r["value"]
+        if "result_unit" in name:
+            assert res.endswith(r["unit"]) and r["unit_placement"] in ("inline", "none")
+        else:
+            assert cells[2] == r["unit"] and r["unit_placement"] in ("cell", "none")
+        if "split" in name and r["range"]["kind"] == "two_sided":
+            lo, hi = cells[-3], cells[-2]  # [..., low, high, flag]
+            assert (float(lo), float(hi)) == (r["range"]["low"], r["range"]["high"])
+        if name == "semicolon_result_unit":
+            assert r["printed_flag"] == ""
+        if r["printed_flag"]:
+            assert cells[-1] == r["printed_flag"] and r["printed_flag"] in ("H", "L", "HH", "LL")
+
+
+def test_t06_csv_dialects_cover_all_five_and_three_delimiters():
+    pt = _t05_patients()[0]
+    seen = set()
+    for i in range(40):
+        rep = tpl.build_report("GEN-CSV", split="dev", index=i, patient=pt, scenario_class="severe", target_pages=3)
+        seen.add(_csv_dialect(rep))
+        _check_csv(rep, lbase.build_gt(rep).to_dict(), _csvx.csv_text(rep))
+    assert seen == set(CSV_DELIM) and {CSV_DELIM[s] for s in seen} == {",", ";", "\t"}
+
+
+def test_t06_csv_has_no_native_pdf_and_roundtrips_utf8(tmp_path):
+    rep = _t06_build("GEN-CSV", 1, _t05_patients()[0], "mild", 1)
+    with pytest.raises(ValueError):
+        tpl.native_pdf(rep, str(tmp_path / "x.pdf"))
+    p = tmp_path / "r.csv"
+    _csvx.write_csv(rep, str(p))
+    assert p.read_text(encoding="utf-8") == _csvx.csv_text(rep) == rep.all_text() + "\n"
+    assert list(_csv.reader(_io.StringIO(_csvx.csv_text(rep))))  # parses as CSV text
