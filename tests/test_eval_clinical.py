@@ -584,9 +584,6 @@ SI_ABSENT_NORMAL = [
 ]
 
 
-@pytest.mark.xfail(strict=True, reason="T16 HIGH F1 (reviews/P1-zoro.md): clinical.effective_range compares the printed "
-                   "value with the conventional consensus without converting units; fixing it moves every split "
-                   "fingerprint and one heldout GT row, so it is deferred to the lead (DECISIONS + re-baseline)")
 @pytest.mark.parametrize("key,value,unit,sex", SI_ABSENT_NORMAL)
 def test_range_absent_si_value_is_judged_in_canonical_units(key, value, unit, sex):
     from tools.eval import review_sim as rs
@@ -601,8 +598,6 @@ def test_range_absent_si_value_is_judged_in_canonical_units(key, value, unit, se
     assert cl.ClinicalRulesScorer().score([rs.true_row(g)], sex, 40).headline == "normal"
 
 
-@pytest.mark.xfail(strict=True, reason="T16 LOW F1b (reviews/P1-zoro.md): latent; flag_true of a unit-less count is "
-                   "computed on the raw value, wrong when the lab's unit is /cumm (no shared family emits it today)")
 def test_unitless_count_true_flag_uses_the_true_unit():
     t = cl.derive_row("wbc", value=7200, unit="", unit_true="/cumm", printed_range=PR("none"), input_sex="M",
                       input_age=40, true_sex="M", true_age=40)

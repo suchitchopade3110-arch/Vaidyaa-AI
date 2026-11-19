@@ -128,8 +128,23 @@ def _norm_sex(s: str | None) -> str | None:
     return "M" if s.startswith("M") else "F" if s.startswith("F") else None
 
 
+def _in_unit(key: str, r: Rng | None, unit: str | None) -> Rng | None:
+    """A consensus interval (canonical unit) expressed in ``unit`` (the unit the row is stated in)."""
+    if r is None or not unit:
+        return r
+
+    def f(x: float | None) -> float | None:
+        if x is None:
+            return None
+        v = units.from_canonical(key, x, unit)
+        return x if v == x else v  # same unit: keep the catalogue's own number (and its int/float spelling)
+
+    return Rng(r.kind, f(r.low), f(r.high))
+
+
 def effective_range(
     key: str, printed: PrintedRange, sex: str | None, age: int | None, value: float, qualifier: str | None = None,
+    unit: str | None = None,
 ) -> tuple[Rng | None, str, str | None]:
     """Section 4.2.1. Returns (effective range or None, region, ambiguity code).
 
@@ -156,26 +171,29 @@ def effective_range(
         if len(regs) == 1 and "UNKNOWN" not in regs:
             return None, regs.pop(), None
         return None, "UNKNOWN", "AMB_SEX_RANGES_NO_SEX" if k == "sex" else "AMB_AGE_RANGES_NO_AGE"
-    # no usable printed range: consensus interval (interpretive tables and range-absent rows)
+    # no usable printed range: consensus interval (interpretive tables and range-absent rows). The consensus is in the
+    # canonical (conventional) unit, so the value is converted from ``unit`` before it is compared (review P1 F1), and
+    # the returned range is expressed back in ``unit``.
     a = CATALOGUE[key]
+    cvalue = units.to_canonical(key, value, unit)[0] if unit else value
     if a.consensus.sex_specific and sex is None:
         regs = set()
         for r in (a.consensus.male, a.consensus.female):
             if r is not None:
-                regs.add(region(r, value, qualifier))
+                regs.add(region(r, cvalue, qualifier))
         if len(regs) == 1 and "UNKNOWN" not in regs:
             return None, regs.pop(), None
         return None, "UNKNOWN", "AMB_NO_RANGE_NO_DEMOGRAPHICS"
     r = _consensus_for(key, sex)
     if r is None:
         return None, "UNKNOWN", "AMB_NO_RANGE_NO_DEMOGRAPHICS"
-    return None, region(r, value, qualifier), None
+    return None, region(r, cvalue, qualifier), None
 
 
-def _true_region(key, printed, true_sex, true_age, value, qualifier) -> tuple[Rng | None, str]:
-    r, reg, amb = effective_range(key, printed, true_sex, true_age, value, qualifier)
+def _true_region(key, printed, true_sex, true_age, value, qualifier, unit=None) -> tuple[Rng | None, str]:
+    r, reg, amb = effective_range(key, printed, true_sex, true_age, value, qualifier, unit)
     if reg == "UNKNOWN":  # cannot happen with a known sex/age; fall back to the plain value
-        r, reg, _ = effective_range(key, printed, true_sex, true_age, value, None)
+        r, reg, _ = effective_range(key, printed, true_sex, true_age, value, None, unit)
     if r is None and printed.kind in ("interpretive", "none", "sex", "age") and reg != "UNKNOWN":
         # determinable regardless of which option applies; report the range the true patient has
         if printed.kind in ("sex", "age"):
@@ -184,7 +202,7 @@ def _true_region(key, printed, true_sex, true_age, value, qualifier) -> tuple[Rn
                        and (o.age_min is None or true_age >= o.age_min) and (o.age_max is None or true_age <= o.age_max))]
             r = _option_rng(hit[0]) if hit else None
         else:
-            r = _consensus_for(key, _norm_sex(true_sex))
+            r = _in_unit(key, _consensus_for(key, _norm_sex(true_sex)), unit)
     return r, reg
 
 
@@ -259,7 +277,7 @@ def derive_row(
     ta = true_age if true_age is not None else input_age
     cu_true, _ = units.to_canonical(key, value, _crit_unit(key, unit_true))
     crit_true = ct.critical_direction(key, cu_true, specimen)
-    r_true, reg_true = _true_region(key, printed, ts, ta, value, qualifier)
+    r_true, reg_true = _true_region(key, printed, ts, ta, value, qualifier, unit_true)
     if crit_true:
         flag_true = "CRITICAL_" + crit_true.upper()
     else:
@@ -267,7 +285,7 @@ def derive_row(
     rule = ct.critical_rule(key, cu_true) if crit_true else None
 
     # ---- page side
-    r_page, reg_page, code = effective_range(key, printed, input_sex, input_age, value, qualifier)
+    r_page, reg_page, code = effective_range(key, printed, input_sex, input_age, value, qualifier, unit if unit else unit_true)
     unitless = key in COUNT_KEYS and unit == "" and printed.kind == "none"
     crit_page = None
     if not unitless:
