@@ -409,6 +409,59 @@ def test_oracle_scorer_titres_hand_derived():
     assert amb_lo.row_flags == ["UNKNOWN"] and amb_lo.headline == "normal"
 
 
+# CL-31: targets equal PRD section 3 per rendering (literal percentages, never read back from targets.py)
+PRD_TARGETS = {  # metric -> rendering -> (op, percent) ; None = informational
+    "M1": {"native": ("<=", "0.5"), "csv": ("<=", "0.5"), "scan": ("<=", "1.5"), "rot90": ("<=", "1.5"),
+           "photo": ("<=", "1.5")},
+    "M2": dict.fromkeys(("native", "csv", "scan", "rot90", "photo"), ("==", "100")),
+    "M3": {"native": (">=", "92"), "csv": (">=", "92"), "scan": (">=", "80"), "rot90": (">=", "80"),
+           "photo": (">=", "70")},
+    "M4": dict.fromkeys(("native", "csv", "scan", "rot90", "photo"), ("<=", "0.5")),
+    "M5": dict.fromkeys(("native", "csv", "scan", "rot90", "photo"), (">=", "98")),
+    "M6": {"native": (">=", "90"), "csv": (">=", "90"), "scan": None, "rot90": None, "photo": None},
+    "M7": {"native": ("<=", "15"), "csv": ("<=", "15"), "scan": None, "rot90": None, "photo": None},
+}
+
+
+def test_cl31_targets_equal_prd_section_3():
+    from fractions import Fraction
+
+    from tools.eval import targets as tg
+
+    assert set(tg.TARGETS) == set(PRD_TARGETS)
+    for m, by_r in PRD_TARGETS.items():
+        assert set(tg.TARGETS[m]) == set(by_r)
+        for r, want in by_r.items():
+            got = tg.TARGETS[m][r]
+            if want is None:
+                assert got is None, (m, r)
+            else:
+                assert got["op"] == want[0] and got["value"] == Fraction(want[1]) / 100, (m, r)
+
+
+def test_cl31_targets_are_immutable():
+    from tools.eval import targets as tg
+
+    with pytest.raises(TypeError):
+        tg.TARGETS["M1"] = {}
+    with pytest.raises(TypeError):
+        tg.TARGETS["M1"]["native"] = None
+    with pytest.raises(TypeError):
+        tg.TARGETS["M1"]["native"]["value"] = 1
+
+
+def test_cl31_exact_boundaries():
+    from tools.eval import targets as tg
+
+    assert tg.passes("M1", "native", 5, 1000) is True and tg.passes("M1", "native", 6, 1000) is False
+    assert tg.passes("M1", "scan", 15, 1000) is True and tg.passes("M1", "scan", 16, 1000) is False
+    assert tg.passes("M2", "photo", 99, 100) is False and tg.passes("M2", "photo", 100, 100) is True
+    assert tg.passes("M3", "photo", 70, 100) is True and tg.passes("M3", "photo", 69, 100) is False
+    assert tg.passes("M5", "native", 49, 50) is True and tg.passes("M5", "native", 48, 50) is False
+    assert tg.passes("M7", "native", 15, 100) is True and tg.passes("M7", "native", 16, 100) is False
+    assert tg.passes("M7", "scan", 99, 100) is None and tg.passes("M2", "native", 0, 0) is None
+
+
 # ======================================================================== T04: sampling invariants
 import random  # noqa: E402
 

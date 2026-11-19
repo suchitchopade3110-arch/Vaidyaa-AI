@@ -177,12 +177,15 @@ def build_jobs(split: str, manifest: Mapping[str, Any], root: pathlib.Path, run:
             gtp = _gt_path(root, split, e)
             sex, age = _demographics(gtp)
             files = e["files"].get(rendering)
+            if rendering != "photo" and not files or rendering == "photo" and not (files or {}).get("pages"):
+                raise HarnessError(f"{split}: the manifest has no {rendering} rendering for a selected report; "
+                                   "regenerate with `make eval-corpus`")
             if rendering == "photo":
                 for n, page in enumerate((files or {}).get("pages", []), 1):
                     jobs.append((EvalJob(f"{e['id']}:photo:p{n}", e["id"], split, "photo",
                                          (str(root / split / page["path"]),), (n,), sex, age), gtp))
             else:
-                path = str(root / split / files["path"]) if files else ""
+                path = str(root / split / files["path"])
                 jobs.append((EvalJob(f"{e['id']}:{rendering}", e["id"], split, rendering, (path,), (), sex, age), gtp))
     jobs.sort(key=lambda t: t[0].job_id)
     return jobs
