@@ -24,3 +24,8 @@ class FamilyEntry:
 FAMILIES: dict[str, FamilyEntry] = {
     fid: FamilyEntry("template", "shared", templates.build_report) for fid in templates.SPECS
 }
+
+# T08: heldout-only families (DO NOT READ the heldout folder for engine work, see its README)
+from tools.eval.layouts.heldout import families as _heldout  # noqa: E402
+
+FAMILIES.update({fid: FamilyEntry("generic", "heldout_only", _heldout.build_report) for fid in _heldout.SPECS})
