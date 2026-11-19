@@ -24,9 +24,23 @@ HX_IDS = tuple(hx.SPECS)
 CASES = [(0, "normal", 1), (1, "severe", 2), (2, "critical", 3), (3, "mild", 2)]
 
 
-def canary_hits(root: pathlib.Path) -> list[int]:
-    """Indices of canary tokens found (case-insensitive) in any ``*.py`` under ``root``; never the text itself."""
-    texts = [p.read_text(encoding="utf-8", errors="ignore").lower() for p in sorted(root.rglob("*.py"))]
+# Engine-side text that P3 may write rules into: code, template registries (PRD FR-3.1 allows data files) and the
+# clinical reference module at the repo root. Binary files (model weights, images, databases) are skipped.
+TEXT_SUFFIXES = frozenset({".py", ".json", ".yaml", ".yml", ".toml", ".txt", ".md", ".csv", ".tsv", ".cfg", ".ini",
+                           ".html", ".htm", ".js", ".jsx", ".ts", ".tsx", ".xml", ".j2", ".jinja", ".tmpl", ".sql"})
+ENGINE_ROOTS = (REPO / "app", REPO / "clinical_reference.py", REPO / "data")
+MAX_SCAN_BYTES = 5 << 20
+
+
+def _text_files(root: pathlib.Path) -> list[pathlib.Path]:
+    files = [root] if root.is_file() else sorted(root.rglob("*")) if root.exists() else []
+    return [p for p in files if p.is_file() and p.suffix.lower() in TEXT_SUFFIXES and "__pycache__" not in p.parts
+            and p.stat().st_size <= MAX_SCAN_BYTES]
+
+
+def canary_hits(*roots: pathlib.Path) -> list[int]:
+    """Indices of canary tokens found (case-insensitive) in any text file under ``roots``; never the text itself."""
+    texts = [p.read_text(encoding="utf-8", errors="ignore").lower() for r in roots for p in _text_files(r)]
     return [i for i, tok in enumerate(hx.CANARY_TOKENS) if any(tok.lower() in t for t in texts)]
 
 
@@ -44,8 +58,15 @@ def reports():
 # ---------------------------------------------------------------- GN-12 canary
 
 def test_gn12_no_canary_token_in_app():
-    hits = canary_hits(REPO / "app")
-    assert not hits, f"canary token index(es) found in app/: {hits}"  # indices only, never the text
+    hits = canary_hits(*ENGINE_ROOTS)
+    assert not hits, f"canary token index(es) found in app/, clinical_reference.py or data/: {hits}"  # indices only
+
+
+def test_gn12_scan_reaches_the_engine_roots():
+    """The scan must actually read the engine code (a vacuous scan would always pass)."""
+    scanned = [p for r in ENGINE_ROOTS for p in _text_files(r)]
+    assert REPO / "clinical_reference.py" in scanned
+    assert any(p.suffix == ".py" and "app" in p.relative_to(REPO).parts[:1] for p in scanned)
 
 
 def test_gn12_leak_detection_works_and_prints_only_the_index(tmp_path):
@@ -57,6 +78,27 @@ def test_gn12_leak_detection_works_and_prints_only_the_index(tmp_path):
     with pytest.raises(AssertionError) as exc:
         assert not canary_hits(tmp_path), f"canary token index(es) found in app/: {canary_hits(tmp_path)}"
     assert leaked.lower() not in str(exc.value).lower()
+
+
+def test_gn12_leak_detection_covers_template_data_files(tmp_path):
+    """T16 (zoro, MED): the P3 template registry (PRD FR-3.1, app/services/lab_engine/templates/) may hold JSON or
+    YAML detection signals; a heldout header word copied there must be caught like one in a .py file."""
+    tdir = tmp_path / "services" / "lab_engine" / "templates"
+    tdir.mkdir(parents=True)
+    (tdir / "in_a.json").write_text('{"header_tokens": ["Bio. Ref. Interval"]}\n')
+    assert canary_hits(tmp_path) == []
+    (tdir / "lab_x.yaml").write_text(f"header_tokens:\n  - {hx.CANARY_TOKENS[3]}\n")
+    (tdir / "lab_y.json").write_text(f'{{"footer": "{hx.CANARY_TOKENS[5].lower()}"}}\n')
+    assert canary_hits(tmp_path) == [3, 5]
+
+
+@pytest.mark.parametrize("fam", HX_IDS)
+def test_heldout_value_engine_accepts_the_base_name_width_signature(fam):
+    """T16 (zoro): ``templates._Gen._name_width(unit_txt="")`` is called with a unit text by the shared row builder;
+    the heldout override must accept it (T10 crash), and the width stays the family's fixed name-column width."""
+    gen = object.__new__(hx._HXGen)  # only ``spec`` is read by the override
+    gen.spec = hx.SPECS[fam]
+    assert gen._name_width("mmol/L") == gen._name_width() == hx._NAME_WIDTH[fam]
 
 
 def test_canary_token_properties(reports):

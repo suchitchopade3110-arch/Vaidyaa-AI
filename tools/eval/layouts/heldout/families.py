@@ -85,7 +85,8 @@ DESCRIPTORS: dict[str, dict[str, object]] = {
 class _HXGen(_Gen):
     """Shared value engine; only the name-column width differs."""
 
-    def _name_width(self) -> float:
+    def _name_width(self, *_unused: str) -> float:
+        # same signature as ``templates._Gen._name_width(unit_txt)``: the width is fixed per family
         return _NAME_WIDTH[self.spec.fid]
 
 
