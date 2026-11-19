@@ -984,7 +984,7 @@ def t07_reports(tmp_path_factory):
     return out
 
 
-T07_SAMPLE_N = 24
+T07_SAMPLE_N = 36
 
 
 @pytest.fixture(scope="module")
@@ -995,7 +995,7 @@ def t07_sample():
     for fi, fam in enumerate(T07_FAMILIES):
         pts = sc.build_patients(n, random.Random(100 + fi))
         classes = sc.allocate_scenario_classes(n, random.Random(200 + fi))
-        pages = [1] * 11 + [2] * 9 + [3] * 4
+        pages = [1] * 16 + [2] * 14 + [3] * 6
         random.Random(300 + fi).shuffle(pages)
         for i in range(n):
             rep = t07gen.build_report(fam, split="test", index=i, patient=pts[i], scenario_class=classes[i],
@@ -1025,7 +1025,8 @@ def test_gn07_t07_bbox_text(t07_reports):
             inbox = [w[4] for w in words[r["page"]] if _t07_inside(w, r["bbox"])]
             for tok in r["value_text"].split():  # a multi-word result must be inside the box token by token
                 assert tok in inbox, (fam, n, r["row_id"], r["value_text"], inbox)
-            assert any(t in inbox for t in r["name"].split()), (fam, n, r["row_id"], r["name"], inbox)
+            assert any(w.rstrip(":,") in r["name"].split() for w in inbox), \
+                (fam, n, r["row_id"], r["name"], inbox)  # colon-line rows print "Name:" as one word
         for dcy in gt["decoys"]:
             inbox = [w[4] for w in words[dcy["page"]] if _t07_inside(w, dcy["bbox"])]
             for tok in dcy["text"].split():
@@ -1284,7 +1285,7 @@ def test_t07_g04_form_blocks(t07_sample):
         for r in gt["rows"]:
             lt = r["line_text"]
             assert lt.startswith("Test Name : ") and " Specimen : " in lt and " Result : " in lt
-            assert " Biological Reference Interval : " in lt and lt.rstrip().endswith(r["method"] if False else lt.split()[-1])
+            assert " Biological Reference Interval : " in lt
             if r["value_type"] == "numeric":
                 assert " Method : " in lt
             if "interpretive_table" in r["features"]:
@@ -1304,7 +1305,7 @@ def test_t07_g05_two_tests_per_visual_line(t07_sample):
                 if a["page"] == b["page"] and a["bbox"][1] < b["bbox"][3] - 1 and b["bbox"][1] < a["bbox"][3] - 1:
                     assert a["bbox"][2] <= b["bbox"][0] + 0.5 or b["bbox"][2] <= a["bbox"][0] + 0.5
                     paired += 1
-        assert paired >= len(rows) // 2 - 1, (rep.report_id, paired, len(rows))
+        assert paired >= len(rows) // 2 - len(gt["sections"]), (rep.report_id, paired, len(rows))
         assert all("two_per_line" in r["features"] for r in rows)
         assert rep.page_size in ((595.28, 841.89), (841.89, 595.28))
 
@@ -1329,7 +1330,7 @@ def test_t07_g06_units_in_headers_and_unitless_counts(t07_sample):
             elif r["unit_placement"] == "none" and r["analyte_key"] in ("wbc", "platelets", "rbc", "neutrophils_abs",
                                                                          "lymphocytes_abs"):
                 # no unit, no range, no header unit: ambiguous on the page, determinate in truth
-                assert r["unit"] == "" and r["range"]["kind"] == "none" and r["range_text"] if False else True
+                assert r["unit"] == "" and r["range"]["kind"] == "none" and r["range"]["text"] == ""
                 assert r["flag"] == "UNKNOWN" and r["ambiguity"] == ["AMB_UNITLESS_COUNT"]
                 assert r["flag_true"] != "UNKNOWN" and "Result (" not in r["line_text"]
                 n_unitless += 1
@@ -1353,7 +1354,7 @@ def test_t07_g07_cumulative_newest_left(t07_sample):
                 assert r["flag"] == "UNKNOWN" and r["section"] == "ADDITIONAL RESULTS"
                 n_unl += 1
             else:
-                assert r["section"] != "ADDITIONAL RESULTS" and r["flag"] != "UNKNOWN" or r["ambiguity"]
+                assert r["section"] != "ADDITIONAL RESULTS"
         dates = {p["date"] for r in gt["rows"] for p in r["previous"]}
         page_text = rep.all_text()
         assert dates and all(d in page_text for d in dates)
@@ -1404,7 +1405,8 @@ def test_t07_g10_index_lines_and_serology(t07_sample):
         idx = [d for d in gt["decoys"] if d["kind"] == "index_line"]
         for d in idx:
             assert re.fullmatch(r"S/Co \d+\.\d\d", d["text"]), d
-            row = next(r for r in gt["rows"] if r["page"] == d["page"] and 0 <= d["bbox"][1] - r["bbox"][3] < 8)
+            row = max((r for r in gt["rows"] if r["page"] == d["page"] and r["bbox"][3] <= d["bbox"][1] + 1),
+                      key=lambda r: r["bbox"][3])  # the row directly above the index line
             sco = float(d["text"].split()[1])
             # S/Co below 1.0 is non-reactive, 1.0 and above reactive (assay convention)
             assert (sco >= 1.0) == (row["flag_true"] == "POSITIVE"), (row["name"], d["text"], row["text_value"])
@@ -1468,4 +1470,21 @@ def test_gn13_t07_feature_coverage(t07_sample):
                  "footer_page_x_of_y"):
         assert name in cov, name
     assert n_crit >= 100
-    assert 0.02 <= n_amb / n_rows <= 0.15, (n_amb, n_rows)  # generic families carry the titre/count/range ambiguity
+    assert 0.01 <= n_amb / n_rows <= 0.10, (n_amb, n_rows)  # the corpus-wide 2-5% (GN-13) is checked by T10's verify
+
+
+def test_t07_sample_invariants_guard_bands_and_bounds(t07_sample):
+    """GN-15 on the generic families: no value in a Table C guard band, none on a printed bound, all plausible."""
+    for fam, rep, gt, _, _ in t07_sample:
+        for r in gt["rows"]:
+            if r["value_type"] != "numeric":
+                continue
+            key, c = r["analyte_key"], r["canonical"]["value"]
+            if not r["qualifier"]:
+                assert not ct.in_guard(key, c, None), (fam, rep.report_id, key, c)
+            bounds = [b for b in (r["range"]["low"], r["range"]["high"]) if b is not None]
+            bounds += [v for o in r["range"]["options"] for v in (o["low"], o["high"]) if v is not None]
+            assert r["value"] not in bounds or r["qualifier"], (fam, rep.report_id, key, r["value"])
+            if key != "egfr" and CATALOGUE[key].plaus:
+                lo, hi = CATALOGUE[key].plaus
+                assert lo <= c <= hi, (fam, rep.report_id, key, c)

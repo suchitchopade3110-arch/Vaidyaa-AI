@@ -398,7 +398,8 @@ def _post(ctx: Ctx, rows: list[PrintedRow], rng: random.Random) -> list[PrintedR
     elif fid == "G03":
         if ex["star"]:
             for r in rows:
-                if r.printed_flag in ("H", "L") and rng.random() < 0.5:
+                agrees = base.row_truth(r, pt).flag_true == {"H": "HIGH", "L": "LOW"}.get(r.printed_flag)
+                if agrees and rng.random() < 0.5:  # '*' only where the H/L it replaces was right
                     r.printed_flag = "*"
     elif fid == "G04":
         for r in rows:
@@ -611,13 +612,15 @@ def _band(doc: DocBuilder, ctx: Ctx, title: str, cont: bool) -> None:
     c = ctx.conf
     mx = doc.margin_x
     rx = doc.size[0] - mx
-    t = f"{title} (contd.)" if cont else title
+    suffix = " (contd.)" if cont else ""
+    t = f"{title}{suffix}"
     if c.band == "fill":
         doc.rect(mx, doc.y, rx - mx, 15, fill=0.9)
         doc.put(mx + 4, doc.y + 3, t, c.bold, c.size + 0.5)
         doc.y += 18
     elif c.band == "rule":
-        doc.put(mx, doc.y + 1, t.upper() if c.kind != "lines" else f"== {t.upper()} ==", c.bold, c.size + 1)
+        up = f"{title.upper()}{suffix}"
+        doc.put(mx, doc.y + 1, up if c.kind != "lines" else f"== {up} ==", c.bold, c.size + 1)
         doc.line(mx, doc.y + 15, rx, doc.y + 15, 0.8)
         doc.y += 19
     elif c.band == "centre":
@@ -873,7 +876,7 @@ def _draw_item(doc: DocBuilder, ctx: Ctx, it: tuple, pad: float) -> None:
     r = it[1]
     doc.row(r, _cells(ctx, r), pad)
     if id(r) in ctx.idx:
-        doc.put(doc.margin_x + 300, doc.y - 1, ctx.idx[id(r)], FONT_ITALIC, 7, decoy="index_line")
+        doc.put(doc.margin_x + 300, r.bbox[3] + 0.5, ctx.idx[id(r)], FONT_ITALIC, 7, decoy="index_line")
         doc.y += 11
     if ctx.fid == "G04" and ctx.extra.get("interp") and "interpretive_table" in r.features:
         _draw_interp(doc, ctx, r.key)
