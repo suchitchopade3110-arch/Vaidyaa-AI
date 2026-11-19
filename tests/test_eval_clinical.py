@@ -384,3 +384,112 @@ def test_oracle_scorer():
     unk = [NS(analyte_key=None, value_num=1, unit_raw="", ref_low=None, ref_high=None, qualifier=None, text_value=None,
               specimen="serum")]
     assert cl.ClinicalRulesScorer().score(unk, None, None).headline == "unknown"
+
+
+# ======================================================================== T04: sampling invariants
+import random  # noqa: E402
+
+from tools.eval import scenarios as sc  # noqa: E402
+
+N_SAMPLES = 2000
+# states that Table C's guard bands leave room for, derived by hand (e.g. K 5.1 -> 1.25x = 6.4 > 6.0 guard edge)
+MUST_EXIST = {
+    ("glucose_fasting", "severe"), ("hemoglobin", "severe"), ("wbc", "severe"), ("platelets", "severe"),
+    ("creatinine", "severe"), ("inr", "severe"),
+}
+
+
+@pytest.mark.parametrize("key", [k for k in ct.CRITICAL if k in CATALOGUE])
+@pytest.mark.parametrize("state", sc.STATES)
+def test_cl18_sampled_values_respect_invariants(key, state):
+    a = CATALOGUE[key]
+    printed, unit = sc.printed_range_for(a, 0, "M", 40)
+    rnd = random.Random(18)
+    got = 0
+    upper = printed.high
+    bounds = [b for b in (printed.low, printed.high) if b is not None]
+    for _ in range(N_SAMPLES):
+        s = sc.sample_value(key, state, rnd, printed=printed, unit=unit, sex_code="M")
+        if s is None:
+            continue
+        got += 1
+        v = float(s.value)
+        canon, _ = units.to_canonical(key, v, unit)
+        assert not ct.in_guard(key, canon, upper), (key, state, v)
+        assert all(v != b for b in bounds), (key, state, v)
+        if a.plaus:
+            assert a.plaus[0] <= canon <= a.plaus[1]
+        assert not ct.violates_cap(key, canon)
+        crit = ct.critical_direction(key, canon)
+        assert (crit is not None) == (state == "critical"), (key, state, v)
+    if state in ("normal", "critical") or (key, state) in MUST_EXIST:
+        assert got > N_SAMPLES * 0.9, (key, state, got)
+
+
+def test_cl18_state_semantics_against_printed_range():
+    rnd = random.Random(5)
+    r = sc.Rng("two_sided", 12.0, 15.0)
+    for _ in range(300):
+        n = sc.sample_value("hemoglobin", "normal", rnd, printed=r, unit="g/dL")
+        assert 12.0 + 0.3 - 0.05 <= float(n.value) <= 15.0 - 0.3 + 0.05  # middle 80% (+- rounding)
+        m = sc.sample_value("hemoglobin", "mild", rnd, printed=r, unit="g/dL", direction="low")
+        assert 0.8 * 12.0 - 0.05 <= float(m.value) < 12.0
+        h = sc.sample_value("hemoglobin", "mild", rnd, printed=r, unit="g/dL", direction="high")
+        assert 15.0 < float(h.value) <= 1.25 * 15.0 + 0.05
+
+
+def test_sampling_in_si_unit_checks_invariants_after_rounding():
+    rnd = random.Random(7)
+    r = sc.Rng("two_sided", 3.9, 5.6)  # mmol/L fasting glucose
+    for _ in range(300):
+        s = sc.sample_value("glucose_fasting", "critical", rnd, printed=r, unit="mmol/L", direction="high")
+        assert float(s.value) * 18.016 > 500 and len(s.text.split(".")[1]) == 1
+
+
+def test_range_absent_clear_margins():
+    rnd = random.Random(9)
+    for _ in range(200):
+        n = sc.sample_value("hemoglobin", "normal", rnd, printed=None, range_absent=True, sex_code="F")
+        assert 12.0 + 0.2 * 3.0 - 0.05 <= float(n.value) <= 15.0 - 0.2 * 3.0 + 0.05  # middle 60% of F 12-15
+        h = sc.sample_value("alt", "mild", rnd, printed=None, range_absent=True, direction="high")
+        assert float(h.value) >= 1.15 * 56 - 0.5  # furthest-out upper bound across ALT variants is 56
+        lo = sc.sample_value("hemoglobin", "mild", rnd, printed=None, range_absent=True, direction="low")
+        assert float(lo.value) <= 0.85 * 11.5 + 0.05  # lowest bound across variants is 11.5
+
+
+def test_hemoglobin_high_without_range_is_only_critical():
+    # variants reach 18.0; 15% beyond is 20.7, past the 18.5-21.0 guard band -> no non-critical high exists
+    assert sc.sample_value("hemoglobin", "mild", random.Random(1), printed=None, range_absent=True,
+                           direction="high") is None
+
+
+def test_troponin_has_no_mild_zone():
+    rnd = random.Random(3)
+    r = sc.Rng("upper", None, 14.0)
+    assert sc.sample_value("hs_troponin_t", "mild", rnd, printed=r, unit="ng/L") is None
+
+
+def test_derived_values_hand_checked():
+    assert sc.indirect_bilirubin(1.8, 0.6) == 1.2
+    assert sc.globulin(7.2, 4.2) == 3.0
+    assert sc.ag_ratio(4.2, 3.0) == 1.4
+    assert sc.vldl(150) == 30
+    assert sc.ldl_friedewald(200, 50, 150) == 120
+    assert sc.ldl_friedewald(300, 40, 400) is None  # TG >= 400: "Not calculated"
+    assert sc.non_hdl(200, 50) == 150
+    assert sc.mchc(12.0, 36.0) == pytest.approx(33.3, abs=0.05)
+    assert sc.mcv(40.0, 4.5) == pytest.approx(88.9, abs=0.05)
+    assert sc.mch(13.5, 4.5) == 30.0
+    assert sc.abs_count(8.0, 60) == 4.8
+    assert sc.egfr_ckd_epi_2021(1.0, 50, "F") == 69  # hand calc 68.6
+    assert sc.egfr_ckd_epi_2021(1.0, 60, "M") == 86  # hand calc 86.2
+
+
+def test_seeding_is_deterministic_and_purpose_separated():
+    from tools.eval import config as cfg
+
+    assert cfg.seed_for(1, "test", 3, "plan") == cfg.seed_for(1, "test", 3, "plan")
+    assert cfg.seed_for(1, "test", 3, "plan") != cfg.seed_for(1, "test", 3, "values")
+    assert cfg.DEVTEST_SEED != cfg.HELDOUT_SEED
+    a = sc.build_patients(40, random.Random(1))
+    assert a == sc.build_patients(40, random.Random(1))
