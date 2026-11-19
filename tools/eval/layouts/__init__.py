@@ -11,7 +11,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
-from tools.eval.layouts import templates
+from tools.eval.layouts import generic, templates
 
 
 @dataclass(frozen=True)
@@ -24,6 +24,9 @@ class FamilyEntry:
 FAMILIES: dict[str, FamilyEntry] = {
     fid: FamilyEntry("template", "shared", templates.build_report) for fid in templates.SPECS
 }
+
+# T07: generic families G01-G10
+FAMILIES.update({fid: FamilyEntry("generic", "shared", generic.build_report) for fid in generic.SPECS})
 
 # T08: heldout-only families (DO NOT READ the heldout folder for engine work, see its README)
 from tools.eval.layouts.heldout import families as _heldout  # noqa: E402

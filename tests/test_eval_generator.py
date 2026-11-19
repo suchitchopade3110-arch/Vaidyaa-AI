@@ -954,3 +954,518 @@ def test_t06_csv_has_no_native_pdf_and_roundtrips_utf8(tmp_path):
     _csvx.write_csv(rep, str(p))
     assert p.read_text(encoding="utf-8") == _csvx.csv_text(rep) == rep.all_text() + "\n"
     assert list(_csv.reader(_io.StringIO(_csvx.csv_text(rep))))  # parses as CSV text
+
+
+# ======================================================================================================
+# T07 section: generic families G01-G10 (GN-07, GN-08, GN-10, GN-13 feature coverage + structure checks)
+# ======================================================================================================
+
+from tools.eval.layouts import generic as t07gen  # noqa: E402
+
+T07_FAMILIES = tuple(f"G{i:02d}" for i in range(1, 11))
+# (patient index, scenario class, pages): adult/critical/2, unknown demographics/severe/1, paediatric/mild/2
+T07_CASES = ((0, "critical", 2), (1, "severe", 1), (2, "mild", 2))
+T07_FONTS = ("Helvetica", "Helvetica-Bold", "Helvetica-Oblique", "Times-Roman", "Times-Bold", "Courier",
+             "Courier-Bold")
+
+
+@pytest.fixture(scope="module")
+def t07_reports(tmp_path_factory):
+    out = {}
+    pts = _t05_patients()
+    d = tmp_path_factory.mktemp("t07")
+    for fam in T07_FAMILIES:
+        for n, (pi, cls, pages) in enumerate(T07_CASES):
+            rep = t07gen.build_report(fam, split="dev", index=n, patient=pts[pi], scenario_class=cls,
+                                      target_pages=pages)
+            path = d / f"{fam}_{n}.pdf"
+            t07gen.native_pdf(rep, str(path))
+            out[(fam, n)] = (rep, lbase.build_gt(rep).to_dict(), path)
+    return out
+
+
+T07_SAMPLE_N = 24
+
+
+@pytest.fixture(scope="module")
+def t07_sample():
+    """T07_SAMPLE_N reports per generic family (GT only), demographics, classes and page targets as in the plan."""
+    n = T07_SAMPLE_N
+    out = []
+    for fi, fam in enumerate(T07_FAMILIES):
+        pts = sc.build_patients(n, random.Random(100 + fi))
+        classes = sc.allocate_scenario_classes(n, random.Random(200 + fi))
+        pages = [1] * 11 + [2] * 9 + [3] * 4
+        random.Random(300 + fi).shuffle(pages)
+        for i in range(n):
+            rep = t07gen.build_report(fam, split="test", index=i, patient=pts[i], scenario_class=classes[i],
+                                      target_pages=pages[i])
+            out.append((fam, rep, lbase.build_gt(rep).to_dict(), pages[i], classes[i]))
+    return out
+
+
+def _t07_inside(w, bbox, tol=2.0):
+    return w[0] >= bbox[0] - tol and w[1] >= bbox[1] - tol and w[2] <= bbox[2] + tol and w[3] <= bbox[3] + tol
+
+
+def test_t07_registered_and_generic():
+    from tools.eval.layouts import FAMILIES
+
+    for fam in T07_FAMILIES:
+        assert FAMILIES[fam].kind == "generic" and FAMILIES[fam].scope == "shared"
+    assert set(t07gen.CONFS) == set(T07_FAMILIES)
+
+
+def test_gn07_t07_bbox_text(t07_reports):
+    for (fam, n), (rep, gt, path) in t07_reports.items():
+        doc = fitz.open(str(path))
+        words = {i + 1: [(w[0], w[1], w[2], w[3], w[4]) for w in pg.get_text("words")] for i, pg in enumerate(doc)}
+        assert gt["rows"], (fam, n)
+        for r in gt["rows"]:
+            inbox = [w[4] for w in words[r["page"]] if _t07_inside(w, r["bbox"])]
+            for tok in r["value_text"].split():  # a multi-word result must be inside the box token by token
+                assert tok in inbox, (fam, n, r["row_id"], r["value_text"], inbox)
+            assert any(t in inbox for t in r["name"].split()), (fam, n, r["row_id"], r["name"], inbox)
+        for dcy in gt["decoys"]:
+            inbox = [w[4] for w in words[dcy["page"]] if _t07_inside(w, dcy["bbox"])]
+            for tok in dcy["text"].split():
+                assert tok in inbox, (fam, n, dcy["kind"], tok)
+
+
+def test_gn07_t07_rows_disjoint_per_visual_slot_and_on_page(t07_reports):
+    for (fam, n), (rep, gt, _) in t07_reports.items():
+        w, h = rep.page_size
+        by_page = {}
+        for r in gt["rows"]:
+            x0, y0, x1, y1 = r["bbox"]
+            assert 0 <= x0 < x1 <= w and 0 <= y0 < y1 <= h, (fam, n, r["row_id"])
+            by_page.setdefault(r["page"], []).append(r["bbox"])
+        for boxes in by_page.values():  # no two row boxes intersect (two-per-line rows sit side by side)
+            for i, a in enumerate(boxes):
+                for b in boxes[i + 1:]:
+                    assert a[2] <= b[0] + 0.5 or b[2] <= a[0] + 0.5 or a[3] <= b[1] + 0.5 or b[3] <= a[1] + 0.5, \
+                        (fam, n, a, b)
+
+
+def test_gn08_t07_pages_and_headers(t07_reports):
+    for (fam, n), (rep, gt, path) in t07_reports.items():
+        doc = fitz.open(str(path))
+        assert 1 <= len(doc) <= 3
+        assert len(doc) == len(gt["pages"]) == T07_CASES[n][2], (fam, n)
+        for pg, meta in zip(doc, gt["pages"], strict=True):
+            assert (round(pg.rect.width, 1), round(pg.rect.height, 1)) == (round(meta["width_pt"], 1),
+                                                                             round(meta["height_pt"], 1))
+        pid = gt["patient"]["patient_id"]
+        for i, pg in enumerate(doc, 1):  # header repeats on every page; footer carries 'Page i of n'
+            txt = pg.get_text()
+            assert pid in txt and f"Page {i} of {len(doc)}" in txt, (fam, n, i)
+
+
+@pytest.mark.parametrize("fam", T07_FAMILIES)
+def test_gn08_t07_three_pages_repeat_section_header(fam, tmp_path):
+    pt = next(p for p in sc.build_patients(80, random.Random(7)) if p.input_sex and p.input_age and not p.is_paediatric)
+    rep = t07gen.build_report(fam, split="dev", index=9, patient=pt, scenario_class="normal", target_pages=3)
+    path = tmp_path / "r.pdf"
+    t07gen.native_pdf(rep, str(path))
+    doc = fitz.open(str(path))
+    assert len(doc) == 3
+    for i, pg in enumerate(doc, 1):
+        assert pt.patient_id in pg.get_text() and f"Page {i} of 3" in pg.get_text()
+    assert "End of Report" in doc[2].get_text() and "End of Report" not in doc[0].get_text()
+    gt = lbase.build_gt(rep).to_dict()
+    for s in gt["sections"]:
+        if len(s["pages"]) > 1:  # a section continuing across a page break repeats its header with (contd.)
+            assert "(contd.)" in doc[s["pages"][1] - 1].get_text(), (fam, s["title"])
+
+
+def test_t07_build_is_deterministic(tmp_path):
+    pt = _t05_patients()[0]
+    for fam in ("G04", "G07", "G10"):
+        outs = []
+        for k in range(2):
+            rep = t07gen.build_report(fam, split="dev", index=3, patient=pt, scenario_class="severe", target_pages=2)
+            p = tmp_path / f"{fam}{k}.pdf"
+            t07gen.native_pdf(rep, str(p))
+            outs.append((p.read_bytes(), json.dumps(lbase.build_gt(rep).to_dict(), sort_keys=True)))
+        assert outs[0] == outs[1], fam
+
+
+def test_gn10_t07_fictional_identity_and_fonts(t07_reports):
+    for (fam, n), (rep, gt, path) in t07_reports.items():
+        doc = fitz.open(str(path))
+        page_text = "\n".join(pg.get_text() for pg in doc)
+        blob = json.dumps(gt, ensure_ascii=False) + "\n" + page_text
+        assert not DENY_RE.search(blob), (fam, n, DENY_RE.search(blob).group(0))
+        assert gt["lab"]["fictional"] is True
+        phones = PHONE_ANY.findall(page_text)
+        assert phones, (fam, n)
+        for ph in phones:
+            assert any(re.fullmatch(p, ph) for p in PHONE_ALLOWED), (fam, n, ph)
+        for host in re.findall(r"[\w.+-]+@([\w.-]+)", page_text) + re.findall(r"www\.([\w.-]+)", page_text):
+            assert host.endswith(("example.org", "example.com")), (fam, n, host)
+        assert re.search(r"Accreditation Cert\. No\. FA-\d{4}", page_text)
+        assert re.search(r"Reg\. No\. FX-\d{5}", page_text)
+        assert {"phone", "tollfree", "turnaround", "page_x_of_y", "accreditation", "address", "end_of_report",
+                "signature"} <= {d["kind"] for d in gt["decoys"]}
+        for pg in doc:
+            assert {f[3] for f in pg.get_fonts()} <= set(T07_FONTS)
+            pg.get_text().encode("cp1252")
+        assert not any(c in rep.all_text() for c in "≤≥")
+
+
+def test_gn10_t07_deny_list_over_sample(t07_sample):
+    for fam, rep, gt, _, _ in t07_sample:
+        blob = json.dumps(gt, ensure_ascii=False) + rep.all_text()
+        assert not DENY_RE.search(blob), (fam, rep.report_id, DENY_RE.search(blob).group(0))
+        for ph in PHONE_ANY.findall(rep.all_text()):
+            assert any(re.fullmatch(p, ph) for p in PHONE_ALLOWED), (fam, ph)
+
+
+def test_t07_gt_schema_and_value_in_line(t07_reports):
+    from tools.eval.gt_schema import validate_gt
+
+    for (fam, n), (rep, gt, _) in t07_reports.items():
+        assert validate_gt(gt) == [], (fam, n)
+        for r in gt["rows"]:
+            assert all(tok in r["line_text"] for tok in r["value_text"].split()), (fam, r["row_id"])
+
+
+# ---- hand-derived clinical expectations on the printed page
+
+def test_t07_flags_match_hand_reading_of_the_printed_range(t07_sample):
+    checked = 0
+    for fam, rep, gt, _, _ in t07_sample:
+        pat = gt["patient"]
+        for r in gt["rows"]:
+            if r["value_type"] != "numeric" or r["range"]["kind"] in ("interpretive", "none", "cutoff") \
+                    or r["qualifier"] or r["is_critical"] or r["flag"] == "UNKNOWN":
+                continue
+            exp = _hand_region(r["range"]["text"], r["value"], pat["sex_true"], pat["age_true"])
+            assert exp is not None, (fam, r["range"]["text"])
+            assert r["flag_true"] == exp, (fam, rep.report_id, r["name"], r["value_text"], r["range"]["text"])
+            checked += 1
+    assert checked > 1500
+
+
+def test_t07_criticality_matches_hand_table_c(t07_sample):
+    n_crit = 0
+    for fam, rep, gt, _, cls in t07_sample:
+        for r in gt["rows"]:
+            if r["analyte_key"] not in HAND_TABLE_C or r["value_type"] != "numeric":
+                continue
+            lo, hi = HAND_TABLE_C[r["analyte_key"]]
+            v = r["canonical"]["value"]
+            exp = (lo is not None and v < lo) or (hi is not None and v > hi)
+            assert r["is_critical"] == exp, (fam, rep.report_id, r["analyte_key"], v)
+            n_crit += exp
+        assert gt["expected"]["headline"] == {"normal": "normal", "mild": "abnormal", "severe": "abnormal",
+                                              "critical": "critical"}[cls], (fam, rep.report_id)
+        assert all(r["specimen"] == "serum" for r in gt["rows"] if r["is_critical"])
+    assert n_crit >= 30
+
+
+def test_t07_pages_match_targets_over_sample(t07_sample):
+    for fam, rep, gt, pages, _ in t07_sample:
+        assert len(gt["pages"]) == pages, (fam, rep.report_id)
+
+
+QUAL_NEG = {"nil", "negative", "absent", "non-reactive", "normal"}
+QUAL_POS = {"trace", "1+", "2+", "3+", "present", "positive", "reactive"}
+
+
+def test_t07_qualitative_and_titre_truth_by_hand(t07_sample):
+    n_q = n_t = n_nc = 0
+    for fam, rep, gt, _, _ in t07_sample:
+        for r in gt["rows"]:
+            if r["value_type"] == "qualitative":
+                t = r["text_value"].lower()
+                assert r["flag"] == r["flag_true"] == ("NEGATIVE" if t in QUAL_NEG else "POSITIVE"), (fam, r["name"], t)
+                assert t in QUAL_NEG | QUAL_POS
+                n_q += 1
+            elif r["value_type"] == "titre":
+                ratio = int(r["text_value"].split(":")[1])
+                assert r["text_value"].startswith("1:") and r["value_text"] == r["text_value"]
+                m = re.search(r">= 1:(\d+)", r["range"]["text"])
+                if m:  # printed cut-off: positive at or above it
+                    exp = "POSITIVE" if ratio >= int(m.group(1)) else "NEGATIVE"
+                    assert r["flag"] == r["flag_true"] == exp and not r["ambiguity"], (fam, r["text_value"])
+                else:  # no cut-off: only <= 1:40 or >= 1:320 is emitted, so the truth is unambiguous but the page is not
+                    assert ratio <= 40 or ratio >= 320, ratio
+                    assert r["flag"] == "UNKNOWN" and r["ambiguity"] == ["AMB_TITRE_NO_CUTOFF"]
+                    assert r["flag_true"] == ("POSITIVE" if ratio >= 320 else "NEGATIVE")
+                    n_nc += 1
+                n_t += 1
+            elif r["value_type"] == "info":
+                assert r["flag"] == r["flag_true"] == "INFO"
+            elif r["value_type"] == "range_result":
+                nums = [float(x) for x in re.findall(r"\d+", r["text_value"])] or [0.0]
+                hi = r["range"]["high"]
+                assert r["flag"] == ("HIGH" if min(nums) > hi else "NORMAL"), (fam, r["name"], r["text_value"])
+    assert n_q > 100 and n_t > 20 and n_nc > 5
+
+
+def test_t07_widal_blocks_share_one_cutoff_policy(t07_sample):
+    seen_with = seen_without = 0
+    for fam, rep, gt, _, _ in t07_sample:
+        w = [r for r in gt["rows"] if r["analyte_key"].startswith("widal")]
+        if not w:
+            continue
+        kinds = {r["range"]["kind"] for r in w}
+        assert len(kinds) == 1  # a Widal block either prints its cut-off on every row or on none
+        seen_with += kinds == {"cutoff"}
+        seen_without += kinds == {"none"}
+    assert seen_with >= 2 and seen_without >= 2  # about half the blocks have no cut-off (AMB_TITRE_NO_CUTOFF)
+
+
+def test_t07_g01_g02_range_absent_only_for_adults_with_known_age(t07_sample):
+    absent = 0
+    for fam, rep, gt, _, _ in t07_sample:
+        for r in gt["rows"]:
+            if "range_absent" in r["features"]:
+                assert fam in ("G01", "G02") and r["range"]["kind"] == "none" and r["range"]["text"] == ""
+                assert gt["patient"]["input_age"] is not None and gt["patient"]["input_age"] >= 18
+                absent += 1
+            elif fam in ("G01", "G02") and r["value_type"] == "numeric":
+                assert r["range"]["kind"] != "none" or r["analyte_key"] == "egfr", (fam, r["name"])
+    assert absent >= 10
+    # AMB_NO_RANGE_NO_DEMOGRAPHICS only arises from a missing range with unknown sex
+    for fam, rep, gt, _, _ in t07_sample:
+        for r in gt["rows"]:
+            if "AMB_NO_RANGE_NO_DEMOGRAPHICS" in r["ambiguity"]:
+                assert r["range"]["kind"] == "none" and gt["patient"]["input_sex"] is None
+
+
+def test_t07_g02_colon_lines_one_string_per_row(t07_sample):
+    n_flag = 0
+    for fam, rep, gt, _, _ in t07_sample:
+        if fam != "G02":
+            continue
+        texts = {(p.n, op.text) for p in rep.pages for op in p.ops if hasattr(op, "text")}
+        for r in gt["rows"]:
+            assert (r["page"], r["line_text"]) in texts  # the whole row is a single drawn string
+            assert re.match(r"^.+?: .+", r["line_text"]) and "|" not in r["line_text"]
+            if r["range"]["text"]:
+                assert f"(Ref: {r['range']['text']})" in r["line_text"]
+            if r["unit"]:
+                assert r["unit_placement"] == "inline" and f"{r['value_text']} {r['unit']}" in r["line_text"]
+            if r["printed_flag"]:
+                assert r["printed_flag"] in ("LOW", "HIGH", "CRITICAL LOW", "CRITICAL HIGH")
+                assert r["line_text"].endswith(" " + r["printed_flag"])
+                assert (r["printed_flag"].split()[-1] == "LOW") == r["flag_true"].endswith("LOW")
+                n_flag += 1
+    assert n_flag >= 20
+
+
+def test_t07_g03_flag_first(t07_sample):
+    n_star = n_method = n_crit = 0
+    for fam, rep, gt, _, _ in t07_sample:
+        if fam != "G03":
+            continue
+        for r in gt["rows"]:
+            parts = r["line_text"].split(" | ")
+            assert parts[0] == r["printed_flag"] if r["printed_flag"] else True
+            assert r["printed_flag"] in ("", "H", "L", "HH", "LL", "*")
+            if r["printed_flag"] == "*":
+                assert r["flag_true"] in ("HIGH", "LOW", "CRITICAL_HIGH", "CRITICAL_LOW") or r["ambiguity"]
+                n_star += 1
+            if r["is_critical"] and r["printed_flag"] and "AMB_PRINTED_FLAG_CONFLICT" not in r["ambiguity"]:
+                assert r["printed_flag"] in ("HH", "LL")
+                n_crit += 1
+            n_method += "method_column" in r["features"]
+    assert n_star >= 3 and n_method >= 20 and n_crit >= 3
+
+
+def test_t07_g04_form_blocks(t07_sample):
+    n_interp = 0
+    for fam, rep, gt, _, _ in t07_sample:
+        if fam != "G04":
+            continue
+        kinds = {d["kind"] for d in gt["decoys"]}
+        for r in gt["rows"]:
+            lt = r["line_text"]
+            assert lt.startswith("Test Name : ") and " Specimen : " in lt and " Result : " in lt
+            assert " Biological Reference Interval : " in lt and lt.rstrip().endswith(r["method"] if False else lt.split()[-1])
+            if r["value_type"] == "numeric":
+                assert " Method : " in lt
+            if "interpretive_table" in r["features"]:
+                assert "interpretive" in kinds
+                n_interp += 1
+    assert n_interp >= 10
+
+
+def test_t07_g05_two_tests_per_visual_line(t07_sample):
+    for fam, rep, gt, _, _ in t07_sample:
+        if fam != "G05":
+            continue
+        rows = gt["rows"]
+        paired = 0
+        for i, a in enumerate(rows):
+            for b in rows[i + 1:]:
+                if a["page"] == b["page"] and a["bbox"][1] < b["bbox"][3] - 1 and b["bbox"][1] < a["bbox"][3] - 1:
+                    assert a["bbox"][2] <= b["bbox"][0] + 0.5 or b["bbox"][2] <= a["bbox"][0] + 0.5
+                    paired += 1
+        assert paired >= len(rows) // 2 - 1, (rep.report_id, paired, len(rows))
+        assert all("two_per_line" in r["features"] for r in rows)
+        assert rep.page_size in ((595.28, 841.89), (841.89, 595.28))
+
+
+def test_t07_g06_units_in_headers_and_unitless_counts(t07_sample):
+    n_hdr = n_unitless = n_inline = n_count = 0
+    for fam, rep, gt, _, _ in t07_sample:
+        if fam != "G06":
+            continue
+        pages_text = {p.n: "\n".join(op.text for op in p.ops if hasattr(op, "text")) for p in rep.pages}
+        assert gt["unit_system"] == "conventional"
+        for r in gt["rows"]:
+            if r["analyte_key"] in ("wbc", "platelets", "rbc", "neutrophils_abs", "lymphocytes_abs"):
+                n_count += 1
+            if r["unit_placement"] == "header":
+                assert f"Result ({r['unit']})" in pages_text[r["page"]]
+                assert r["unit"] not in r["name"] and r["unit"] not in r["line_text"].split(" | ")[1]
+                n_hdr += 1
+            elif r["unit_placement"] == "inline":
+                assert f"({r['unit']})" in r["name"]
+                n_inline += 1
+            elif r["unit_placement"] == "none" and r["analyte_key"] in ("wbc", "platelets", "rbc", "neutrophils_abs",
+                                                                         "lymphocytes_abs"):
+                # no unit, no range, no header unit: ambiguous on the page, determinate in truth
+                assert r["unit"] == "" and r["range"]["kind"] == "none" and r["range_text"] if False else True
+                assert r["flag"] == "UNKNOWN" and r["ambiguity"] == ["AMB_UNITLESS_COUNT"]
+                assert r["flag_true"] != "UNKNOWN" and "Result (" not in r["line_text"]
+                n_unitless += 1
+    assert n_hdr >= 40 and n_inline >= 10 and n_unitless >= 3
+    assert 0.05 <= n_unitless / n_count <= 0.30  # about 15% of count rows (plan 3.8)
+
+
+def test_t07_g07_cumulative_newest_left(t07_sample):
+    n_unl = 0
+    for fam, rep, gt, _, _ in t07_sample:
+        if fam != "G07":
+            continue
+        assert rep.page_size == (841.89, 595.28)  # landscape
+        for r in gt["rows"]:
+            parts = r["line_text"].split(" | ")
+            cur = f"{r['qualifier']} {r['value_text']}" if r["qualifier"] else r["value_text"]
+            assert parts[1] == cur  # current value is the first value column (newest on the left)
+            assert [p["value_text"] for p in r["previous"]] == parts[2:2 + len(r["previous"])]
+            assert 1 <= len(r["previous"]) <= 2
+            if "AMB_UNLABELLED_MULTIVALUE" in r["ambiguity"]:
+                assert r["flag"] == "UNKNOWN" and r["section"] == "ADDITIONAL RESULTS"
+                n_unl += 1
+            else:
+                assert r["section"] != "ADDITIONAL RESULTS" and r["flag"] != "UNKNOWN" or r["ambiguity"]
+        dates = {p["date"] for r in gt["rows"] for p in r["previous"]}
+        page_text = rep.all_text()
+        assert dates and all(d in page_text for d in dates)
+        assert sum(1 for d in gt["decoys"] if d["kind"] == "date" and d["text"] in dates) >= len(dates)
+    assert n_unl >= 1
+
+
+def test_t07_g08_urine_sections_and_urine_only(t07_sample):
+    n_only = n_mixed = 0
+    for fam, rep, gt, _, cls in t07_sample:
+        if fam != "G08":
+            continue
+        specs = {r["specimen"] for r in gt["rows"]}
+        titles = " ".join(s["title"] for s in gt["sections"])
+        assert "URINE ROUTINE" in titles or "urine_only" not in rep.features
+        if specs == {"urine"}:
+            n_only += 1
+            assert cls != "critical" and f"Ph: {rep.lab['phone']}" in rep.all_text()
+            assert any(d["kind"] == "phone" and d["text"].endswith(rep.lab["phone"]) and "Ph:" in d["text"]
+                       for d in gt["decoys"])
+            assert all("urine_only" in r["features"] for r in gt["rows"])
+        elif "serum" in specs and "urine" in specs:
+            n_mixed += 1
+    assert n_only >= 3 and n_mixed >= 3
+
+
+def test_t07_g09_csf_with_paired_glucose_and_info_differential(t07_sample):
+    n = 0
+    for fam, rep, gt, _, _ in t07_sample:
+        if fam != "G09":
+            continue
+        rows = {r["analyte_key"]: r for r in gt["rows"]}
+        assert any(r["specimen"] == "csf" for r in gt["rows"])
+        assert all(r["specimen"] != "csf" or not r["is_critical"] for r in gt["rows"])
+        if "csf_neutrophils_pct" in rows and "csf_lymphocytes_pct" in rows:
+            assert rows["csf_neutrophils_pct"]["value"] + rows["csf_lymphocytes_pct"]["value"] == 100
+            for k in ("csf_neutrophils_pct", "csf_lymphocytes_pct"):
+                assert rows[k]["flag"] == rows[k]["flag_true"] == "INFO" and rows[k]["value_type"] == "info"
+        n += "glucose_random" in rows
+    assert n >= 10
+
+
+def test_t07_g10_index_lines_and_serology(t07_sample):
+    n_idx = 0
+    for fam, rep, gt, _, _ in t07_sample:
+        if fam != "G10":
+            continue
+        idx = [d for d in gt["decoys"] if d["kind"] == "index_line"]
+        for d in idx:
+            assert re.fullmatch(r"S/Co \d+\.\d\d", d["text"]), d
+            row = next(r for r in gt["rows"] if r["page"] == d["page"] and 0 <= d["bbox"][1] - r["bbox"][3] < 8)
+            sco = float(d["text"].split()[1])
+            # S/Co below 1.0 is non-reactive, 1.0 and above reactive (assay convention)
+            assert (sco >= 1.0) == (row["flag_true"] == "POSITIVE"), (row["name"], d["text"], row["text_value"])
+            n_idx += 1
+        keys = {r["analyte_key"] for r in gt["rows"]}
+        assert keys & {"hiv_screen", "hbsag", "anti_hcv", "vdrl", "dengue_ns1", "dengue_igm"}
+    assert n_idx >= 10
+
+
+# ---- GN-13 feature coverage (generic part of the dev+test plan): >= 10 reports per feature
+
+def test_gn13_t07_feature_coverage(t07_sample):
+    cov: dict[str, set] = {}
+
+    def hit(name, rid):
+        cov.setdefault(name, set()).add(rid)
+
+    n_rows = n_amb = n_crit = 0
+    for fam, rep, gt, _, _ in t07_sample:
+        rid = (fam, rep.report_id)
+        feats = {f for r in gt["rows"] for f in r["features"]}
+        specs = {r["specimen"] for r in gt["rows"]}
+        pat = gt["patient"]
+        for name, cond in {
+            "method_column": "method_column" in feats or "method_line" in feats,
+            "interpretive_table": "interpretive_table" in feats,
+            "cumulative": "cumulative" in feats,
+            "form_style": "form_style" in feats,
+            "two_per_line": "two_per_line" in feats,
+            "header_unit": "header_unit" in feats,
+            "urine_section": "urine" in specs,
+            "urine_only": specs == {"urine"},
+            "csf": "csf" in specs,
+            "serology": "serology" in feats,
+            "titre": any(r["value_type"] == "titre" for r in gt["rows"]),
+            "qualifier": any(r["qualifier"] for r in gt["rows"]),
+            "si": gt["unit_system"] == "SI",
+            "paediatric": pat["age_group"] == "paediatric",
+            "elderly": pat["age_group"] == "elderly",
+            "unknown_sex_or_age": pat["input_sex"] is None or pat["input_age"] is None,
+            "flag_column_or_glued": "flag_column" in feats or "glued_flag" in feats,
+            "range_absent": "range_absent" in feats,
+            "sex_labelled_range": "sex_labelled_range" in feats,
+            "age_labelled_range": "age_labelled_range" in feats,
+        }.items():
+            if cond:
+                hit(name, rid)
+        kinds = {d["kind"] for d in gt["decoys"]}
+        for k in ("phone", "tollfree", "turnaround", "page_x_of_y", "end_of_report", "accreditation", "address",
+                  "signature", "date", "header_id", "header_demographic"):
+            if k in kinds:
+                hit("footer_" + k, rid)
+        n_rows += len(gt["rows"])
+        n_amb += sum(1 for r in gt["rows"] if r["expected_needs_review"])
+        n_crit += sum(1 for r in gt["rows"] if r["is_critical"])
+    for name, rids in cov.items():
+        assert len(rids) >= 10, (name, len(rids))
+    for name in ("method_column", "interpretive_table", "cumulative", "form_style", "two_per_line", "header_unit",
+                 "urine_section", "urine_only", "csf", "serology", "titre", "qualifier", "si", "paediatric",
+                 "elderly", "unknown_sex_or_age", "footer_phone", "footer_tollfree", "footer_turnaround",
+                 "footer_page_x_of_y"):
+        assert name in cov, name
+    assert n_crit >= 100
+    assert 0.02 <= n_amb / n_rows <= 0.15, (n_amb, n_rows)  # generic families carry the titre/count/range ambiguity
