@@ -4,6 +4,10 @@ on:
   push:
     branches: ["main"]
   pull_request:
+    # `labeled` is added so that putting the `eval-full` label on a PR starts the
+    # label-triggered full evaluation (eval-full-on-label below). It re-runs the
+    # other jobs once per label event, which is an accepted cost.
+    types: [opened, synchronize, reopened, labeled]
 
 env:
   # Ephemeral, CI-only values. Never used outside a throwaway workflow run.
@@ -189,3 +193,107 @@ jobs:
       - name: Tear down
         if: always()
         run: docker compose down -v
+
+  eval-gate:
+    name: Eval gate (ratchet vs eval/baseline.json)
+    runs-on: ubuntu-latest
+    # Blocking, no `needs` (runs in parallel with lint-and-unit). Cold cache on
+    # a 2-vCPU runner is about 20-22 min; warm OCR cache about 3 min.
+    timeout-minutes: 45
+    env:
+      HF_HUB_OFFLINE: "1"
+      TRANSFORMERS_OFFLINE: "1"
+      WHO_MULTIMODAL_STARTUP_INGEST: "false"
+      OCR_ENGINE: paddle
+      # No GROQ_API_KEY, no services, no chest X-ray weights: the eval adapter
+      # (tools/eval) only exercises lab-report extraction and the engine.
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Restore eval corpus cache (test GT, native, csv)
+        id: corpus-cache
+        # Image renderings (scan/photo/rot90) are large and fast to regenerate,
+        # so they are not cached.
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            eval/corpus/test/manifest.json
+            eval/corpus/test/gt
+            eval/corpus/test/native
+            eval/corpus/test/csv
+          key: eval-corpus-test-${{ hashFiles('tools/eval/**', 'requirements.txt') }}
+
+      - name: Restore OCR cache (rolling)
+        id: ocr-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: eval/.cache/ocr
+          key: eval-ocr-${{ hashFiles('data/paddleocr/**', 'app/services/ocr_service.py', 'requirements.txt') }}-${{ github.run_id }}
+          restore-keys: |
+            eval-ocr-${{ hashFiles('data/paddleocr/**', 'app/services/ocr_service.py', 'requirements.txt') }}-
+
+      - name: Verify test corpus invariants
+        run: python -m tools.eval.generate --verify --splits test
+
+      - name: Run eval (CI profile, ratchet)
+        # Exit codes: 0 pass; 1 gate failed (regression vs baseline); 2 harness
+        # or config error (missing baseline/corpus, fingerprint mismatch);
+        # 3 hygiene violation. Any non-zero code fails the job.
+        run: |
+          set +e
+          make eval
+          code=$?
+          case "$code" in
+            0) msg="eval gate passed" ;;
+            1) msg="eval gate FAILED: metric regression vs eval/baseline.json" ;;
+            2) msg="eval harness/config error (missing baseline or corpus, fingerprint mismatch, import failure)" ;;
+            3) msg="eval hygiene violation (heldout)" ;;
+            *) msg="eval exited with unexpected code $code" ;;
+          esac
+          echo "$msg (exit $code)"
+          echo "### Eval gate: $msg (exit $code)" >> "$GITHUB_STEP_SUMMARY"
+          exit "$code"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: eval-gate
+          path: |
+            eval/metrics.json
+            eval/report.md
+          if-no-files-found: warn
+
+      - name: Save eval corpus cache
+        if: always() && steps.corpus-cache.outputs.cache-hit != 'true' && hashFiles('eval/corpus/test/manifest.json') != ''
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            eval/corpus/test/manifest.json
+            eval/corpus/test/gt
+            eval/corpus/test/native
+            eval/corpus/test/csv
+          key: eval-corpus-test-${{ hashFiles('tools/eval/**', 'requirements.txt') }}
+
+      - name: Save OCR cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: eval/.cache/ocr
+          key: eval-ocr-${{ hashFiles('data/paddleocr/**', 'app/services/ocr_service.py', 'requirements.txt') }}-${{ github.run_id }}
+
+  eval-full-on-label:
+    name: Eval full (label eval-full)
+    # The only way to run the full sharded evaluation before merge: `schedule`
+    # fires only from the default branch, so it cannot cover an unmerged PR.
+    if: github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'eval-full')
+    uses: ./.github/workflows/eval-full.yml

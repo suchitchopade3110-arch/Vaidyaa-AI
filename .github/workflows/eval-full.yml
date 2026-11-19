@@ -1,0 +1,123 @@
+name: Eval full
+
+# Full evaluation (dev + test + heldout x native/csv/scan/photo/rot90), sharded
+# by split x rendering, then aggregated. Never commits anything.
+#
+# NOTE: GitHub fires `schedule` only for the workflow file on the DEFAULT
+# branch, so the nightly does not start until this file reaches main. Before
+# merge, label the PR `eval-full` (ci.yml calls this workflow via workflow_call)
+# or use workflow_dispatch / a local `make eval-full`.
+on:
+  schedule:
+    - cron: "41 20 * * *"   # ~02:11 IST, off the hour
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+env:
+  # Ephemeral, CI-only values. Never used outside a throwaway workflow run.
+  SECRET_KEY: ci-only-secret-not-for-real-use
+  POSTGRES_PASSWORD: ci-only-password
+  APP_ENV: development
+  CORS_ORIGINS: http://localhost:3000
+  HF_HUB_OFFLINE: "1"
+  TRANSFORMERS_OFFLINE: "1"
+  WHO_MULTIMODAL_STARTUP_INGEST: "false"
+  OCR_ENGINE: paddle
+
+jobs:
+  shards:
+    name: Shard ${{ matrix.split }}/${{ matrix.rendering }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        split: [dev, test, heldout]
+        rendering: [native, csv, scan, photo, rot90]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Restore OCR cache (per shard, rolling)
+        id: ocr-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: eval/.cache/ocr
+          key: eval-full-ocr-${{ matrix.split }}-${{ matrix.rendering }}-${{ hashFiles('data/paddleocr/**', 'app/services/ocr_service.py', 'requirements.txt') }}-${{ github.run_id }}
+          restore-keys: |
+            eval-full-ocr-${{ matrix.split }}-${{ matrix.rendering }}-${{ hashFiles('data/paddleocr/**', 'app/services/ocr_service.py', 'requirements.txt') }}-
+
+      - name: Run shard
+        # Full profile (all reports, no sampling). --shard-out writes only this
+        # shard file (no metrics/report, no gate). Heldout jobs are quiet and
+        # redacted by the harness; no --dump-failures is ever passed, so no
+        # per-report dump exists. Exit 2 = harness error, 3 = hygiene violation.
+        run: |
+          python -m tools.eval.run --profile full \
+            --splits "${{ matrix.split }}" --renderings "${{ matrix.rendering }}" \
+            --gate none --shard-out "eval/shards/${{ matrix.split }}-${{ matrix.rendering }}.json"
+
+      - name: Upload shard (aggregate/redacted cells only)
+        # Only the shard JSON: heldout shards carry redacted aggregate cells,
+        # never per-report records. Nothing else under eval/ is uploaded.
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-shard-${{ matrix.split }}-${{ matrix.rendering }}
+          path: eval/shards/${{ matrix.split }}-${{ matrix.rendering }}.json
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Save OCR cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: eval/.cache/ocr
+          key: eval-full-ocr-${{ matrix.split }}-${{ matrix.rendering }}-${{ hashFiles('data/paddleocr/**', 'app/services/ocr_service.py', 'requirements.txt') }}-${{ github.run_id }}
+
+  aggregate:
+    name: Aggregate shards
+    needs: shards
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: eval-shard-*
+          path: eval/shards
+          merge-multiple: true
+
+      - name: Aggregate
+        run: python -m tools.eval.run aggregate --in eval/shards --out eval --gate report
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: eval-full-metrics
+          path: |
+            eval/metrics.json
+            eval/report.md
+          if-no-files-found: warn
