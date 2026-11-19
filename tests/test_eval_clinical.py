@@ -386,6 +386,29 @@ def test_oracle_scorer():
     assert cl.ClinicalRulesScorer().score(unk, None, None).headline == "unknown"
 
 
+def _titre(text, ref_text):
+    from types import SimpleNamespace as NS
+
+    return NS(analyte_key="widal_o", value_num=None, unit_raw="", ref_low=None, ref_high=None, ref_text=ref_text,
+              qualifier=None, text_value=text, specimen="serum", printed_flag="")
+
+
+def test_oracle_scorer_titres_hand_derived():
+    """Widal O 1:160 against a printed cut-off of 1:80 is positive (160 >= 80); 1:40 is not (40 < 80)."""
+    cut = "Significant titre: >= 1:80"
+    s = cl.ClinicalRulesScorer()
+    pos = s.score([_titre("1:160", cut)], None, None)
+    assert pos.row_flags == ["POSITIVE"] and pos.headline == "abnormal"
+    neg = s.score([_titre("1:40", cut)], None, None)
+    assert neg.row_flags == ["NEGATIVE"] and neg.headline == "normal"
+    assert s.score([_titre("1:80", cut)], None, None).row_flags == ["POSITIVE"]  # at the cut-off counts
+    # no printed cut-off: the row stays ambiguous (UNKNOWN); the headline reads 1:320 as positive, 1:40 as normal
+    amb_hi = s.score([_titre("1:320", None)], None, None)
+    assert amb_hi.row_flags == ["UNKNOWN"] and amb_hi.headline == "abnormal"
+    amb_lo = s.score([_titre("1:40", "")], None, None)
+    assert amb_lo.row_flags == ["UNKNOWN"] and amb_lo.headline == "normal"
+
+
 # ======================================================================== T04: sampling invariants
 import random  # noqa: E402
 

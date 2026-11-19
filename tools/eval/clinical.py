@@ -317,9 +317,23 @@ class OracleScore:
     label_raw: str = ""
 
 
+_TITRE_CUTOFF = re.compile(r"1\s*:\s*(\d+)")
+
+
+def titre_cutoff_of(ref_text: Any) -> int | None:
+    """The printed titre cut-off (the N of "Significant titre: >= 1:N"), or None when no cut-off is printed
+    (plan 3.8 AMB_TITRE_NO_CUTOFF)."""
+    m = _TITRE_CUTOFF.search(str(ref_text or ""))
+    return int(m.group(1)) if m else None
+
+
 class ClinicalRulesScorer:
     """Oracle: scores confirmed rows with the GT rules. Duck-typed rows (value_num, unit_raw, ref_low,
-    ref_high, qualifier, text_value, analyte_key, specimen). Never used by the product."""
+    ref_high, ref_text, qualifier, text_value, analyte_key, specimen). Never used by the product.
+
+    A titre row is scored against the cut-off printed in its ``ref_text`` (POSITIVE when titre >= cut-off, plan
+    4.2.2); with no printed cut-off the row flag stays UNKNOWN (ambiguous, plan 3.8) and only the headline reads it
+    at the 1:160 screening threshold, so the oracle reproduces the GT headline of every report."""
 
     name = "clinical_rules"
     version = "1"
@@ -345,15 +359,21 @@ class ClinicalRulesScorer:
                     unit=getattr(r, "unit_raw", "") or "", text_value=getattr(r, "text_value", None),
                     specimen=specimen, printed_range=PrintedRange(kind, lo, hi),
                     printed_flag=getattr(r, "printed_flag", "") or "", input_sex=sex, input_age=age,
+                    titre_cutoff=titre_cutoff_of(getattr(r, "ref_text", None)),
                 )
             except (ValueError, KeyError, AssertionError, TypeError):
                 flags.append("UNKNOWN")
                 unresolved = True
                 continue
             flags.append(t.flag)
-            if t.flag == "UNKNOWN":
+            if t.flag == "UNKNOWN" and t.ambiguity == ["AMB_TITRE_NO_CUTOFF"]:
+                # the row stays ambiguous, but the corpus only prints titres <= 1:40 or >= 1:320 without a
+                # cut-off, so the headline reads them at the 1:160 screening threshold (as flag_true does)
+                pairs.append((False, t.flag_true))
+            elif t.flag == "UNKNOWN":
                 unresolved = True
-            pairs.append((t.flag.startswith("CRITICAL"), t.flag))
+            else:
+                pairs.append((t.flag.startswith("CRITICAL"), t.flag))
         if any(c for c, _ in pairs):
             h = "critical"
         elif any(f in ("HIGH", "LOW", "POSITIVE") for _, f in pairs):
