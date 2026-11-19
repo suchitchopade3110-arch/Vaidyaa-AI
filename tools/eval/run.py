@@ -378,15 +378,24 @@ def execute(tasks: list[tuple[EvalJob, pathlib.Path]], args: argparse.Namespace,
         return out
     if adapter is None and args.jobs > 1:
         ctx = mp.get_context("spawn")
-        with ctx.Pool(args.jobs, initializer=_init_worker,
-                      initargs=(args.adapter, args.scorer, args.ocr_cache)) as pool:
-            results = pool.imap(_work, [(j, str(g)) for j, g in tasks], 1)
-            for res in results:
+        pool = ctx.Pool(args.jobs, initializer=_init_worker,
+                        initargs=(args.adapter, args.scorer, args.ocr_cache))
+        try:
+            for res in pool.imap(_work, [(j, str(g)) for j, g in tasks], 1):
                 if "error" in res:
                     _raise_worker_error(res["error"])
                 out.ident = out.ident or tuple(res["ident"])
                 out.add(res["split"], res["rendering"], res["counts"], res["secs"], tuple(res["cache"]),
                         res["record"] if keep_records else None)
+        except BaseException:
+            pool.terminate()
+            raise
+        else:
+            # Graceful shutdown: terminate() SIGTERMs OCR workers whose native (Paddle) destructors can hang
+            # the parent after all results are in, losing a multi-hour run (observed in the P1 full run).
+            pool.close()
+        finally:
+            pool.join()
         return out
     own = adapter is None
     try:
