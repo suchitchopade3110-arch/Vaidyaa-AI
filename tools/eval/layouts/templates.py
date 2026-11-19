@@ -1,17 +1,20 @@
-"""Template-based report families (P1 plan section 3.2): IN-A, IN-B, IN-C and US-A (T05).
+"""Template-based report families (P1 plan section 3.2): IN-A, IN-B, IN-C, US-A (T05); IN-D, IN-E, UK-A, GEN-CSV (T06).
 
 Layout STRUCTURE only is modelled on common report styles; every name, address, phone and logo is fictional
 (section 3.9). GT-side module: imports nothing from ``app``. Pure and deterministic.
 
-Extension points (T06): IN-D, IN-E and UK-A are added by writing another ``FamilySpec`` (columns, header style,
-panels) and registering it in ``SPECS``; the generation engine (``build_report``) and ``base`` kit are shared.
+Extension points: a family is a ``FamilySpec`` (columns, header style, panels) registered in ``SPECS``; the generation
+engine (``build_report``) and ``base`` kit are shared. T06 additions are switched on by spec flags (``cumulative``,
+``two_panel``, ``unit_place``, ``csv``) and by per-report ``Lay`` fields drawn from a SEPARATE rng stream, so the
+T05 families stay byte-identical. GEN-CSV delegates to ``csv_export``.
 """
 
 from __future__ import annotations
 
+import datetime
 import random
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from decimal import Decimal
 
 from tools.eval import clinical
@@ -28,6 +31,7 @@ from tools.eval.layouts.base import (
 from tools.eval.scenarios import Patient
 
 MAX_ATTEMPTS = 80
+A4_LANDSCAPE = (A4[1], A4[0])
 
 # keys computed from other printed values (never scenario targets)
 DERIVED = frozenset({
@@ -108,6 +112,22 @@ PANELS_US = (
     ("Vitamins", VIT), ("Prothrombin Time", COAG), ("Cardiac Markers", CARD), ("Special Chemistry", MISC),
 )
 
+# T06 panel sets
+KFT_E = ("urea", "creatinine", "uric_acid", "sodium", "potassium", "chloride", "bicarbonate", "calcium", "phosphorus",
+         "magnesium")  # no eGFR: its long unit would not fit a half-width panel
+PANELS_E = (  # consecutive pairs are printed side by side: (left, right) per block
+    ("HAEMATOLOGY", CBC), ("BIOCHEMISTRY", DIAB + KFT_E),
+    ("LIPID PROFILE", LIPID), ("LIVER FUNCTION TEST (LFT)", LFT),
+    ("THYROID AND IRON STUDIES", THY + IRON), ("COAGULATION AND CARDIAC", COAG + CARD),
+    ("SPECIAL CHEMISTRY", MISC), ("VITAMINS", VIT),
+)
+PANELS_UK = (
+    ("FULL BLOOD COUNT", CBC), ("GLUCOSE AND HbA1c", DIAB), ("UREA AND ELECTROLYTES", KFT),
+    ("LIVER FUNCTION TESTS", LFT), ("LIPID PROFILE", LIPID), ("THYROID FUNCTION TESTS", THY),
+    ("IRON STUDIES", IRON), ("VITAMINS", VIT), ("COAGULATION", COAG), ("CARDIAC MARKERS", CARD),
+    ("CLINICAL CHEMISTRY", MISC),
+)
+
 # IN-C interpretive categories (printed after the panel; every line is a GT decoy of kind 'interpretive')
 INTERPRETIVE: dict[str, tuple[str, tuple[tuple[str, str], ...]]] = {
     "hba1c": ("HbA1c interpretation guide", (("Normal", "< 5.7 %"), ("Prediabetes", "5.7 - 6.4 %"),
@@ -157,6 +177,10 @@ class FamilySpec:
     sex_word: tuple[str, str] = ("M", "F")
     abs_counts: bool = False
     template_id: str | None = None
+    cumulative: bool = False  # IN-D: dated result columns, oldest to newest
+    two_panel: bool = False  # IN-E: two half-width panels per visual line, CBC unit in the panel header
+    unit_place: str = "cell"  # GT unit_placement for printed units: 'cell' | 'inline'
+    csv: bool = False  # GEN-CSV: exported by ``csv_export``
 
     def col(self, key: str) -> Column:
         return next(c for c in self.columns if c.key == key)
@@ -191,6 +215,30 @@ SPECS: dict[str, FamilySpec] = {
         PANELS_US, ("tight", "tight", "dash"), ("sym",), True, 0.0, flag_mode="column", abs_counts=True,
         sex_word=("Male", "Female"), template_id="US-A",
     ),
+    "IN-D": FamilySpec(
+        "IN-D", "IN", A4_LANDSCAPE, FONT_REGULAR, FONT_BOLD, 8.5, 1, "in_d", "in", "indian",
+        (Column("name", "Test", 40), Column("d1", "", 255), Column("d2", "", 335), Column("d3", "", 415),
+         Column("unit", "Unit", 500), Column("range", "Bio. Ref. Interval", 570)),
+        PANELS_IN, ("dash", "dash", "endash", "to"), ("sym", "sym", "word"), True, 0.0, cumm_p=0.30,
+        cumulative=True, template_id="IN-D",
+    ),
+    "IN-E": FamilySpec(
+        "IN-E", "IN", A4, FONT_REGULAR, FONT_BOLD, 8.0, 0, "in_e", "in", "indian",
+        (Column("name", "Test", 36), Column("result", "Result", 128), Column("unit", "Unit", 172),
+         Column("range", "Ref. Range", 218)),
+        PANELS_E, ("dash", "paren", "tight"), ("sym",), True, 0.0, si_p=0.30, two_panel=True, template_id="IN-E",
+    ),
+    "UK-A": FamilySpec(
+        "UK-A", "UK", A4, FONT_REGULAR, FONT_BOLD, 8.5, 1, "uk_a", "in", "western",
+        (Column("name", "Test", 40), Column("result", "Result", 270), Column("range", "Normal range", 390)),
+        PANELS_UK, ("paren_sp", "bracket", "dash"), ("sym",), False, 0.0, si_p=1.0, unit_place="inline",
+        template_id="UK-A",
+    ),
+    "GEN-CSV": FamilySpec(
+        "GEN-CSV", "GEN", A4, "Courier", "Courier-Bold", 10.0, 0, "csv", "in", "none",
+        (Column("name", "Test", 0),), PANELS_IN, ("dash",), ("sym",), False, 0.0, si_p=0.30, flag_mode="column",
+        csv=True, template_id="GEN-CSV",
+    ),
 }
 
 
@@ -208,6 +256,8 @@ def pretty_unit(u: str) -> str:
 
 def group_digits(s: str, grouping: str) -> str:
     """Indian (2,50,000) or western (250,000) grouping of the integer part of a plain decimal string."""
+    if grouping == "none":
+        return s
     neg = s.startswith("-")
     body = s[1:] if neg else s
     ip, dot, fp = body.partition(".")
@@ -248,7 +298,7 @@ def _range_text(r: Rng, dec: int, syntax: str, one_sided: str, grouping: str | N
         lo, hi = fmt_bound(r.low, dec, grouping), fmt_bound(r.high, dec, grouping)
         return {
             "dash": f"{lo} - {hi}", "endash": f"{lo}–{hi}", "to": f"{lo} to {hi}", "paren": f"({lo}-{hi})",
-            "bracket": f"[{lo} - {hi}]", "tight": f"{lo}-{hi}",
+            "bracket": f"[{lo} - {hi}]", "tight": f"{lo}-{hi}", "paren_sp": f"({lo} - {hi})",
         }[syntax] + tail
     if r.kind == "upper":
         b = fmt_bound(r.high, dec, grouping)
@@ -275,6 +325,14 @@ class Lay:
     footnotes: tuple[str, ...]
     lab_codes: dict[str, str]
     start_pad: float
+    # T06 (drawn from a separate rng stream; defaults leave T05 families unchanged)
+    dates: tuple[str, ...] = ()  # IN-D dated columns, oldest first; the last is the collection date
+    current_label: bool = False  # IN-D: the newest column is headed "Current"
+    hdr_unit_text: str = ""  # IN-E: unit printed in the haematology panel header ("" = AMB variant)
+    amb_counts: bool = False  # IN-E: count rows carry no unit and no range (AMB_UNITLESS_COUNT)
+    ward: str = ""  # IN-E header
+    uk_style: int = 0  # UK-A: 0 unit after value, 1 unit in brackets after the test name, 2 unit in the range
+    range_bracket_unit: bool = False  # bracketed unit appended to every printed range line
 
 
 def _variant(a: Analyte, variant: int, age: int) -> tuple[RefVariant, bool]:
@@ -344,9 +402,11 @@ def _make_range(key: str, a: Analyte, spec: FamilySpec, lay: Lay, pt: Patient, u
 
     syntax = lay.syntax
     unit_tail = pretty_unit(unit) if spec.one_sided_unit else ""
+    bracket = f"[{pretty_unit(unit)}]" if lay.range_bracket_unit and unit else ""
 
     def text(r: Rng) -> str:
-        return _range_text(r, dec, syntax, lay.one_sided, grouping, unit_tail if r.kind != "two_sided" else "")
+        t = _range_text(r, dec, syntax, lay.one_sided, grouping, unit_tail if r.kind != "two_sided" else "")
+        return f"{t} {bracket}" if bracket else t
 
     if interpretive:
         cons = a.consensus
@@ -475,18 +535,73 @@ class _Gen:
             feats.append("flag_column")
         if spec.interpretive and key in INTERPRETIVE:
             feats.append("interpretive_table")
+        uk_unit = pretty_unit(unit) if spec.fid == "UK-A" and self.lay.uk_style == 1 and unit else ""
         row = PrintedRow(
-            key=key, name=_row_name(spec, self.lay, a, key, self._name_width()),
+            key=key, name=_row_name(spec, self.lay, a, key, self._name_width(uk_unit)),
             section=title, value=float(vtxt.replace(",", "")), value_text=vtxt, qualifier=qualifier,
             unit=pretty_unit(unit) if unit else "", unit_placement="cell" if unit else "none",
             unit_true=pretty_unit(unit) if unit else "", printed_range=rb.printed, range_lines=list(rb.lines),
             method=method, state=state, features=feats,
         )
+        self._family_hooks(row, key, unit, dp, dec)
         t = base.row_truth(row, self.pt)
         row.printed_flag = self._printed_flag(t.flag_true)
         return row
 
-    def _name_width(self) -> float:
+    def _family_hooks(self, row: PrintedRow, key: str, unit: str, dp: Decimal, dec: int) -> None:
+        """T06 per-family adjustments of a freshly built row (no-ops for the T05 families)."""
+        spec, lay = self.spec, self.lay
+        if spec.unit_place == "inline" and row.unit:
+            row.unit_placement = "inline"
+            if lay.uk_style > 0:
+                row.features.append("unit_in_brackets")
+        if spec.cumulative:
+            row.features.append("cumulative")
+            row.previous = self._previous(dp, dec)
+            if self.rng.random() < 0.03:  # AMB_UNLABELLED_MULTIVALUE (plan 3.8: IN-D 3%)
+                row.unlabelled_multivalue = True
+                row.features.append("unlabelled_multivalue")
+        if spec.two_panel:
+            row.features.append("two_per_line")
+            if key in COUNT_KEYS and lay.amb_counts:  # no unit, no range, no header unit (plan 3.8)
+                row.unit, row.unit_placement = "", "none"
+                row.printed_range, row.range_lines = PrintedRange(), []
+                row.features = [f for f in row.features if not f.endswith("_range")] + ["unitless_count"]
+            elif key in ("wbc", "platelets") and lay.hdr_unit_text:  # unit only in the panel header
+                row.unit = row.unit_true = lay.hdr_unit_text
+                row.unit_placement = "header"
+                row.features.append("header_unit")
+
+    def _previous(self, dp: Decimal, dec: int) -> list[dict]:
+        """Earlier values for the dated columns (oldest first): each differs from the current and from each other."""
+        grouping = self.spec.grouping
+        step = Decimal(1).scaleb(-dec)
+
+        def txt(v: Decimal) -> str:
+            return group_digits(format(v.quantize(step), "f"), grouping)
+
+        seen = {txt(dp)}
+        out: list[dict] = []
+        for k in range(len(self.lay.dates) - 1):
+            pv = None
+            for _ in range(16):
+                cand = sc.round_half_up(float(dp) * self.rng.uniform(0.78, 1.22), dec)
+                if cand > 0 and txt(cand) not in seen:
+                    pv = cand
+                    break
+            if pv is None:  # tiny values: step away deterministically
+                pv = dp + step * (len(seen) + 1)
+            t = txt(pv)
+            seen.add(t)
+            out.append({"date": self.lay.dates[k], "value": float(t.replace(",", "")), "value_text": t})
+        return out
+
+    def _name_width(self, unit_txt: str = "") -> float:
+        if self.spec.csv:
+            return 1e9
+        if unit_txt:  # UK-A style 1 prints "Name (unit)" in the name cell
+            w = base.text_width(f" ({unit_txt})", self.spec.font, self.spec.size) + 2
+            return self._name_width() - w
         cols = sorted(c.x for c in self.spec.columns if c.align == "l")
         name_x = self.spec.col("name").x
         nxt = min((x for x in cols if x > name_x), default=name_x + 150)
