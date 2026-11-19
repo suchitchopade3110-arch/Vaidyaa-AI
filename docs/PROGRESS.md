@@ -2,7 +2,7 @@
 
 **Resume protocol:** read this file, `git log`, `plans/`, `reviews/`, `docs/DECISIONS.md`.
 
-## Current phase: P0 — Baseline (in progress)
+## Current phase: P0 — Baseline ✅ gate green → next: P1 (measuring stick)
 
 | Item | State |
 |---|---|
@@ -10,9 +10,9 @@
 | Hardening patch applied + PRD committed (`docs/PRD.md`) | done |
 | Agent files `.claude/agents/*` | done |
 | Env: Postgres 16 + Redis 7 (local services) | done |
-| Env: python deps | installing |
-| Gate: ruff / pytest / alembic / E2E | pending |
-| Push + draft PR | pending |
+| Env: python deps (torch from PyPI, +cpu pins filtered) | done |
+| Gate: ruff clean · alembic head a1b2c3d4e5f6 · pytest 1216 passed (X-ray weights prefetched) · E2E 31 passed / 1 xfailed | **green** |
+| Push + draft PR | done — PR #33 (draft) |
 
 ## Latest numbers
-- Tests: n/a yet · Eval: n/a (P1) · Review: n/a
+- Tests: 1216 passed, 0 skipped (with weights) · E2E 31 passed/1 xfail · coverage floor 38% · Eval: n/a (P1) · Review: n/a
