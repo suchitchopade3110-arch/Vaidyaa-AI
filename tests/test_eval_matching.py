@@ -328,11 +328,19 @@ def test_names_normalise_spelling_and_noise():
     assert m.tokens("Platelets 2,50,000 /cumm") == ["platelets", "2,50,000", "cumm"]
 
 
-@pytest.mark.xfail(strict=True, reason="T16 MED F2 (reviews/P1-zoro.md): unread-line coverage is unbounded, so one "
-                   "'line' holding a page of text covers every omission (M1) and every critical (M2); a metric "
-                   "definition change, deferred to the lead")
 def test_one_unread_line_cannot_cover_a_whole_page():
     rows = twenty()
     page = "  ".join(f"{g['name']} {g['value_text']} {g['unit']}" for g in rows)
     a = m.align(rows, [], [unread(page)])
     assert len(a.covered) <= 2  # one printed line holds at most two results (plan 6.6.7: "two per line")
+
+
+def test_page_long_unread_line_leaves_nearly_every_omission_silent():
+    """Hand-derived: 20 GT rows, zero extracted, one page-length unread line. A line covers at most two rows, so at
+    least 18 omissions stay uncovered (M1 numerator >= 18/20) and the line cannot satisfy M2/M5 for the rest."""
+    rows = twenty()
+    page = "  ".join(f"{g['name']} {g['value_text']} {g['unit']}" for g in rows)
+    a = m.align(rows, [], [unread(page)])
+    assert len(a.unmatched_gt) == 20
+    assert len(a.unmatched_gt) - len(a.covered) >= 18
+    assert a.unread_used == [0]

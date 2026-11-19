@@ -403,6 +403,9 @@ class Alignment:
         return next((p.g for p in self.pairs if p.e == ei), None)
 
 
+UNREAD_LINE_MAX_ROWS = 2  # GT rows one unread line can cover (6.6.7)
+
+
 def covers(u: Any, g: Any) -> bool:
     """``u`` covers ``g`` if its normalised text contains g's printed value as a token (run) and at least one of
     g's name tokens (6.6.7)."""
@@ -440,16 +443,23 @@ def align(gt_rows: Sequence[Any], extracted: Sequence[Any], unread: Sequence[Any
     unmatched_gt = [i for i in range(ng) if g_free[i]]
     unmatched_ext = [i for i in range(ne) if e_free[i]]
     covered: dict[int, list[int]] = {}
+    # One unread line is one printed line, which holds at most two results (plan 6.6.7, "two per line"). Without this
+    # bound a single page-length ``source_text`` would cover every omission and critical (review P1 F2). The stricter
+    # reading is taken (a hard cap of UNREAD_LINE_MAX_ROWS GT rows per line, granted in GT order) because bboxes are
+    # not available before P2; a bbox/page overlap test may only narrow this further.
+    load = [0] * len(unread)
     for gi in unmatched_gt:
-        hit = [ui for ui, u in enumerate(unread) if covers(u, gt_rows[gi])]
+        hit = [ui for ui, u in enumerate(unread) if load[ui] < UNREAD_LINE_MAX_ROWS and covers(u, gt_rows[gi])]
         if hit:
             covered[gi] = hit
+            for ui in hit:
+                load[ui] += 1
     used = sorted({ui for hit in covered.values() for ui in hit})
     return Alignment(pairs, unmatched_gt, unmatched_ext, covered, used)
 
 
 __all__ = [
-    "Alignment", "CRITICAL_FLAGS", "FIELDS", "FieldCheck", "NOISE_TOKENS", "Pair", "align", "canonical_equal",
+    "Alignment", "CRITICAL_FLAGS", "UNREAD_LINE_MAX_ROWS", "FIELDS", "FieldCheck", "NOISE_TOKENS", "Pair", "align", "canonical_equal",
     "compare", "contains_tokens", "covers", "field", "flag_ok", "jaccard", "name_jaccard", "name_ok", "name_rule",
     "name_tokens", "norm_qualifier", "numbers_equal", "parse_number", "parse_value_text", "qualitative_equal",
     "qualitative_grade", "range_ok", "result_bounds", "titre_value", "tokens", "unit_ok", "value_cost", "value_ok",
