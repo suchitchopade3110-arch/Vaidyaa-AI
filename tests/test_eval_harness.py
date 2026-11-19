@@ -172,6 +172,16 @@ def test_ha05_context_mismatch_exits_2_never_silently_reused():
         evaluate("ratchet", doc({"native": cell(), "csv": cell()}), base)  # a cell the baseline never had
 
 
+def test_ha05_ratchet_on_a_subset_of_the_baseline_cells_exits_2():
+    """T16 (zoro): a ratchet run that measured fewer renderings than the baseline (e.g. ``--renderings native
+    --gate ratchet``) would compare only what it ran and pass while scan/photo/rot90 regressed unseen."""
+    base = doc({"native": cell(), "scan": cell(m2=(100, 100))})
+    with pytest.raises(gate.GateConfigError, match="scan"):
+        evaluate("ratchet", doc({"native": cell()}), base)
+    with pytest.raises(gate.GateConfigError):
+        evaluate("targets", doc({"native": cell()}), base)
+
+
 @pytest.mark.parametrize("m1,passes", [((6, 1000), False), ((5, 1000), True)])
 def test_ha05_targets_native_m1_half_percent(m1, passes):
     c = doc({"native": cell(m1=m1)})
@@ -323,7 +333,16 @@ def test_ha06_shard_files_for_heldout_hold_only_redacted_cells(corpus, tmp_path)
     assert not (tmp_path / "o").exists()
 
 
-# ---------------------------------------------------------------- HA-07 determinism
+def test_ha06_shard_runtime_is_not_in_job_order():
+    """T16 (zoro, LOW): the shard's per-rendering wall times were listed in sorted-job-id order, so position i of a
+    heldout shard's list was the time of job H(i+1) (per-report detail on disk). They are written sorted: p50/p95
+    and the aggregate merge are order-independent."""
+    out = run._Outcome()
+    for secs in (3.5, 1.25, 2.0):
+        out.add("heldout", "native", me.empty_counts(), secs, (0, 0), None)
+    doc = run.shard_doc({"profile": "full", "splits": ["heldout"], "renderings": ["native"], "samples": {}}, {}, out,
+                        None, 1.0)
+    assert doc["runtime"]["seconds"]["native"] == [1.25, 2.0, 3.5]
 
 def test_ha07_same_seed_same_metrics_and_different_seed_changes_fingerprint(corpus, tmp_path, monkeypatch):
     a, b = tmp_path / "a", tmp_path / "b"

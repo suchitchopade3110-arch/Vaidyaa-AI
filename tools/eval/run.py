@@ -516,9 +516,10 @@ def shard_doc(run: Mapping[str, Any], corpus: Mapping[str, Any], out: _Outcome, 
             cells.setdefault(split, {})[rendering] = {"redacted": hygiene.redact_heldout(me.cell_results(counts))}
         else:
             cells.setdefault(split, {})[rendering] = {"counts": counts}
+    # wall times sorted, not in job order: position i of a heldout shard's list must not identify job H(i+1)
     return {"schema": SHARD_SCHEMA, "run": {k: run[k] for k in ("profile", "splits", "renderings", "samples")},
             "corpus": dict(sorted(corpus.items())), "ident": list(ident) if ident else None, "cells": cells,
-            "runtime": {"seconds": {r: s for r, s in sorted(out.seconds.items())}, "hits": out.hits,
+            "runtime": {"seconds": {r: sorted(s) for r, s in sorted(out.seconds.items())}, "hits": out.hits,
                         "misses": out.misses, "wall": wall}}
 
 

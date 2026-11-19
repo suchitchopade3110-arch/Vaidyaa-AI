@@ -90,6 +90,10 @@ def ratchet_failures(current: Mapping[str, Any], baseline: Mapping[str, Any], sp
     base = baseline["results"].get(split)
     if base is None:
         raise GateConfigError(f"baseline has no results for split {split!r}; {NO_BASELINE_HINT}")
+    unmeasured = sorted(set(base) - set(cur))
+    if unmeasured:  # a subset run would compare only what it measured and hide the other cells' regressions
+        raise GateConfigError(f"this run did not measure the baseline's {split} cell(s) {', '.join(unmeasured)}; "
+                              "run every baseline rendering or pass --gate none")
     fails: list[dict[str, Any]] = []
     for rendering in sorted(cur):
         if rendering not in base:
