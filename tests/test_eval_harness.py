@@ -588,3 +588,14 @@ def test_makefile_targets_call_run_py():
     assert "python -m tools.eval.run --profile full $(EVAL_ARGS)" in mk
     assert "python -m tools.eval.run --profile ci --update-baseline $(EVAL_ARGS)" in mk
     assert "not implemented" not in mk
+
+
+# ---------------------------------------------------------------- committed eval/gate.json (P1 T15, plan 6.9)
+
+def test_committed_gate_json_equals_builtin_defaults():
+    path = ROOT / "eval" / "gate.json"
+    assert path.exists()
+    assert gate.load_config(path) == gate.load_config(None) == gate.DEFAULT_CONFIG
+    raw = json.loads(path.read_text(encoding="utf-8"))
+    assert raw == {"mode": "ratchet", "profile": "ci", "split": "test", "baseline": "eval/baseline.json",
+                   "tolerance": {"native": 0, "csv": 0, "scan": 1, "photo": 1, "rot90": 1}}

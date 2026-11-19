@@ -1,0 +1,7 @@
+{
+  "mode": "ratchet",
+  "profile": "ci",
+  "split": "test",
+  "baseline": "eval/baseline.json",
+  "tolerance": {"native": 0, "csv": 0, "scan": 1, "photo": 1, "rot90": 1}
+}
