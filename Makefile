@@ -18,7 +18,7 @@ eval-full:
 	python -m tools.eval.run --profile full $(EVAL_ARGS)
 
 eval-verify:
-	python -m tools.eval.run --verify --splits dev,test,heldout $(EVAL_ARGS)
+	python -m tools.eval.generate --verify --splits dev,test,heldout
 
 eval-baseline:
 	python -m tools.eval.run --profile ci --update-baseline $(EVAL_ARGS)

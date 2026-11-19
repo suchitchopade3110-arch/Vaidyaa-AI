@@ -479,6 +479,24 @@ def _row_name(spec: FamilySpec, lay: Lay, a: Analyte, key: str, width: float) ->
     return fitting[lay.name_pick.get(key, 0) % len(fitting)]
 
 
+class _SectionNotes(dict):
+    """Panel notes keyed by a short panel code ("LIPID"); looked up by printed section title.
+
+    Section titles differ per family ("LIPID PROFILE", "Lipid Panel"), so ``get(title)`` also matches when the
+    key occurs in the upper-cased title (T10 fix: the exact-title lookup never matched and the
+    "LDL: Not calculated" decoy was silently dropped).
+    """
+
+    def get(self, key, default=None):  # type: ignore[override]
+        if key in self:
+            return self[key]
+        up = str(key).upper()
+        for k, v in self.items():
+            if k.upper() in up:
+                return v
+        return default
+
+
 class _Gen:
     """Draws one report's rows (all panels), deterministically from the passed RNG."""
 
@@ -488,7 +506,7 @@ class _Gen:
         self.targets = {t.key: t for t in plan.targets}
         self.vals: dict[str, float] = {}  # printed-then-canonical values by key
         self.rows: dict[str, PrintedRow] = {}
-        self.notes: dict[str, str] = {}
+        self.notes: dict[str, str] = _SectionNotes()
 
     # -- eligibility
     def eligible(self, key: str) -> bool:
@@ -537,7 +555,7 @@ class _Gen:
             feats.append("interpretive_table")
         uk_unit = pretty_unit(unit) if spec.fid == "UK-A" and self.lay.uk_style == 1 and unit else ""
         row = PrintedRow(
-            key=key, name=_row_name(spec, self.lay, a, key, self._name_width(uk_unit)),
+            key=key, name=_row_name(spec, self.lay, a, key, self._name_width(uk_unit) if uk_unit else self._name_width()),
             section=title, value=float(vtxt.replace(",", "")), value_text=vtxt, qualifier=qualifier,
             unit=pretty_unit(unit) if unit else "", unit_placement="cell" if unit else "none",
             unit_true=pretty_unit(unit) if unit else "", printed_range=rb.printed, range_lines=list(rb.lines),
@@ -1066,8 +1084,10 @@ def _layout(spec: FamilySpec, lay: Lay, pt: Patient, rows: list[PrintedRow], not
 
 
 def _select(rows: list[PrintedRow], n: int) -> list[PrintedRow]:
-    """First ``n`` rows in order, always keeping the scenario-target rows (so the class survives trimming)."""
-    must = {id(r) for r in rows if r.state in ("mild", "severe", "critical")}
+    """First ``n`` rows in order, always keeping the scenario-target rows (so the class survives trimming) and the
+    unlabelled multi-value rows (placed last by the cumulative families, they were trimmed away, so the planned
+    AMB_UNLABELLED_MULTIVALUE share of section 3.2 was never reached)."""
+    must = {id(r) for r in rows if r.state in ("mild", "severe", "critical") or r.unlabelled_multivalue}
     keep = set(must)
     extra = max(0, n - len(must))
     for r in rows:
