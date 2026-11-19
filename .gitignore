@@ -64,3 +64,9 @@ node_modules/
 # v2
 .ruff_cache/
 .claude/settings.local.json
+
+# P1 eval harness generated outputs (see plans/P1.md section 9)
+eval/corpus/
+eval/.cache/
+eval/failures/
+eval/shards/

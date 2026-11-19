@@ -66,7 +66,7 @@ jobs:
           pip install -r requirements.txt
 
       - name: Lint (ruff)
-        run: ruff check app/ tests/
+        run: ruff check app/ tests/ tools/
 
       - name: Every internal import resolves
         # A "dead code" cleanup once deleted app/image_pipeline/schemas.py while
