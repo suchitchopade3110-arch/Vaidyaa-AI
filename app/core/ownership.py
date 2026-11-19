@@ -51,6 +51,26 @@ async def require_job_owner(
     return record
 
 
+def is_admin(user: dict) -> bool:
+    return user.get("role") == "admin"
+
+
+async def get_owned_job(db: AsyncSession, task_id: str, user: dict, *, allow_admin: bool = False) -> AsyncJobRecord | None:
+    """Return the AsyncJobRecord for `task_id` if `user` owns it (or is an
+    admin and `allow_admin` is set); otherwise None. Non-raising variant of
+    `require_job_owner` for routes whose id isn't a path param named
+    task_id (QR minting, sign-off)."""
+    if not task_id:
+        return None
+    result = await db.execute(select(AsyncJobRecord).where(AsyncJobRecord.id == str(task_id)))
+    record = result.scalar_one_or_none()
+    if record is None:
+        return None
+    if str(record.user_id) == str(user.get("sub")) or (allow_admin and is_admin(user)):
+        return record
+    return None
+
+
 async def record_job_ownership(
     db: AsyncSession,
     task_id: str,

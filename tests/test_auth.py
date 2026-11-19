@@ -35,7 +35,7 @@ def _bearer(token: str) -> HTTPAuthorizationCredentials:
 async def test_missing_token_rejected():
     with pytest.raises(HTTPException) as exc:
         await get_current_user(token=None)
-    assert exc.value.status_code == 403
+    assert exc.value.status_code == 401
 
 
 @pytest.mark.asyncio
@@ -51,7 +51,7 @@ async def test_refresh_token_rejected_as_access_token():
     token = _make_token({"sub": "user-1", "jti": "abc", "type": "refresh"}, expires_in=timedelta(days=7))
     with pytest.raises(HTTPException) as exc:
         await get_current_user(token=_bearer(token))
-    assert exc.value.status_code == 403
+    assert exc.value.status_code == 401
     assert "Invalid token type" in exc.value.detail
 
 
@@ -60,7 +60,7 @@ async def test_expired_token_rejected():
     token = _make_token({"sub": "user-1", "role": "clinician", "type": "access"}, expires_in=timedelta(minutes=-5))
     with pytest.raises(HTTPException) as exc:
         await get_current_user(token=_bearer(token))
-    assert exc.value.status_code == 403
+    assert exc.value.status_code == 401
 
 
 @pytest.mark.asyncio
@@ -73,14 +73,14 @@ async def test_token_signed_with_wrong_secret_rejected():
     )
     with pytest.raises(HTTPException) as exc:
         await get_current_user(token=_bearer(bad_token))
-    assert exc.value.status_code == 403
+    assert exc.value.status_code == 401
 
 
 @pytest.mark.asyncio
 async def test_malformed_token_rejected():
     with pytest.raises(HTTPException) as exc:
         await get_current_user(token=_bearer("not-a-jwt"))
-    assert exc.value.status_code == 403
+    assert exc.value.status_code == 401
 
 
 # ── require_role ────────────────────────────────────────────────────────────

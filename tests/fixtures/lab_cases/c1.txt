@@ -1,0 +1,46 @@
+male|F1 units
+Sodium 118 mEq/L 135 - 145
+Potassium 6.9 mEq/L 3.5 - 5.1
+Chloride 80 mmol/L 98 - 107
+Bicarbonate 10 mEq/L 22 - 29
+ALT 400 IU/L 7 - 56
+TSH 25 µIU/mL 0.4 - 4.0
+Hemoglobin 6.5 g% 13 - 17
+WBC 25000 cells/cumm 4000 - 11000
+Iron 20 mcg/dL 65 - 175
+---
+female|F3 SI
+Blood Glucose 22.0 mmol/L 3.9 - 5.5
+Serum Creatinine 450 umol/L 60 - 110
+Haemoglobin 65 g/L 120 - 155
+---
+female|F3 SI b
+Fasting Glucose 9.1 mmol/L 3.9 - 5.5
+---
+male|F9 dedup
+Direct Bilirubin 0.3 mg/dL 0.0 - 0.3
+Indirect Bilirubin 0.3 mg/dL 0.2 - 0.9
+LDL Cholesterol 30 mg/dL 0 - 100
+VLDL Cholesterol 30 mg/dL 5 - 40
+Albumin 30 g/L 35 - 50
+Microalbumin 30 mg/L 0 - 30
+---
+male|F2 cell-per-line
+Hemoglobin
+6.5
+g/dL
+13.0 - 17.0
+Potassium
+6.9
+mmol/L
+3.5 - 5.1
+Glucose
+450
+mg/dL
+70 - 99
+---
+male|authors (a) layout
+Hemoglobin: 9.2 g/dL (Ref: 13.0-17.5) LOW
+Potassium: 6.8 mmol/L (Ref: 3.5-5.1) HIGH
+Creatinine: 4.2 mg/dL (Ref: 0.7-1.3) HIGH
+Glucose: 320 mg/dL (Ref: 70-99) HIGH

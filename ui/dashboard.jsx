@@ -9,17 +9,14 @@ const API_BASE = `${window.location.origin}/api/v1`;
 const PIPELINE_ICONS = { claim: '◎', report: '▤', image: '⬡' };
 const PIPELINE_LABELS = { claim: 'Claim', report: 'Report', image: 'Image' };
 
-// Map backend status values to frontend display statuses
+// Map backend job status (GET /api/v1/jobs) to a display status. The list
+// carries the job's outcome (queued / running / completed / failed /
+// low_quality), not a claim verdict, so a finished job is "completed" — not
+// "verified", which would read as a clinical claim being confirmed.
 function mapStatus(pipeline, statusVal) {
-  if (!statusVal) return 'pending';
-  const s = statusVal.toLowerCase();
-  if (s === 'verified' || s === 'success') return 'verified';
-  if (s === 'processing' || s === 'started') return 'processing';
-  if (s === 'pending') return 'pending';
-  if (s === 'refuted' || s === 'contradicted') return 'refuted';
-  if (s === 'uncertain' || s === 'insufficient_evidence') return 'uncertain';
-  if (s === 'failed' || s === 'failure') return 'failed';
-  return 'pending';
+  const s = String(statusVal || '').toLowerCase();
+  if (s === 'low_quality' || s === 'cancelled') return 'failed';
+  return normalizeJobStatus(s, 'pending');
 }
 
 function StatCard({ icon, label, value, color, sub }) {
@@ -81,7 +78,7 @@ function Dashboard({ onNavigate }) {
   // Fetch real jobs from the API
   useEffect(() => {
     setLoading(true);
-    fetch(`${API_BASE}/jobs?limit=20`)
+    apiFetch(`${API_BASE}/jobs?limit=20`)
       .then(res => {
         if (!res.ok) throw new Error(`API returned ${res.status}`);
         return res.json();
@@ -108,7 +105,7 @@ function Dashboard({ onNavigate }) {
 
   const counts = {
     total:      jobs.length,
-    verified:   jobs.filter(j => j.status === 'verified').length,
+    completed:  jobs.filter(j => j.status === 'completed').length,
     processing: jobs.filter(j => j.status === 'processing').length,
     failed:     jobs.filter(j => j.status === 'failed').length,
   };
@@ -137,7 +134,7 @@ function Dashboard({ onNavigate }) {
       {/* Stats row */}
       <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
         <StatCard icon="◎" label="Total Jobs" value={counts.total} sub="from database" />
-        <StatCard icon="✓" label="Verified" value={counts.verified} color="oklch(0.46 0.19 145)" sub="claims & reports" />
+        <StatCard icon="✓" label="Completed" value={counts.completed} color="oklch(0.46 0.19 145)" sub="analyses finished" />
         <StatCard icon="↻" label="Processing" value={counts.processing} color="oklch(0.46 0.19 145)" sub="in pipeline" />
         <StatCard icon="!" label="Failed" value={counts.failed} color="oklch(0.65 0.20 25)" sub="need attention" />
       </div>

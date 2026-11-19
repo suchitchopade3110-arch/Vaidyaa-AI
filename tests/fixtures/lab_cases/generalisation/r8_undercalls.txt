@@ -1,0 +1,260 @@
+# RULE R8: no adult registry range for a child unless an age rule exists (printed ranges still win, criticals still
+# fire); name variants must still reach the analyte (and its criticals); a matched analyte with a unit the registry
+# does not know but a printed range in that unit is scored on the printed range; a bare value above 5x ULN is
+# evaluated in the canonical unit with an "assumed unit" warning.
+@@ R8 | M | 5 | creatinine in a child, no printed range
+Creatinine 1.0 mg/dL
+=> Creatinine | UNKNOWN | 1.0
+=> warn
+@@ R8 | M | 8 | sodium in a child, no printed range
+Sodium 140 mmol/L
+=> Sodium | UNKNOWN | 140
+=> warn
+@@ R8 | M | 8 | sodium critical in a child
+Sodium 118 mmol/L
+=> Sodium | CRITICAL_LOW | 118
+@@ R8 | M | 4 | haemoglobin low for a 4 year old (age rule)
+Hemoglobin 10.0 g/dL
+=> Hemoglobin | LOW | 10.0
+@@ R8 | M | 4 | haemoglobin normal for a 4 year old
+Hemoglobin 12.0 g/dL
+=> Hemoglobin | NORMAL | 12.0
+@@ R8 | M | 14 | haemoglobin 14 year old boy
+Hemoglobin 13.5 g/dL
+=> Hemoglobin | NORMAL | 13.5
+@@ R8 | F | 14 | haemoglobin 14 year old girl
+Hemoglobin 11.0 g/dL
+=> Hemoglobin | LOW | 11.0
+@@ R8 | M | 1 | haemoglobin at age 1 has no rule
+Hemoglobin 11.8 g/dL
+=> Hemoglobin | UNKNOWN | 11.8
+=> warn
+@@ R8 | M | 8 | ALP in a child within its age rule
+Alkaline Phosphatase 300 U/L
+=> Alkaline Phosphatase | NORMAL | 300
+@@ R8 | M | 15 | ALP in a teenager
+Alkaline Phosphatase 300 U/L
+=> Alkaline Phosphatase | NORMAL | 300
+@@ R8 | M | 40 | ALP in an adult
+Alkaline Phosphatase 300 U/L
+=> Alkaline Phosphatase | HIGH | 300
+@@ R8 | M | 4 | haematocrit low for a 4 year old
+Hematocrit 31 %
+=> Hematocrit | LOW | 31
+@@ R8 | M | 0 | newborn glucose critical
+Glucose 40 mg/dL
+=> Glucose | CRITICAL_LOW | 40
+@@ R8 | F | 3 | potassium critical in a toddler
+Potassium 6.4 mmol/L
+=> Potassium | CRITICAL_HIGH | 6.4
+@@ R8 | F | 3 | adult WBC range is not applied to a toddler
+WBC 14000 /uL
+=> WBC | UNKNOWN | 14000
+=> warn
+@@ R8 | M | 10 | platelets, no adult range for a child, not critical
+Platelet Count 40000 /cumm
+=> Platelet Count | UNKNOWN | 40000
+=> warn
+@@ R8 | M | 10 | platelets critical in a child
+Platelet Count 12000 /cumm
+=> Platelet Count | CRITICAL_LOW | 12000
+@@ R8 | M | 0 | haemoglobin critical in a newborn
+Hemoglobin 6.5 g/dL
+=> Hemoglobin | CRITICAL_LOW | 6.5
+@@ R8 | M | 5 | printed range wins for a child
+Creatinine 0.4 mg/dL 0.2-0.7
+=> Creatinine | NORMAL | 0.4
+@@ R8 | M | 7 | TSH in a child, no range
+TSH 2.0 mIU/L
+=> TSH | UNKNOWN | 2.0
+=> warn
+@@ R8 | M | 17 | seventeen year old has no adult creatinine range
+Creatinine 1.1 mg/dL
+=> Creatinine | UNKNOWN | 1.1
+=> warn
+@@ R8 | M | 18 | eighteen year old is an adult
+Creatinine 1.1 mg/dL
+=> Creatinine | NORMAL | 1.1
+@@ R8 | M | 18 | adult haemoglobin boundary
+Hemoglobin 12.5 g/dL
+=> Hemoglobin | LOW | 12.5
+@@ R8 | M | - | haemoglobin needs the age rule when age is unknown
+Hemoglobin 12.5 g/dL
+=> Hemoglobin | UNKNOWN | 12.5
+=> warn
+@@ R8 | M | - | sodium without an age uses the age-free range
+Sodium 140 mmol/L
+=> Sodium | NORMAL | 140
+@@ R8 | M | 40 | GLUCOSE, RANDOM (R), SERUM critical low
+GLUCOSE, RANDOM (R), SERUM 28 mg/dL
+=> GLUCOSE | CRITICAL_LOW | 28
+@@ R8 | M | 40 | Glucose (R) critical high
+Glucose (R) 410 mg/dL
+=> Glucose | CRITICAL_HIGH | 410
+@@ R8 | M | 40 | Glucose (PP) critical high
+Glucose (PP) 350 mg/dL
+=> Glucose | CRITICAL_HIGH | 350
+@@ R8 | M | 40 | T. Bilirubin
+T. Bilirubin 15.1 mg/dL
+=> T. Bilirubin | CRITICAL_HIGH | 15.1
+@@ R8 | M | 40 | Bilirubin (T)
+Bilirubin (T) 11.2 mg/dL
+=> Bilirubin | CRITICAL_HIGH | 11.2
+@@ R8 | M | 40 | S. Bilirubin Total
+S. Bilirubin Total 12 mg/dL
+=> Bilirubin | CRITICAL_HIGH | 12
+@@ R8 | M | 40 | Total Bilirubin (Serum)
+Total Bilirubin (Serum) 13 mg/dL
+=> Bilirubin | CRITICAL_HIGH | 13
+@@ R8 | M | 40 | Calcium, Corrected
+Calcium, Corrected 5.9 mg/dL
+=> Calcium | CRITICAL_LOW | 5.9
+@@ R8 | M | 40 | Ca (corrected)
+Ca (corrected) 14 mg/dL
+=> Ca | CRITICAL_HIGH | 14
+@@ R8 | M | 40 | Adjusted Ca
+Adjusted Ca 14.1 mg/dL
+=> Adjusted | CRITICAL_HIGH | 14.1
+@@ R8 | M | 40 | Albumin Adjusted Calcium
+Albumin Adjusted Calcium 14.4 mg/dL
+=> Calcium | CRITICAL_HIGH | 14.4
+@@ R8 | M | 40 | Hb % in gm%
+Hb % 6.4 g%
+=> Hb | CRITICAL_LOW | 6.4
+@@ R8 | M | 40 | Hemoglobin % gm/dl
+Hemoglobin % 5.5 gm/dl
+=> Hemoglobin | CRITICAL_LOW | 5.5
+@@ R8 | M | 40 | HB gm/dl
+HB 6.0 gm/dl
+=> HB | CRITICAL_LOW | 6.0
+@@ R8 | M | 40 | Haemoglobin (Hb)
+Haemoglobin (Hb) 6.2 g/dL
+=> Haemoglobin | CRITICAL_LOW | 6.2
+@@ R8 | M | 40 | Serum Sodium (Na)
+Serum Sodium (Na) 120 mmol/L
+=> Serum Sodium | CRITICAL_LOW | 120
+@@ R8 | M | 40 | S. Na
+S. Na 118 mmol/L
+=> S. Na | CRITICAL_LOW | 118
+@@ R8 | M | 40 | Na+
+Na+ 119 mmol/L
+=> Na+ | CRITICAL_LOW | 119
+@@ R8 | M | 40 | K+
+K+ 7.0 mmol/L
+=> K+ | CRITICAL_HIGH | 7.0
+@@ R8 | M | 40 | Serum K
+Serum K 2.5 mmol/L
+=> Serum K | CRITICAL_LOW | 2.5
+@@ R8 | M | 40 | S.Potassium in mEq/L
+S.Potassium 6.5 mEq/L
+=> S.Potassium | CRITICAL_HIGH | 6.5
+@@ R8 | M | 40 | S. Creatinine
+S. Creatinine 12.1 mg/dL
+=> S. Creatinine | CRITICAL_HIGH | 12.1
+@@ R8 | M | 40 | Creat
+Creat 11.5 mg/dL
+=> Creat | CRITICAL_HIGH | 11.5
+@@ R8 | M | 40 | Blood Sugar (Random)
+Blood Sugar (Random) 29 mg/dL
+=> Blood Sugar | CRITICAL_LOW | 29
+@@ R8 | M | 40 | Platelets (PLT)
+Platelets (PLT) 12000 /cumm
+=> Platelets | CRITICAL_LOW | 12000
+@@ R8 | M | 40 | Total Leukocyte Count
+Total Leukocyte Count 55000 /cumm
+=> Total Leukocyte Count | CRITICAL_HIGH | 55000
+@@ R8 | M | 40 | W.B.C. dotted
+W.B.C. 1500 /cumm
+=> W.B.C. | CRITICAL_LOW | 1500
+@@ R8 | M | 40 | S.G.P.T. dotted
+S.G.P.T. 400 U/L
+=> S.G.P.T. | HIGH | 400
+@@ R8 | M | 40 | T3 in ng/mL against a printed range in ng/mL
+T3 Total 0.4 ng/mL 0.8-2.0
+=> T3 | LOW | 40
+@@ R8 | M | 40 | MCHC in %
+MCHC 28 % 32-36
+=> MCHC | LOW | 28
+@@ R8 | M | 40 | B12 in ng/L
+Vitamin B12 90 ng/L 197-771
+=> Vitamin B12 | LOW | 90
+@@ R8 | M | 40 | haematocrit as a fraction
+Hematocrit 0.19 L/L 0.40-0.50
+=> Hematocrit | LOW | 19
+@@ R8 | M | 40 | ESR in mm/1st hr
+ESR 60 mm/1st hr 0-20
+=> ESR | HIGH | 60
+@@ R8 | M | 40 | free T4 in pmol/L
+Free T4 8 pmol/L 12-22
+=> Free T4 | LOW | 0.62
+@@ R8 | M | 40 | folate in nmol/L
+Folate 3 nmol/L 7-45
+=> Folate | LOW | 1.32
+@@ R8 | M | 40 | iron in umol/L
+Iron 5 umol/L 10-30
+=> Iron | LOW | 27.9
+@@ R8 | M | 40 | calcium in mmol/L is critical
+Calcium 1.1 mmol/L 2.2-2.6
+=> Calcium | CRITICAL_LOW | 4.41
+@@ R8 | M | 40 | magnesium in mmol/L is critical
+Magnesium 0.3 mmol/L 0.7-1.0
+=> Magnesium | CRITICAL_LOW | 0.729
+@@ R8 | M | 40 | phosphate in mmol/L is critical
+Phosphate 0.3 mmol/L 0.8-1.5
+=> Phosphate | CRITICAL_LOW | 0.929
+@@ R8 | M | 40 | bilirubin umol/L critical
+Bilirubin 180 umol/L (<20)
+=> Bilirubin | CRITICAL_HIGH | 10.5
+@@ R8 | M | 40 | CRP in mg/dL
+CRP 2.5 mg/dL 0-0.5
+=> CRP | HIGH | 25
+@@ R8 | M | 40 | D-Dimer in ng/mL
+D-Dimer 1200 ng/mL 0-500
+=> D-Dimer | HIGH | 1.2
+@@ R8 | M | 40 | albumin in g/L
+Albumin 22 g/L 35-50
+=> Albumin | LOW | 2.2
+@@ R8 | M | 40 | cortisol nmol/L
+Cortisol 800 nmol/L 170-500
+=> Cortisol | HIGH | 29
+@@ R8 | M | 40 | an unconvertible unit with a printed range in that unit
+Prolactin 900 mIU/L 100-500
+=> Prolactin | HIGH | 900
+=> warn
+@@ R8 | M | 40 | LDH in IU/L
+LDH 800 IU/L 140-280
+=> LDH | HIGH | 800
+@@ R8 | M | 40 | bare creatinine above 5x ULN
+Creatinine 15.0
+=> Creatinine | CRITICAL_HIGH | 15.0
+=> warn
+@@ R8 | M | 40 | bare potassium
+Potassium 7.5
+=> Potassium | CRITICAL_HIGH | 7.5
+@@ R8 | M | 40 | bare sodium
+Sodium 170
+=> Sodium | CRITICAL_HIGH | 170
+@@ R8 | M | 40 | bare troponin T
+Troponin T 1.2
+=> Troponin T | CRITICAL_HIGH | 1.2
+@@ R8 | M | 40 | bare triglycerides
+Triglycerides 1200
+=> Triglycerides | CRITICAL_HIGH | 1200
+@@ R8 | M | 40 | bare bilirubin
+Bilirubin 22
+=> Bilirubin | CRITICAL_HIGH | 22
+@@ R8 | M | 40 | bare calcium
+Calcium 15.2
+=> Calcium | CRITICAL_HIGH | 15.2
+@@ R8 | M | 40 | bare haemoglobin
+Hemoglobin 4.8
+=> Hemoglobin | CRITICAL_LOW | 4.8
+@@ R8 | M | 40 | bare platelets
+Platelets 8000
+=> Platelets | CRITICAL_LOW | 8000
+@@ R8 | M | 40 | bare INR
+INR 5.2
+=> INR | CRITICAL_HIGH | 5.2
+@@ R8 | M | 40 | bare glucose
+Glucose 650
+=> Glucose | CRITICAL_HIGH | 650

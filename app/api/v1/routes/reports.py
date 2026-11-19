@@ -4,6 +4,7 @@ POST /analyze/report/{report_type}
 """
 
 import uuid
+from typing import Optional
 from pathlib import Path
 
 import aiofiles
@@ -23,11 +24,12 @@ from app.workers.celery_app import celery_app
 router = APIRouter()
 
 VALID_REPORT_TYPES = {t.value for t in ReportTypeEnum}
-REPORT_EXTENSIONS = {".pdf", ".csv", ".txt"}
+# .txt used to be accepted here but rejected by the pipeline's validator,
+# so every .txt upload became a "successful" job with status=failed.
+REPORT_EXTENSIONS = {".pdf", ".csv"}
 REPORT_MAX_BYTES = {
     ".pdf": 20 * 1024 * 1024,
     ".csv": 10 * 1024 * 1024,
-    ".txt": 10 * 1024 * 1024,
 }
 UPLOAD_ROOT = Path("uploads").resolve()
 
@@ -67,8 +69,8 @@ async def submit_report_analysis(
     report_type: str,
     file: UploadFile = File(..., description="Lab report / clinical note: PDF or CSV"),
     patient_id: str = Form(None),
-    gender: str = Form("male"),
-    age: int = Form(40),
+    gender: Optional[str] = Form(None),
+    age: Optional[int] = Form(None),
     explanation_mode: str = Form("brief"),
     user=Depends(get_current_user),
     db: AsyncSession = Depends(get_db),

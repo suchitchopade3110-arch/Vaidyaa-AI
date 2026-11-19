@@ -26,6 +26,32 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+      postgres:
+        # Ownership / sign-off / patient-scoping tests run against the real
+        # migrated schema (tests/test_security_api.py, tests/test_pipelines.py).
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: vaidya
+          POSTGRES_PASSWORD: ci-only-password
+          POSTGRES_DB: vaidyaai
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U vaidya"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      POSTGRES_HOST: localhost
+      POSTGRES_USER: vaidya
+      POSTGRES_DB: vaidyaai
+      # No network model downloads in unit tests — ML falls back to its
+      # documented heuristics, which is what these tests exercise.
+      HF_HUB_OFFLINE: "1"
+      TRANSFORMERS_OFFLINE: "1"
+      WHO_MULTIMODAL_STARTUP_INGEST: "false"
+      # Fail (don't skip) the DB-backed suites if Postgres is missing.
+      REQUIRE_DB_TESTS: "1"
     steps:
       - uses: actions/checkout@v4
 
@@ -40,25 +66,36 @@ jobs:
           pip install -r requirements.txt
 
       - name: Lint (ruff)
-        run: ruff check app/
+        run: ruff check app/ tests/
+
+      - name: Every internal import resolves
+        # A "dead code" cleanup once deleted app/image_pipeline/schemas.py while
+        # it was still imported, and the Celery worker could not boot. Import
+        # every task module the worker loads, plus the API app.
+        run: |
+          python -c "import app.main"
+          python -c "from app.workers.celery_app import celery_app; celery_app.loader.import_default_modules(); print(sorted(t for t in celery_app.tasks if t.startswith('app.')))"
+
+      - name: Migrate database
+        run: alembic upgrade head
+
+      - name: Fetch chest X-ray model weights
+        # NIH classifier + chest X-ray autoencoder from torchxrayvision's GitHub
+        # releases; lets the classifier and plausibility-gate
+        # regression tests run against the real model instead of skipping.
+        run: |
+          python -c "import torchxrayvision as xrv; xrv.models.DenseNet(weights='densenet121-res224-nih')"
+          python -c "import torchxrayvision as xrv; xrv.autoencoders.ResNetAE(weights='101-elastic')"
 
       - name: Unit tests with coverage
-        # NOTE ON THE THRESHOLD: measured locally at 2.4% with `-m "not
-        # integration"` (correctly excluding the two rag_integration tests
-        # that need live Redis/Postgres) and without tests/test_pipelines.py,
-        # which needs torch — unavailable in the sandbox this CI was authored
-        # in. Real runners have full network access, so test_pipelines.py
-        # will actually run here and should push the true number a bit
-        # higher. 2% is a conservative floor, not a target — re-measure
-        # after the first CI run and raise it to just under the real number.
+        # Runs the whole tests/ directory (minus the Docker-stack E2E suite)
+        # so a new test file can't be silently left out of CI. Floor set just
+        # under the measured 40%; raise it as coverage grows.
         run: |
-          pytest tests/test_pipelines.py tests/test_rag_integration.py \
-            tests/test_file_validator.py tests/test_errors.py \
-            tests/test_retry.py tests/test_auth.py tests/test_ownership.py \
-            tests/test_signoff.py \
+          pytest tests/ --ignore=tests/test_e2e.py \
             -m "not integration" \
             --cov=app --cov-report=term-missing --cov-report=xml \
-            --cov-fail-under=2
+            --cov-fail-under=38
 
       - uses: actions/upload-artifact@v4
         if: always()

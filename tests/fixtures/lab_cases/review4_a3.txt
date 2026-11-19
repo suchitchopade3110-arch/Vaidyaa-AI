@@ -1,0 +1,104 @@
+male|B1 single line two tests only
+Sodium 138 mmol/L 135-145   Potassium 6.9 mmol/L 3.5-5.1
+---
+male|B1b two tests one line with separators
+Hemoglobin 14.1 g/dL 13.0-17.0 | Platelet Count 12000 /cumm 150000-450000
+---
+male|B2 cumulative prev first (text)
+Test 12/01/2026 12/03/2026 Unit Ref
+Potassium 4.2 6.9 mmol/L 3.5-5.1
+Hemoglobin 13.9 6.1 g/dL 13.0-17.0
+---
+male|B3 x 10^3 with space
+WBC 7.2 x 10^3/uL 4.0-11.0
+Platelet Count 12 x 10^3/uL 150-410
+---
+male|B4 digits in names
+Vitamin D 25 Hydroxy 150 ng/mL 30-100
+VITAMIN D, 25 - HYDROXY, SERUM 300.00 nmol/L 75.00 - 250.00
+Glucose 2 hr post prandial 135 mg/dL 70-140
+Vitamin B 12 500 pg/mL 200-900
+---
+male|B5 serology
+HIV 1 & 2 Antibodies Reactive
+HIV I & II Reactive
+Hepatitis B Surface Antigen (HBsAg) Reactive
+Anti HCV Non Reactive
+Dengue NS1 Antigen Positive
+VDRL Non-Reactive
+---
+male|B5b blood group
+Blood Group B Positive
+Rh Factor Positive
+Hemoglobin 14.1 g/dL 13.0-17.0
+---
+male|B5c serology status wording
+HIV Status Reactive
+Malaria Parasite Detected
+Widal Test Negative
+HBsAg: POSITIVE (Negative)
+Urine Protein ++ Nil
+Urine Glucose Nil Nil
+---
+male|B6 parenthetical qualifiers critical
+Calcium (Total) 5.9 mg/dL 8.5-10.5
+Glucose (Fasting) 38 mg/dL 70-100
+Bilirubin (Total) 12.5 mg/dL 0.2-1.2
+Potassium (K+) 6.9 mmol/L 3.5-5.1
+Sodium (Na+) 118 mmol/L 135-145
+Platelet Count (PLT) 12000 /cumm 150000-450000
+---
+male|B6b dash qualifiers critical
+Bilirubin - Total 12.5 mg/dL 0.2-1.2
+Cholesterol - HDL 25 mg/dL
+Glucose - Random 520 mg/dL
+Calcium - Total 5.9 mg/dL
+Corrected Calcium 14.4 mg/dL 8.5-10.5
+---
+male|B7 pH urine alone
+pH 6.0
+Specific Gravity 1.020
+---
+male|B7b Reaction (pH)
+Reaction (pH) 6.0
+---
+male|B8 negatives
+Glucose -320 mg/dL 70-100
+Base Excess -12.5 mmol/L -2 to +2
+Anion Gap 28 mmol/L 8 - 16
+---
+male|B9 range annotations
+Creatinine 4.2 mg/dL 0.5 - 1.5 (adult)
+Hemoglobin 12.0 g/dL Children: 11.0-14.0 Adults: 13.0-17.0
+TSH 6.5 uIU/mL 0.4-4.0 (Pregnancy 1st trimester: 0.1-2.5)
+ALP 300 U/L 0-14 yrs: 150-420; >14 yrs: 44-147
+Hemoglobin A2 6.5 % 1-5 yrs: 11-14
+ESR 60 mm/1st hr 0 - 20
+ESR 60 mm at 1 hr 0-20
+---
+male|B10 no-unit bare criticals
+Creatinine 12.5
+Troponin I 2.5
+Glucose 38
+Triglycerides 880
+---
+male|B11 by/patient words
+eGFR by CKD-EPI 12 >60
+Patient INR 6.5
+PT - Patient 45.0 Sec 11-13.5
+---
+male|B12 PCT plateletcrit
+PCT 0.25
+PCT 0.25 % 0.20-0.50
+---
+male|B13 hs troponin T normal
+hs Troponin T 12 ng/L <14
+Troponin T hs 12 ng/L
+---
+male|B14 range then unit, flag words
+Hemoglobin 6.1 (Low) g/dL 13.0-17.0
+Potassium: 6.9 mmol/L [Critical High] Ref: 3.5-5.1
+Sodium 118 mmol/L LL 135-145
+---
+male|B15 value after range
+Hemoglobin 13.0-17.0 g/dL 6.1

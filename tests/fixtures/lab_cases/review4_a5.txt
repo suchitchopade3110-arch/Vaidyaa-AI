@@ -1,0 +1,17 @@
+male|E1 prose sentence
+Hemoglobin 14.1 g/dL 13.0-17.0
+Interpretation: HbA1c above 6.5 % indicates diabetes (normal 4.0 - 5.6)
+---
+male|E2 blood group only
+Blood Group O Positive
+Hemoglobin 14.1 g/dL 13.0-17.0
+---
+male|E3 serology dropped, no numeric line
+HBsAg by ELISA Reactive
+Hemoglobin 14.1 g/dL 13.0-17.0
+---
+male|E4 hsTnT normal alone
+hs Troponin T 12 ng/L <14
+---
+male|E5 Hb% alone
+Hb% 6.1 gm%

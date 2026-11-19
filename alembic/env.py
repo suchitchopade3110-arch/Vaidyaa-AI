@@ -13,6 +13,22 @@ if config.config_file_name is not None:
 
 target_metadata = Base.metadata
 
+# Use the app's own settings (DATABASE_URL or POSTGRES_*) rather than the
+# placeholder URL in alembic.ini, so `alembic upgrade head` targets the same
+# database as the API and workers. Override with `-x db_url=...` if needed.
+_x_url = context.get_x_argument(as_dictionary=True).get("db_url")
+if _x_url:
+    config.set_main_option("sqlalchemy.url", _x_url)
+else:
+    try:
+        from app.core.config import settings as _settings
+        config.set_main_option(
+            "sqlalchemy.url",
+            _settings.SYNC_DATABASE_URL.replace("postgresql://", "postgresql+psycopg2://", 1).replace("%", "%%"),
+        )
+    except Exception:  # settings incomplete (e.g. offline SQL generation) — keep ini value
+        pass
+
 def run_migrations_offline():
     url = config.get_main_option("sqlalchemy.url")
     context.configure(url=url, target_metadata=target_metadata,

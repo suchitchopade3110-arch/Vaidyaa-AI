@@ -151,8 +151,16 @@ class ErrorHandlerMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
         except Exception as exc:
             request_id = getattr(request.state, "request_id", "unknown")
-            logger.error("Unhandled error request_id=%s error=%s", request_id, exc)
-            return format_error("INTERNAL_ERROR", str(exc), 500)
+            logger.exception("Unhandled error request_id=%s error=%s", request_id, exc)
+            # Never echo exception text to the client: DB errors carry the
+            # SQL statement and bound parameters (PHI), paths, and stack
+            # context. The request_id lets operators find the full log line.
+            return format_error(
+                "INTERNAL_ERROR",
+                "An unexpected error occurred. Quote the request ID when reporting it.",
+                500,
+                details={"request_id": request_id},
+            )
 
 
 class MaxBodySizeMiddleware:

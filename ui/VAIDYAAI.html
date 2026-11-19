@@ -177,6 +177,14 @@ function Topbar({ page, onToggleCompact, compact }) {
         <div style={{ padding: '5px 12px', background: 'oklch(0.75 0.14 60 / 0.12)', border: '1px solid oklch(0.75 0.14 60 / 0.3)', borderRadius: '5px' }}>
           <span style={{ fontSize: '11px', fontWeight: 700, color: 'oklch(0.75 0.14 60)' }}>⚕ Medical Disclaimer Active</span>
         </div>
+        <div style={{ width: '1px', height: '16px', background: 'var(--border)' }} />
+        {authStore.getUser() && (
+          <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>{authStore.getUser()}</span>
+        )}
+        <button onClick={() => logout()} title="Sign out" style={{
+          background: 'var(--bg-elevated)', border: '1px solid var(--border)', cursor: 'pointer',
+          color: 'var(--text-secondary)', fontSize: '12px', fontWeight: 600, padding: '5px 12px', borderRadius: '5px',
+        }}>Sign out</button>
       </div>
     </header>
   );
@@ -266,8 +274,24 @@ function App() {
   );
 }
 
+// Auth gate: show LoginScreen until we hold an access token.
+function AuthGate() {
+  const [authed, setAuthed] = useState(() => authStore.isAuthenticated());
+  useEffect(() => {
+    const onLogout = () => setAuthed(false);
+    const onLogin = () => setAuthed(true);
+    window.addEventListener(AUTH_LOGOUT_EVENT, onLogout);
+    window.addEventListener(AUTH_LOGIN_EVENT, onLogin);
+    return () => {
+      window.removeEventListener(AUTH_LOGOUT_EVENT, onLogout);
+      window.removeEventListener(AUTH_LOGIN_EVENT, onLogin);
+    };
+  }, []);
+  return authed ? <App /> : <LoginScreen onLogin={() => setAuthed(true)} />;
+}
+
 const root = ReactDOM.createRoot(document.getElementById('root'));
-root.render(<App />);
+root.render(<AuthGate />);
 </script>
 </body>
 </html>

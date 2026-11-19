@@ -1,12 +1,13 @@
-from fastapi import APIRouter, Depends, Request
-from slowapi import Limiter
-from slowapi.util import get_remote_address
+import logging
 
-limiter = Limiter(key_func=get_remote_address)
+from fastapi import APIRouter, Depends, Request
 
 from app.core.auth import get_current_user
+from app.core.rate_limit import limiter
 from app.models.request_models import QueryRequest
 from app.services.pipeline_controller import run_text_pipeline
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -33,11 +34,12 @@ async def text_pipeline(request: Request, data: QueryRequest, user: dict = Depen
             "anomalies": result["anomalies"],
             "status": "completed",
         }
-    except Exception as exc:
+    except Exception:
+        logger.exception("Direct text pipeline failed")
         return {
             "error": {
                 "code": "PIPELINE_ERROR",
-                "message": str(exc),
+                "message": "The text pipeline failed. See server logs for details.",
                 "retryable": False,
             }
         }

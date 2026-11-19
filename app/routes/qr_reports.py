@@ -1,16 +1,19 @@
 import io
 import os
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from jose import JWTError, jwt
+from jose import jwt
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.auth import get_current_user
 from app.core.config import settings
+from app.core.ownership import get_owned_job
 from app.db.session import get_db
 from app.services.qr_service import (
     ALGORITHM,
+    burn_report_token,
+    find_report,
     generate_qr_image,
     generate_report_token,
     get_report_pdf_bytes,
@@ -20,7 +23,6 @@ from app.services.qr_service import (
 )
 
 router = APIRouter(prefix="/reports", tags=["QR Report Access"])
-security = HTTPBearer(auto_error=False)
 
 
 def _client_host(request: Request) -> str | None:
@@ -48,26 +50,29 @@ def _public_base_url(request: Request) -> str:
     return str(request.base_url).rstrip("/")
 
 
-def _decode_optional_user(credentials: HTTPAuthorizationCredentials | None) -> dict:
-    if not credentials:
-        return {}
-    try:
-        return jwt.decode(credentials.credentials, settings.SECRET_KEY, algorithms=[ALGORITHM])
-    except JWTError:
-        return {}
-
-
 @router.get("/{report_id}/qr")
 async def get_report_qr(
     report_id: str,
     request: Request,
     db: AsyncSession = Depends(get_db),
-    credentials: HTTPAuthorizationCredentials | None = Depends(security),
+    user: dict = Depends(get_current_user),
 ):
-    """Generate a signed QR PNG for a completed report or job result."""
-    current_user = _decode_optional_user(credentials)
-    patient_id = current_user.get("patient_id") or request.query_params.get("patient_id")
-    token = await generate_report_token(report_id, db, patient_id=patient_id)
+    """Generate a signed QR PNG for a completed, signed-off report.
+
+    Minting a share link is an authenticated, owner-only action: the QR
+    token it produces lets ANYONE holding it download the report PDF
+    without logging in, so this used to be an anonymous PHI leak for any
+    signed report whose id was known. `report_id` may be a Report row id or
+    the job (Celery task) id; either way it must resolve to a job the
+    caller owns. Unknown and not-yours both return 404.
+    """
+    report = await find_report(report_id, db)
+    job_id = report.celery_task_id if report and report.celery_task_id else report_id
+    if await get_owned_job(db, job_id, user) is None:
+        raise HTTPException(status_code=404, detail="Report not found")
+    # The token's patient_id comes from the report row only — a caller-supplied
+    # ?patient_id= used to be embedded (and logged on every scan) verbatim.
+    token = await generate_report_token(report_id, db)
     payload = jwt.decode(token, settings.QR_SECRET_KEY or settings.SECRET_KEY, algorithms=[ALGORITHM])
     base_url = _public_base_url(request)
     qr_bytes = generate_qr_image(token, base_url=base_url)
@@ -134,9 +139,15 @@ async def download_report_pdf(
     request: Request,
     db: AsyncSession = Depends(get_db),
 ):
-    """Consume a one-time QR token and stream the report PDF."""
-    payload = await validate_report_token(token, db, burn=True)
+    """Consume a one-time QR token and stream the report PDF.
+
+    The token is spent only once the PDF exists, so a rendering failure
+    leaves it usable for a retry.
+    """
+    payload = await validate_report_token(token, db, burn=False)
     report_id = payload["report_id"]
+    pdf_bytes = await get_report_pdf_bytes(report_id, db)
+    await burn_report_token(payload, db)
 
     await log_qr_scan(
         db,
@@ -148,7 +159,6 @@ async def download_report_pdf(
         user_agent=request.headers.get("user-agent"),
     )
 
-    pdf_bytes = await get_report_pdf_bytes(report_id, db)
     return StreamingResponse(
         io.BytesIO(pdf_bytes),
         media_type="application/pdf",

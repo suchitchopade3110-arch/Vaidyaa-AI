@@ -1,0 +1,71 @@
+male|A1 two tests on one line (crit in 2nd col)
+Sodium 138 mmol/L 135-145   Potassium 6.9 mmol/L 3.5-5.1
+Hemoglobin 14.1 g/dL 13.0-17.0   Platelet Count 12000 /cumm 150000-450000
+---
+male|A1b two tests one line no ranges
+Hemoglobin 14.1 g/dL  WBC 900 /uL
+---
+male|A2 section headers with numbers
+Complete Blood Count (CBC) - 2 tests
+Hemoglobin 14.1 g/dL 13.0-17.0
+WBC 7200 /uL 4000-11000
+LIPID PROFILE (8 parameters)
+Total Cholesterol 180 mg/dL <200
+Page 1 of 2
+Test 3 of 5
+Panel 2 results
+Kidney Function Test 2
+---
+male|A3 method/sample notes
+Creatinine 1.0 mg/dL 0.7-1.3
+Method: Jaffe; Sample: Serum
+Method : Hexokinase 2
+Glucose Fasting (Hexokinase) 92 mg/dL 70-100
+Sample Type : EDTA Whole Blood 3 mL
+Instrument: Sysmex XN-1000
+---
+male|A3b method in name w/ critical
+Creatinine (Method: Jaffe Kinetic) 12.5 mg/dL 0.7-1.3
+Hemoglobin (Hb) Method: Cyanmethemoglobin 6.1 g/dL 13.0-17.0
+Glucose - Fasting (GOD-POD) 38 mg/dL 70-100
+Potassium (Method: ISE Direct) 6.9 mmol/L 3.5-5.1
+---
+male|A4 footnotes
+Hemoglobin 14.1 g/dL 13.0-17.0
+* Values verified
+** Critical value informed to Dr. Rao at 10:30 on 12/03/2026
+Note: sample rechecked 2 times
+# Test performed at partner lab 4
+End of report 1
+---
+male|A5 HbA1c interpretive table
+HbA1c 5.2 %
+Normal <5.7
+Prediabetes 5.7 - 6.4
+Diabetes >=6.5
+Estimated Average Glucose 103 mg/dL
+---
+male|A5b interpretive list on the row: Vit D deficiency
+Vitamin D 12 ng/mL Deficiency: <20 Insufficiency: 20-29 Sufficiency: 30-100
+---
+male|A5c HDL low with interpretive list
+HDL Cholesterol 25 mg/dL Low: <40 High: >=60
+---
+male|A5d interpretive lines after row
+25-OH Vitamin D 12 ng/mL
+Deficient : < 20 ng/mL
+Insufficient : 20 - 30 ng/mL
+Sufficient : 30 - 100 ng/mL
+Toxicity : > 100 ng/mL
+---
+male|A5e cholesterol categories
+Total Cholesterol 260 mg/dL Desirable: <200 Borderline High: 200-239 High: >=240
+LDL Cholesterol 190 mg/dL Optimal <100; Near optimal 100-129; Borderline high 130-159; High 160-189; Very high >=190
+Triglycerides 180 mg/dL Normal <150 Borderline 150-199 High 200-499 Very High >=500
+---
+male|A5f eGFR stages
+eGFR 12 mL/min/1.73m2 Kidney failure: <15 Severe: 15-29 Moderate: 30-59 Mild: 60-89 Normal: >=90
+---
+male|A5g Vit B12 / ferritin with category words first
+Vitamin B12 90 pg/mL Deficient <200 Borderline 200-300 Normal 300-900
+TSH 25 uIU/mL Hyperthyroid <0.4 Euthyroid 0.4-4.0 Hypothyroid >4.0

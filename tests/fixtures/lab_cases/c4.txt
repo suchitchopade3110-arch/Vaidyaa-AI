@@ -1,0 +1,32 @@
+male|variant names (six critical values)
+Haemoglobin 6.1 g/dL 13.0 - 17.0
+Platelet Count 12000 /cumm 150000 - 450000
+Serum Potassium 6.9 mmol/L 3.5 - 5.1
+Serum Sodium 118 mmol/L 135 - 145
+Blood Glucose 480 mg/dL 70 - 99
+Total Bilirubin 14.0 mg/dL 0.2 - 1.2
+---
+male|canonical names (same values)
+Hemoglobin 6.1 g/dL 13.0 - 17.0
+Platelets 12000 /cumm 150000 - 450000
+Potassium 6.9 mmol/L 3.5 - 5.1
+Sodium 118 mmol/L 135 - 145
+Glucose 480 mg/dL 70 - 99
+Bilirubin 14.0 mg/dL 0.2 - 1.2
+---
+male|single: Platelet Count 12000
+Platelet Count 12000 /cumm 150000 - 450000
+---
+male|single: Serum Potassium 7.2
+Serum Potassium 7.2 mmol/L 3.5 - 5.1
+---
+male|single: Potassium 7.2
+Potassium 7.2 mmol/L 3.5 - 5.1
+---
+male|single: TLC 0.8 thousand
+Total Leucocyte Count 0.8 10^3/µL 4.0 - 10.0
+---
+male|normal CBC in thousands
+Hemoglobin 14.8 g/dL 13.0 - 17.0
+WBC 6.5 10^3/µL 4.0 - 11.0
+Platelets 250 10^3/µL 150 - 450

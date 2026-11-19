@@ -1,3 +1,4 @@
+import logging
 from datetime import timezone, datetime
 
 from fastapi import APIRouter
@@ -8,6 +9,8 @@ from app.core.config import settings
 from app.db.session import engine
 
 UTC = timezone.utc
+
+log = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -50,7 +53,8 @@ async def _run_readiness_checks() -> dict:
             await conn.execute(text("SELECT 1"))
         checks["database"] = {"ok": True}
     except Exception as exc:
-        checks["database"] = {"ok": False, "error": str(exc)}
+        log.warning("Readiness: database check failed: %s", exc)
+        checks["database"] = {"ok": False, "error": type(exc).__name__}
 
     try:
         import redis
@@ -59,6 +63,7 @@ async def _run_readiness_checks() -> dict:
         client.ping()
         checks["redis"] = {"ok": True}
     except Exception as exc:
-        checks["redis"] = {"ok": False, "error": str(exc)}
+        log.warning("Readiness: redis check failed: %s", exc)
+        checks["redis"] = {"ok": False, "error": type(exc).__name__}
 
     return checks

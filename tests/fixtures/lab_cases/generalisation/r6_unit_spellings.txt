@@ -1,0 +1,115 @@
+# RULE R6: every spelling of a x10^n count unit must normalise to the same unit; a replacement bug turned
+# 'x 10^3/uL' into 'H^3/uL' (octal escape). Values are canonical (/uL; RBC million/uL).
+@@ R6 | M | 40 | WBC in x 10^3/uL
+WBC 3.1 x 10^3/uL 4.0-11.0
+=> WBC | LOW | 3100
+@@ R6 | M | 40 | Platelet Count in X 10³ / µL
+Platelet Count 18 X 10³ / µL 150-410
+=> Platelet Count | CRITICAL_LOW | 18000
+@@ R6 | M | 40 | WBC in x 10*3/uL
+WBC 3.1 x 10*3/uL 4.0-11.0
+=> WBC | LOW | 3100
+@@ R6 | M | 40 | Platelet Count in X10E3/uL
+Platelet Count 18 X10E3/uL 150-410
+=> Platelet Count | CRITICAL_LOW | 18000
+@@ R6 | M | 40 | WBC in 10^3/µL
+WBC 3.1 10^3/µL 4.0-11.0
+=> WBC | LOW | 3100
+@@ R6 | M | 40 | Platelet Count in 10³/µL
+Platelet Count 18 10³/µL 150-410
+=> Platelet Count | CRITICAL_LOW | 18000
+@@ R6 | M | 40 | WBC in thou/uL
+WBC 3.1 thou/uL 4.0-11.0
+=> WBC | LOW | 3100
+@@ R6 | M | 40 | Platelet Count in K/uL
+Platelet Count 18 K/uL 150-410
+=> Platelet Count | CRITICAL_LOW | 18000
+@@ R6 | M | 40 | WBC in x10^3 cells/uL
+WBC 3.1 x10^3 cells/uL 4.0-11.0
+=> WBC | LOW | 3100
+@@ R6 | M | 40 | Platelet Count in x 10 ^ 3 / uL
+Platelet Count 18 x 10 ^ 3 / uL 150-410
+=> Platelet Count | CRITICAL_LOW | 18000
+@@ R6 | M | 40 | WBC in × 10^3/µL
+WBC 3.1 × 10^3/µL 4.0-11.0
+=> WBC | LOW | 3100
+@@ R6 | M | 40 | Platelet Count in x 10^3 /uL
+Platelet Count 18 x 10^3 /uL 150-410
+=> Platelet Count | CRITICAL_LOW | 18000
+@@ R6 | M | 40 | WBC in x10^9/L
+WBC 12.4 x10^9/L 4.0-11.0
+=> WBC | HIGH | 12400
+@@ R6 | M | 40 | Platelet Count in x 10^9/L
+Platelet Count 260 x 10^9/L 150-410
+=> Platelet Count | NORMAL | 260000
+@@ R6 | M | 40 | WBC in X 10⁹/L
+WBC 12.4 X 10⁹/L 4.0-11.0
+=> WBC | HIGH | 12400
+@@ R6 | M | 40 | Platelet Count in ×10^9/L
+Platelet Count 260 ×10^9/L 150-410
+=> Platelet Count | NORMAL | 260000
+@@ R6 | M | 40 | WBC in x 10 ^ 9 / L
+WBC 12.4 x 10 ^ 9 / L 4.0-11.0
+=> WBC | HIGH | 12400
+@@ R6 | M | 40 | Platelet Count in 10^9/L
+Platelet Count 260 10^9/L 150-410
+=> Platelet Count | NORMAL | 260000
+@@ R6 | M | 40 | WBC in 10*9/L
+WBC 12.4 10*9/L 4.0-11.0
+=> WBC | HIGH | 12400
+@@ R6 | M | 40 | Platelet Count in x10E9/L
+Platelet Count 260 x10E9/L 150-410
+=> Platelet Count | NORMAL | 260000
+@@ R6 | M | 40 | RBC in x 10^6/uL
+RBC 2.4 x 10^6/uL 4.5-5.9
+=> RBC | LOW | 2.4
+@@ R6 | M | 40 | RBC in X 10⁶/µL
+RBC 2.4 X 10⁶/µL 4.5-5.9
+=> RBC | LOW | 2.4
+@@ R6 | M | 40 | RBC in x10^12/L
+RBC 2.4 x10^12/L 4.5-5.9
+=> RBC | LOW | 2.4
+@@ R6 | M | 40 | RBC in x 10^12/L
+RBC 2.4 x 10^12/L 4.5-5.9
+=> RBC | LOW | 2.4
+@@ R6 | M | 40 | RBC in million/cumm
+RBC 2.4 million/cumm 4.5-5.9
+=> RBC | LOW | 2.4
+@@ R6 | M | 40 | RBC in mill/cumm
+RBC 2.4 mill/cumm 4.5-5.9
+=> RBC | LOW | 2.4
+@@ R6 | M | 40 | RBC in x 10E6/uL
+RBC 2.4 x 10E6/uL 4.5-5.9
+=> RBC | LOW | 2.4
+@@ R6 | M | 40 | platelets in Lakh/cmm
+Platelet Count 0.12 Lakh/cmm 1.5-4.5
+=> Platelet Count | CRITICAL_LOW | 12000
+@@ R6 | M | 40 | platelets in lacs/cumm
+Platelet Count 0.12 lacs/cumm 1.5-4.5
+=> Platelet Count | CRITICAL_LOW | 12000
+@@ R6 | M | 40 | platelets in lakhs/cumm
+Platelet Count 0.12 lakhs/cumm 1.5-4.5
+=> Platelet Count | CRITICAL_LOW | 12000
+@@ R6 | M | 40 | ANC in 10^9/L spaced
+Absolute Neutrophil Count 0.4 x 10^9/L 2.0-7.0
+=> Absolute Neutrophil Count | CRITICAL_LOW | 400
+@@ R6 | M | 40 | ALC in thou/uL
+Absolute Lymphocyte Count 0.6 thou/uL 1.0-4.8
+=> Absolute Lymphocyte Count | LOW | 600
+@@ R6 | M | 40 | TLC in cells/cumm
+Total Leucocyte Count 1800 cells/cumm 4000-11000
+=> Total Leucocyte Count | CRITICAL_LOW | 1800
+@@ R6 | M | 40 | WBC /cmm
+TLC 56000 /cmm 4000-11000
+=> TLC | CRITICAL_HIGH | 56000
+@@ R6 | M | 40 | WBC /mm3
+WBC 9500 /mm3 4000-11000
+=> WBC | NORMAL | 9500
+@@ R6 | M | 40 | platelet 10^3/mm3
+Platelets 150 10^3/mm3 150-410
+=> Platelets | NORMAL | 150000
+@@ R6 | M | 40 | two rows spaced exponent
+WBC 7.2 x 10^3/uL 4.0-11.0
+Platelet Count 250 x 10^3/uL 150-410
+=> WBC | NORMAL | 7200
+=> Platelet Count | NORMAL | 250000

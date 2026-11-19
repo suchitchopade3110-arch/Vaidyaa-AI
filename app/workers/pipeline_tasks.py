@@ -15,11 +15,31 @@ def _retry_delay(retries: int) -> int:
     return 10 * (4 ** retries)
 
 
+def pipeline_outcome(result) -> str:
+    """The pipeline's own verdict on a run. Pipelines report errors as a
+    normal return value (status="failed" / "low_quality"), so Celery's
+    SUCCESS only means "the task returned", not "the analysis worked"."""
+    if isinstance(result, dict):
+        return str(result.get("status") or "completed").lower()
+    return "completed"
+
+
 class PipelineTask(Task):
     abstract = True
 
+    def on_success(self, retval, task_id, args, kwargs):
+        from app.workers.db_persist import set_job_status, upsert_report_result
+
+        outcome = pipeline_outcome(retval)
+        set_job_status(task_id, outcome)
+        if self.name.endswith("analyze_report_task") and outcome == "completed" and isinstance(retval, dict):
+            upsert_report_result(task_id, retval)
+
     def on_failure(self, exc, task_id, args, kwargs, einfo):
         logger.error("[%s] Pipeline task failed: %s", task_id, exc)
+        from app.workers.db_persist import set_job_status
+
+        set_job_status(task_id, "failed")
 
 
 @celery_app.task(
@@ -33,8 +53,8 @@ def analyze_report_task(
     file_path: str,
     patient_id: Optional[str],
     report_type: str,
-    gender: str = "male",
-    age: int = 40,
+    gender: Optional[str] = None,
+    age: Optional[int] = None,
     explanation_mode: str = "brief",
 ):
     """Run report pipeline asynchronously."""
