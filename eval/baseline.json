@@ -1,0 +1,1755 @@
+{
+  "corpus": {
+    "test": {
+      "fingerprint": "8c62689178abad8418792394a8ea9d3dbf18e29569207a468874971c111572b8",
+      "n": 80,
+      "reports": 80,
+      "seed": 20261119
+    }
+  },
+  "diagnostics": {
+    "test": {
+      "csv": {
+        "M2_post": {
+          "ci_high": 1.0,
+          "ci_low": 0.5101091635454027,
+          "den": 4,
+          "num": 4,
+          "value": 1.0
+        },
+        "M5_oracle": {
+          "ci_high": 1.0,
+          "ci_low": 0.5101091635454027,
+          "den": 4,
+          "num": 4,
+          "value": 1.0
+        },
+        "M5_oracle_clinical": {
+          "ci_high": 1.0,
+          "ci_low": 0.5101091635454027,
+          "den": 4,
+          "num": 4,
+          "value": 1.0
+        },
+        "M5_pre": {
+          "ci_high": 1.0,
+          "ci_low": 0.5101091635454027,
+          "den": 4,
+          "num": 4,
+          "value": 1.0
+        },
+        "R_NR": {
+          "ci_high": 1.0,
+          "ci_low": 0.34238022750665303,
+          "den": 2,
+          "num": 2,
+          "value": 1.0
+        },
+        "field_accuracy": {
+          "flag": {
+            "ci_high": 0.9849431866560231,
+            "ci_low": 0.9052524862309445,
+            "den": 104,
+            "num": 100,
+            "value": 0.9615384615384616
+          },
+          "name": {
+            "ci_high": 0.9901418170972229,
+            "ci_low": 0.9185995989748896,
+            "den": 104,
+            "num": 101,
+            "value": 0.9711538461538461
+          },
+          "range": {
+            "ci_high": 0.9999999999999999,
+            "ci_low": 0.9643786456275479,
+            "den": 104,
+            "num": 104,
+            "value": 1.0
+          },
+          "unit": {
+            "ci_high": 0.9999999999999999,
+            "ci_low": 0.9643786456275479,
+            "den": 104,
+            "num": 104,
+            "value": 1.0
+          },
+          "value": {
+            "ci_high": 0.9999999999999999,
+            "ci_low": 0.9643786456275479,
+            "den": 104,
+            "num": 104,
+            "value": 1.0
+          }
+        },
+        "headline_confusion": {
+          "abnormal>abnormal": 2,
+          "critical>critical": 2
+        },
+        "invented_by_decoy": {
+          "csv_metadata": 1
+        },
+        "match_rules": {
+          "K": 101,
+          "N": 3
+        },
+        "omitted_by_feature": {},
+        "per_family_M3": {
+          "GEN-CSV": {
+            "ci_high": 0.9608893475692311,
+            "ci_low": 0.8568137681765711,
+            "den": 105,
+            "num": 97,
+            "value": 0.9238095238095239
+          }
+        },
+        "pre_review_confusion": {
+          "abnormal>abnormal": 2,
+          "critical>critical": 2
+        },
+        "precision": {
+          "ci_high": 0.9983168307671438,
+          "ci_low": 0.9480137413881103,
+          "den": 105,
+          "num": 104,
+          "value": 0.9904761904761905
+        },
+        "recall": {
+          "ci_high": 0.9999999999999999,
+          "ci_low": 0.9643786456275479,
+          "den": 104,
+          "num": 104,
+          "value": 1.0
+        },
+        "review_actions": {
+          "accepted": 92,
+          "deleted": 1,
+          "edited": 12
+        },
+        "review_all_jobs": 0,
+        "status": {
+          "ok": 4
+        },
+        "top_error_signatures": [
+          [
+            "flag",
+            4
+          ],
+          [
+            "name",
+            3
+          ]
+        ]
+      },
+      "native": {
+        "M2_post": {
+          "ci_high": 0.841516620598654,
+          "ci_low": 0.5600751000260289,
+          "den": 36,
+          "num": 26,
+          "value": 0.7222222222222222
+        },
+        "M5_oracle": {
+          "ci_high": 0.9633159947665283,
+          "ci_low": 0.8382725651786193,
+          "den": 76,
+          "num": 70,
+          "value": 0.9210526315789473
+        },
+        "M5_oracle_clinical": {
+          "ci_high": 1.0,
+          "ci_low": 0.9518864149348628,
+          "den": 76,
+          "num": 76,
+          "value": 1.0
+        },
+        "M5_pre": {
+          "ci_high": 0.6955619723136058,
+          "ci_low": 0.4797855251743951,
+          "den": 76,
+          "num": 45,
+          "value": 0.5921052631578947
+        },
+        "R_NR": {
+          "ci_high": 0.7026223424648965,
+          "ci_low": 0.45033103735230756,
+          "den": 55,
+          "num": 32,
+          "value": 0.5818181818181818
+        },
+        "field_accuracy": {
+          "flag": {
+            "ci_high": 0.9264337491052645,
+            "ci_low": 0.8997301645264435,
+            "den": 1698,
+            "num": 1552,
+            "value": 0.9140164899882215
+          },
+          "name": {
+            "ci_high": 0.9760578784114262,
+            "ci_low": 0.9593994121303087,
+            "den": 1698,
+            "num": 1645,
+            "value": 0.9687868080094229
+          },
+          "range": {
+            "ci_high": 0.8491775143369426,
+            "ci_low": 0.8136339327303169,
+            "den": 1698,
+            "num": 1413,
+            "value": 0.8321554770318021
+          },
+          "unit": {
+            "ci_high": 0.9116165797669078,
+            "ci_low": 0.8828169986328571,
+            "den": 1698,
+            "num": 1525,
+            "value": 0.8981154299175501
+          },
+          "value": {
+            "ci_high": 0.9846467515225816,
+            "ci_low": 0.9707888982392656,
+            "den": 1698,
+            "num": 1662,
+            "value": 0.9787985865724381
+          }
+        },
+        "headline_confusion": {
+          "abnormal>abnormal": 31,
+          "abnormal>unknown": 3,
+          "critical>critical": 14,
+          "critical>unknown": 4,
+          "normal>normal": 18,
+          "normal>unknown": 6
+        },
+        "invented_by_decoy": {
+          "end_of_report": 10,
+          "header_demographic": 2,
+          "header_id": 14,
+          "interpretive": 11,
+          "none": 253,
+          "page_x_of_y": 4,
+          "phone": 4,
+          "tollfree": 5
+        },
+        "match_rules": {
+          "K": 1583,
+          "N": 114,
+          "T": 1
+        },
+        "omitted_by_feature": {
+          "age_labelled_range": 2,
+          "csf": 4,
+          "csf_report": 4,
+          "cumulative": 3,
+          "flag_column": 20,
+          "flag_first": 3,
+          "form_style": 44,
+          "glued_flag": 127,
+          "indian_grouping": 5,
+          "interpretive_range": 2,
+          "interpretive_table": 10,
+          "method_line": 44,
+          "method_under_name": 81,
+          "mixed_specimen": 8,
+          "paediatric": 55,
+          "plain_table": 5,
+          "qualifier": 5,
+          "qualitative_result": 1,
+          "serology": 25,
+          "serology_report": 25,
+          "sex_labelled_range": 55,
+          "si": 29,
+          "technology_column": 115,
+          "titre": 20,
+          "two_per_line": 12,
+          "unlabelled_multivalue": 1,
+          "urine_only": 4,
+          "urine_section": 8,
+          "western_grouping": 1
+        },
+        "per_family_M3": {
+          "G01": {
+            "ci_high": 0.056346912501650026,
+            "ci_low": 0.0087727741610624,
+            "den": 178,
+            "num": 4,
+            "value": 0.02247191011235955
+          },
+          "G02": {
+            "ci_high": 0.9565790031448905,
+            "ci_low": 0.8734917309593303,
+            "den": 160,
+            "num": 148,
+            "value": 0.925
+          },
+          "G03": {
+            "ci_high": 0.55482292465392,
+            "ci_low": 0.4032210768222182,
+            "den": 163,
+            "num": 78,
+            "value": 0.4785276073619632
+          },
+          "G04": {
+            "ci_high": 0.0418270666648922,
+            "ci_low": 0.0,
+            "den": 88,
+            "num": 0,
+            "value": 0.0
+          },
+          "G05": {
+            "ci_high": 0.895942730457987,
+            "ci_low": 0.7900615387883905,
+            "den": 174,
+            "num": 148,
+            "value": 0.8505747126436781
+          },
+          "G06": {
+            "ci_high": 0.2830682437985087,
+            "ci_low": 0.12778072974537735,
+            "den": 98,
+            "num": 19,
+            "value": 0.19387755102040816
+          },
+          "G07": {
+            "ci_high": 0.2657104356819069,
+            "ci_low": 0.0966129669185153,
+            "den": 73,
+            "num": 12,
+            "value": 0.1643835616438356
+          },
+          "G08": {
+            "ci_high": 0.799243206978225,
+            "ci_low": 0.6181127107236785,
+            "den": 92,
+            "num": 66,
+            "value": 0.717391304347826
+          },
+          "G09": {
+            "ci_high": 0.7026223424648965,
+            "ci_low": 0.45033103735230756,
+            "den": 55,
+            "num": 32,
+            "value": 0.5818181818181818
+          },
+          "G10": {
+            "ci_high": 0.7601444056822328,
+            "ci_low": 0.5907584366292358,
+            "den": 113,
+            "num": 77,
+            "value": 0.6814159292035398
+          },
+          "IN-A": {
+            "ci_high": 0.9820732831198906,
+            "ci_low": 0.9061591476629647,
+            "den": 120,
+            "num": 115,
+            "value": 0.9583333333333334
+          },
+          "IN-B": {
+            "ci_high": 0.016357668871522173,
+            "ci_low": 0.0,
+            "den": 231,
+            "num": 0,
+            "value": 0.0
+          },
+          "IN-C": {
+            "ci_high": 0.043301609837167125,
+            "ci_low": 0.006695797203206469,
+            "den": 233,
+            "num": 4,
+            "value": 0.017167381974248927
+          },
+          "IN-D": {
+            "ci_high": 0.6639466536654248,
+            "ci_low": 0.44738236156130345,
+            "den": 77,
+            "num": 43,
+            "value": 0.5584415584415584
+          },
+          "IN-E": {
+            "ci_high": 0.9439845666965373,
+            "ci_low": 0.8627904693526963,
+            "den": 192,
+            "num": 175,
+            "value": 0.9114583333333334
+          },
+          "UK-A": {
+            "ci_high": 0.9986715123923707,
+            "ci_low": 0.9586407022607314,
+            "den": 133,
+            "num": 132,
+            "value": 0.9924812030075187
+          },
+          "US-A": {
+            "ci_high": 0.8923010713942467,
+            "ci_low": 0.770410668752392,
+            "den": 138,
+            "num": 116,
+            "value": 0.8405797101449275
+          }
+        },
+        "pre_review_confusion": {
+          "abnormal>abnormal": 31,
+          "abnormal>critical": 1,
+          "abnormal>unknown": 2,
+          "critical>abnormal": 5,
+          "critical>critical": 13,
+          "normal>abnormal": 2,
+          "normal>critical": 1,
+          "normal>normal": 1,
+          "normal>unknown": 20
+        },
+        "precision": {
+          "ci_high": 0.8636130366351016,
+          "ci_low": 0.8322025820326104,
+          "den": 2001,
+          "num": 1698,
+          "value": 0.848575712143928
+        },
+        "recall": {
+          "ci_high": 0.8579237838819157,
+          "ci_low": 0.8261319125008558,
+          "den": 2015,
+          "num": 1698,
+          "value": 0.8426799007444169
+        },
+        "review_actions": {
+          "accepted": 1210,
+          "deleted": 292,
+          "edited": 488,
+          "kept_invented": 11,
+          "missing": 317
+        },
+        "review_all_jobs": 0,
+        "status": {
+          "ok": 76
+        },
+        "top_error_signatures": [
+          [
+            "range",
+            206
+          ],
+          [
+            "unit",
+            119
+          ],
+          [
+            "name",
+            40
+          ],
+          [
+            "flag",
+            39
+          ],
+          [
+            "range+flag",
+            37
+          ],
+          [
+            "unit+flag",
+            20
+          ],
+          [
+            "value+flag",
+            20
+          ],
+          [
+            "unit+range+flag",
+            16
+          ],
+          [
+            "unit+range",
+            9
+          ],
+          [
+            "value",
+            5
+          ],
+          [
+            "name+range+flag",
+            4
+          ],
+          [
+            "name+value+unit+range+flag",
+            3
+          ],
+          [
+            "name+unit+range+flag",
+            2
+          ],
+          [
+            "name+value+unit+range",
+            2
+          ],
+          [
+            "value+range+flag",
+            2
+          ],
+          [
+            "name+flag",
+            1
+          ],
+          [
+            "name+value+range+flag",
+            1
+          ],
+          [
+            "value+range",
+            1
+          ],
+          [
+            "value+unit+range",
+            1
+          ],
+          [
+            "value+unit+range+flag",
+            1
+          ]
+        ]
+      },
+      "photo": {
+        "M2_post": {
+          "ci_high": 0.8067396863412435,
+          "ci_low": 0.31951131254954973,
+          "den": 12,
+          "num": 7,
+          "value": 0.5833333333333334
+        },
+        "M5_oracle": {
+          "ci_high": 0.9832191169128082,
+          "ci_low": 0.8039375519135219,
+          "den": 33,
+          "num": 31,
+          "value": 0.9393939393939394
+        },
+        "M5_oracle_clinical": {
+          "ci_high": 1.0,
+          "ci_low": 0.895730002457548,
+          "den": 33,
+          "num": 33,
+          "value": 1.0
+        },
+        "M5_pre": {
+          "ci_high": 0.5039210557219438,
+          "ci_low": 0.19750227679220683,
+          "den": 33,
+          "num": 11,
+          "value": 0.3333333333333333
+        },
+        "R_NR": {
+          "ci_high": 0.7085620428549398,
+          "ci_low": 0.23206067809538303,
+          "den": 13,
+          "num": 6,
+          "value": 0.46153846153846156
+        },
+        "field_accuracy": {
+          "flag": {
+            "ci_high": 0.7485378133611131,
+            "ci_low": 0.6522216589136776,
+            "den": 343,
+            "num": 241,
+            "value": 0.7026239067055393
+          },
+          "name": {
+            "ci_high": 0.9596100950333079,
+            "ci_low": 0.9082215679502322,
+            "den": 343,
+            "num": 322,
+            "value": 0.9387755102040817
+          },
+          "range": {
+            "ci_high": 0.6425545931789443,
+            "ci_low": 0.5390845920966805,
+            "den": 343,
+            "num": 203,
+            "value": 0.5918367346938775
+          },
+          "unit": {
+            "ci_high": 0.7595143615869839,
+            "ci_low": 0.6643104040561403,
+            "den": 343,
+            "num": 245,
+            "value": 0.7142857142857143
+          },
+          "value": {
+            "ci_high": 0.7264750676533626,
+            "ci_low": 0.6281538178847615,
+            "den": 343,
+            "num": 233,
+            "value": 0.6793002915451894
+          }
+        },
+        "headline_confusion": {
+          "abnormal>abnormal": 13,
+          "abnormal>normal": 2,
+          "critical>abnormal": 1,
+          "critical>critical": 4,
+          "critical>unknown": 1,
+          "normal>abnormal": 2,
+          "normal>normal": 8,
+          "normal>unknown": 2
+        },
+        "invented_by_decoy": {
+          "header_demographic": 1,
+          "none": 45,
+          "phone": 3
+        },
+        "match_rules": {
+          "K": 305,
+          "N": 33,
+          "T": 5
+        },
+        "omitted_by_feature": {
+          "age_labelled_range": 1,
+          "colon_line": 46,
+          "csf": 1,
+          "csf_report": 1,
+          "cumulative": 10,
+          "glued_flag": 9,
+          "header_unit": 8,
+          "inline_unit": 4,
+          "method_column": 33,
+          "mixed_specimen": 9,
+          "paediatric": 61,
+          "plain_table": 9,
+          "qualifier": 1,
+          "qualitative_result": 2,
+          "serology": 6,
+          "serology_report": 8,
+          "sex_labelled_range": 10,
+          "si": 6,
+          "technology_column": 3,
+          "titre": 4,
+          "two_per_line": 18,
+          "unlabelled_multivalue": 1,
+          "urine_only": 6,
+          "urine_section": 7
+        },
+        "per_family_M3": {
+          "G01": {
+            "ci_high": 0.39008713096683645,
+            "ci_low": 0.17132640003280553,
+            "den": 60,
+            "num": 16,
+            "value": 0.26666666666666666
+          },
+          "G02": {
+            "ci_high": 0.26517026873919847,
+            "ci_low": 0.10736292546557002,
+            "den": 87,
+            "num": 15,
+            "value": 0.1724137931034483
+          },
+          "G05": {
+            "ci_high": 0.35387991114111694,
+            "ci_low": 0.014865094404917095,
+            "den": 12,
+            "num": 1,
+            "value": 0.08333333333333333
+          },
+          "G06": {
+            "ci_high": 0.15744263820012558,
+            "ci_low": 0.005537860164003122,
+            "den": 32,
+            "num": 1,
+            "value": 0.03125
+          },
+          "G07": {
+            "ci_high": 0.1071791982550706,
+            "ci_low": 0.0,
+            "den": 32,
+            "num": 0,
+            "value": 0.0
+          },
+          "G08": {
+            "ci_high": 0.36816276458669694,
+            "ci_low": 0.16014926530970577,
+            "den": 64,
+            "num": 16,
+            "value": 0.25
+          },
+          "G09": {
+            "ci_high": 0.882379225767352,
+            "ci_low": 0.2307242812760128,
+            "den": 5,
+            "num": 3,
+            "value": 0.6
+          },
+          "G10": {
+            "ci_high": 0.6293266813020123,
+            "ci_low": 0.26665638881067344,
+            "den": 25,
+            "num": 11,
+            "value": 0.44
+          },
+          "IN-A": {
+            "ci_high": 0.33819463563405117,
+            "ci_low": 0.1270590424909565,
+            "den": 56,
+            "num": 12,
+            "value": 0.21428571428571427
+          },
+          "IN-B": {
+            "ci_high": 0.5313311006653985,
+            "ci_low": 0.1327998961029523,
+            "den": 17,
+            "num": 5,
+            "value": 0.29411764705882354
+          },
+          "IN-D": {
+            "ci_high": 0.16817922405261626,
+            "ci_low": 0.0,
+            "den": 19,
+            "num": 0,
+            "value": 0.0
+          },
+          "IN-E": {
+            "ci_high": 0.6343919169097589,
+            "ci_low": 0.44264860323368227,
+            "den": 100,
+            "num": 54,
+            "value": 0.54
+          },
+          "UK-A": {
+            "ci_high": 0.2303782864425083,
+            "ci_low": 0.04733145858098943,
+            "den": 46,
+            "num": 5,
+            "value": 0.10869565217391304
+          }
+        },
+        "pre_review_confusion": {
+          "abnormal>abnormal": 6,
+          "abnormal>critical": 3,
+          "abnormal>normal": 1,
+          "abnormal>unknown": 5,
+          "critical>abnormal": 1,
+          "critical>critical": 4,
+          "critical>unknown": 1,
+          "normal>abnormal": 3,
+          "normal>critical": 1,
+          "normal>normal": 1,
+          "normal>unknown": 7
+        },
+        "precision": {
+          "ci_high": 0.9041430756060809,
+          "ci_low": 0.8385785202467031,
+          "den": 392,
+          "num": 343,
+          "value": 0.875
+        },
+        "recall": {
+          "ci_high": 0.7171097369006393,
+          "ci_low": 0.6359411907668654,
+          "den": 506,
+          "num": 343,
+          "value": 0.6778656126482213
+        },
+        "review_actions": {
+          "accepted": 193,
+          "deleted": 37,
+          "edited": 150,
+          "kept_invented": 12,
+          "missing": 163
+        },
+        "review_all_jobs": 2,
+        "status": {
+          "empty": 2,
+          "ok": 31
+        },
+        "top_error_signatures": [
+          [
+            "value+unit+range+flag",
+            37
+          ],
+          [
+            "range",
+            29
+          ],
+          [
+            "unit",
+            23
+          ],
+          [
+            "value+flag",
+            16
+          ],
+          [
+            "value+range",
+            16
+          ],
+          [
+            "value+unit+range",
+            15
+          ],
+          [
+            "value+range+flag",
+            13
+          ],
+          [
+            "range+flag",
+            10
+          ],
+          [
+            "name",
+            9
+          ],
+          [
+            "unit+range+flag",
+            8
+          ],
+          [
+            "unit+flag",
+            5
+          ],
+          [
+            "value",
+            5
+          ],
+          [
+            "flag",
+            4
+          ],
+          [
+            "name+value+unit+range+flag",
+            3
+          ],
+          [
+            "name+range+flag",
+            2
+          ],
+          [
+            "name+unit+range+flag",
+            2
+          ],
+          [
+            "name+value+unit+range",
+            2
+          ],
+          [
+            "name+unit",
+            1
+          ],
+          [
+            "name+value+range",
+            1
+          ],
+          [
+            "name+value+range+flag",
+            1
+          ]
+        ]
+      },
+      "rot90": {
+        "M2_post": {
+          "ci_high": 0.43448246478317476,
+          "ci_low": 0.0,
+          "den": 5,
+          "num": 0,
+          "value": 0.0
+        },
+        "M5_oracle": {
+          "ci_high": 1.0,
+          "ci_low": 0.5101091635454027,
+          "den": 4,
+          "num": 4,
+          "value": 1.0
+        },
+        "M5_oracle_clinical": {
+          "ci_high": 1.0,
+          "ci_low": 0.5101091635454027,
+          "den": 4,
+          "num": 4,
+          "value": 1.0
+        },
+        "M5_pre": {
+          "ci_high": 0.4898908364545973,
+          "ci_low": 0.0,
+          "den": 4,
+          "num": 0,
+          "value": 0.0
+        },
+        "R_NR": {
+          "ci_high": 0.4898908364545973,
+          "ci_low": 0.0,
+          "den": 4,
+          "num": 0,
+          "value": 0.0
+        },
+        "field_accuracy": {
+          "flag": {
+            "ci_high": null,
+            "ci_low": null,
+            "den": 0,
+            "num": 0,
+            "value": null
+          },
+          "name": {
+            "ci_high": null,
+            "ci_low": null,
+            "den": 0,
+            "num": 0,
+            "value": null
+          },
+          "range": {
+            "ci_high": null,
+            "ci_low": null,
+            "den": 0,
+            "num": 0,
+            "value": null
+          },
+          "unit": {
+            "ci_high": null,
+            "ci_low": null,
+            "den": 0,
+            "num": 0,
+            "value": null
+          },
+          "value": {
+            "ci_high": null,
+            "ci_low": null,
+            "den": 0,
+            "num": 0,
+            "value": null
+          }
+        },
+        "headline_confusion": {
+          "abnormal>unknown": 2,
+          "critical>unknown": 2
+        },
+        "invented_by_decoy": {
+          "none": 4,
+          "phone": 2
+        },
+        "match_rules": {},
+        "omitted_by_feature": {
+          "flag_column": 33,
+          "flag_first": 33,
+          "paediatric": 28,
+          "plain_table": 28,
+          "sex_labelled_range": 2
+        },
+        "per_family_M3": {
+          "G01": {
+            "ci_high": 0.11696979849974075,
+            "ci_low": 0.0,
+            "den": 29,
+            "num": 0,
+            "value": 0.0
+          },
+          "G03": {
+            "ci_high": 0.09180986822558396,
+            "ci_low": 0.0,
+            "den": 38,
+            "num": 0,
+            "value": 0.0
+          },
+          "G06": {
+            "ci_high": 0.08762160119728664,
+            "ci_low": 0.0,
+            "den": 40,
+            "num": 0,
+            "value": 0.0
+          },
+          "IN-E": {
+            "ci_high": 0.07269781922049637,
+            "ci_low": 6.938893903907228e-18,
+            "den": 49,
+            "num": 0,
+            "value": 0.0
+          }
+        },
+        "pre_review_confusion": {
+          "abnormal>unknown": 2,
+          "critical>unknown": 2
+        },
+        "precision": {
+          "ci_high": 0.3903342879021653,
+          "ci_low": 2.7755575615628914e-17,
+          "den": 6,
+          "num": 0,
+          "value": 0.0
+        },
+        "recall": {
+          "ci_high": 0.0249702443680766,
+          "ci_low": 1.734723475976807e-18,
+          "den": 150,
+          "num": 0,
+          "value": 0.0
+        },
+        "review_actions": {
+          "deleted": 6,
+          "missing": 150
+        },
+        "review_all_jobs": 2,
+        "status": {
+          "empty": 2,
+          "ok": 2
+        },
+        "top_error_signatures": []
+      },
+      "scan": {
+        "M2_post": {
+          "ci_high": 0.9851349055950829,
+          "ci_low": 0.646120088858883,
+          "den": 12,
+          "num": 11,
+          "value": 0.9166666666666666
+        },
+        "M5_oracle": {
+          "ci_high": 0.9721335187862319,
+          "ci_low": 0.6989663547715128,
+          "den": 20,
+          "num": 18,
+          "value": 0.9
+        },
+        "M5_oracle_clinical": {
+          "ci_high": 1.0,
+          "ci_low": 0.8388748419471806,
+          "den": 20,
+          "num": 20,
+          "value": 1.0
+        },
+        "M5_pre": {
+          "ci_high": 0.818808175898918,
+          "ci_low": 0.43285427668523624,
+          "den": 20,
+          "num": 13,
+          "value": 0.65
+        },
+        "R_NR": {
+          "ci_high": 0.7679393219046169,
+          "ci_low": 0.29143795714506004,
+          "den": 13,
+          "num": 7,
+          "value": 0.5384615384615384
+        },
+        "field_accuracy": {
+          "flag": {
+            "ci_high": 0.8214399125379301,
+            "ci_low": 0.7423235880141732,
+            "den": 413,
+            "num": 324,
+            "value": 0.784503631961259
+          },
+          "name": {
+            "ci_high": 0.9546844898038724,
+            "ci_low": 0.9065542195501919,
+            "den": 413,
+            "num": 386,
+            "value": 0.9346246973365617
+          },
+          "range": {
+            "ci_high": 0.8124642616716973,
+            "ci_low": 0.7321072899254408,
+            "den": 413,
+            "num": 320,
+            "value": 0.774818401937046
+          },
+          "unit": {
+            "ci_high": 0.8459534833621616,
+            "ci_low": 0.7705878768160963,
+            "den": 413,
+            "num": 335,
+            "value": 0.8111380145278451
+          },
+          "value": {
+            "ci_high": 0.8940852037653868,
+            "ci_low": 0.8280118756651798,
+            "den": 413,
+            "num": 357,
+            "value": 0.864406779661017
+          }
+        },
+        "headline_confusion": {
+          "abnormal>abnormal": 9,
+          "critical>critical": 5,
+          "normal>abnormal": 2,
+          "normal>normal": 3,
+          "normal>unknown": 1
+        },
+        "invented_by_decoy": {
+          "header_demographic": 2,
+          "none": 23
+        },
+        "match_rules": {
+          "K": 369,
+          "N": 40,
+          "T": 4
+        },
+        "omitted_by_feature": {
+          "colon_line": 43,
+          "csf": 2,
+          "csf_report": 2,
+          "cumulative": 4,
+          "flag_column": 1,
+          "glued_flag": 3,
+          "method_column": 5,
+          "mixed_specimen": 8,
+          "paediatric": 51,
+          "plain_table": 2,
+          "qualitative_result": 2,
+          "serology": 6,
+          "serology_report": 8,
+          "sex_labelled_range": 1,
+          "si": 4,
+          "titre": 4,
+          "two_per_line": 14,
+          "urine_only": 4,
+          "urine_section": 6
+        },
+        "per_family_M3": {
+          "G01": {
+            "ci_high": 0.5929581806433883,
+            "ci_low": 0.34019852912223775,
+            "den": 56,
+            "num": 26,
+            "value": 0.4642857142857143
+          },
+          "G02": {
+            "ci_high": 0.3241528623046228,
+            "ci_low": 0.14544607404671892,
+            "den": 81,
+            "num": 18,
+            "value": 0.2222222222222222
+          },
+          "G05": {
+            "ci_high": 0.7634069094874361,
+            "ci_low": 0.236593090512564,
+            "den": 10,
+            "num": 5,
+            "value": 0.5
+          },
+          "G06": {
+            "ci_high": 0.15744263820012558,
+            "ci_low": 0.005537860164003122,
+            "den": 32,
+            "num": 1,
+            "value": 0.03125
+          },
+          "G07": {
+            "ci_high": 0.11696979849974075,
+            "ci_low": 0.0,
+            "den": 29,
+            "num": 0,
+            "value": 0.0
+          },
+          "G08": {
+            "ci_high": 0.5840931402088065,
+            "ci_low": 0.3337260558309283,
+            "den": 57,
+            "num": 26,
+            "value": 0.45614035087719296
+          },
+          "G09": {
+            "ci_high": 0.8123836935173494,
+            "ci_low": 0.1876163064826506,
+            "den": 6,
+            "num": 3,
+            "value": 0.5
+          },
+          "G10": {
+            "ci_high": 0.5577076558789761,
+            "ci_low": 0.21532512960965597,
+            "den": 27,
+            "num": 10,
+            "value": 0.37037037037037035
+          },
+          "IN-A": {
+            "ci_high": 0.6761327874521665,
+            "ci_low": 0.4241321478993947,
+            "den": 56,
+            "num": 31,
+            "value": 0.5535714285714286
+          },
+          "IN-B": {
+            "ci_high": 0.7690134759450765,
+            "ci_low": 0.331785563988119,
+            "den": 16,
+            "num": 9,
+            "value": 0.5625
+          },
+          "IN-D": {
+            "ci_high": 0.16817922405261626,
+            "ci_low": 0.0,
+            "den": 19,
+            "num": 0,
+            "value": 0.0
+          },
+          "IN-E": {
+            "ci_high": 0.6057800106955886,
+            "ci_low": 0.4134801193402717,
+            "den": 100,
+            "num": 51,
+            "value": 0.51
+          },
+          "UK-A": {
+            "ci_high": 0.7500027423604485,
+            "ci_low": 0.4681404026715268,
+            "den": 42,
+            "num": 26,
+            "value": 0.6190476190476191
+          }
+        },
+        "pre_review_confusion": {
+          "abnormal>abnormal": 7,
+          "abnormal>unknown": 2,
+          "critical>critical": 4,
+          "critical>unknown": 1,
+          "normal>abnormal": 1,
+          "normal>critical": 1,
+          "normal>normal": 2,
+          "normal>unknown": 2
+        },
+        "precision": {
+          "ci_high": 0.9610430686258841,
+          "ci_low": 0.9170999671942476,
+          "den": 438,
+          "num": 413,
+          "value": 0.9429223744292238
+        },
+        "recall": {
+          "ci_high": 0.8475272654053674,
+          "ci_low": 0.7801188282257523,
+          "den": 506,
+          "num": 413,
+          "value": 0.8162055335968379
+        },
+        "review_actions": {
+          "accepted": 236,
+          "deleted": 18,
+          "edited": 177,
+          "kept_invented": 7,
+          "missing": 93
+        },
+        "review_all_jobs": 0,
+        "status": {
+          "ok": 20
+        },
+        "top_error_signatures": [
+          [
+            "range",
+            43
+          ],
+          [
+            "unit",
+            43
+          ],
+          [
+            "value+flag",
+            28
+          ],
+          [
+            "range+flag",
+            18
+          ],
+          [
+            "name",
+            14
+          ],
+          [
+            "value+range+flag",
+            11
+          ],
+          [
+            "unit+flag",
+            10
+          ],
+          [
+            "value",
+            6
+          ],
+          [
+            "name+unit",
+            5
+          ],
+          [
+            "unit+range+flag",
+            5
+          ],
+          [
+            "value+unit+flag",
+            5
+          ],
+          [
+            "name+unit+range+flag",
+            4
+          ],
+          [
+            "flag",
+            3
+          ],
+          [
+            "name+range+flag",
+            3
+          ],
+          [
+            "unit+range",
+            3
+          ],
+          [
+            "value+range",
+            3
+          ],
+          [
+            "name+value+unit+range+flag",
+            1
+          ],
+          [
+            "value+unit+range",
+            1
+          ],
+          [
+            "value+unit+range+flag",
+            1
+          ]
+        ]
+      }
+    }
+  },
+  "results": {
+    "test": {
+      "csv": {
+        "M1": {
+          "ci_high": 0.03562135437245191,
+          "ci_low": 0.0,
+          "den": 104,
+          "num": 0,
+          "pass": true,
+          "target": "<= 0.5%",
+          "value": 0.0
+        },
+        "M2": {
+          "ci_high": 1.0,
+          "ci_low": 0.5101091635454027,
+          "den": 4,
+          "num": 4,
+          "pass": true,
+          "target": "= 100%",
+          "value": 1.0
+        },
+        "M3": {
+          "ci_high": 0.9608893475692311,
+          "ci_low": 0.8568137681765711,
+          "den": 105,
+          "num": 97,
+          "pass": true,
+          "target": ">= 92%",
+          "value": 0.9238095238095239
+        },
+        "M4": {
+          "ci_high": 0.03562135437245191,
+          "ci_low": 0.0,
+          "den": 104,
+          "num": 0,
+          "pass": true,
+          "target": "<= 0.5%",
+          "value": 0.0
+        },
+        "M5": {
+          "ci_high": 1.0,
+          "ci_low": 0.5101091635454027,
+          "den": 4,
+          "num": 4,
+          "pass": true,
+          "target": ">= 98%",
+          "value": 1.0
+        },
+        "M6": {
+          "ci_high": null,
+          "ci_low": null,
+          "den": 0,
+          "num": 0,
+          "pass": null,
+          "target": ">= 90%",
+          "value": null
+        },
+        "M7": {
+          "ci_high": 0.20037199662310815,
+          "ci_low": 0.0738016422092698,
+          "den": 105,
+          "num": 13,
+          "pass": true,
+          "target": "<= 15%",
+          "value": 0.12380952380952381
+        },
+        "components": {
+          "M1": {
+            "invented": 0,
+            "omitted": 0,
+            "wrong": 0
+          }
+        },
+        "crashes": {},
+        "jobs": 4,
+        "legibility": {
+          "ci_high": 0.6128465081661129,
+          "ci_low": 0.42424497820417756,
+          "den": 104,
+          "num": 54,
+          "value": 0.5192307692307693
+        }
+      },
+      "native": {
+        "M1": {
+          "ci_high": 0.22263072321654895,
+          "ci_low": 0.18742696368288572,
+          "den": 2015,
+          "num": 412,
+          "pass": false,
+          "target": "<= 0.5%",
+          "value": 0.2044665012406948
+        },
+        "M2": {
+          "ci_high": 0.8624952233700517,
+          "ci_low": 0.5892954623327166,
+          "den": 36,
+          "num": 27,
+          "pass": false,
+          "target": "= 100%",
+          "value": 0.75
+        },
+        "M3": {
+          "ci_high": 0.5246438694601516,
+          "ci_low": 0.4839699831024425,
+          "den": 2318,
+          "num": 1169,
+          "pass": false,
+          "target": ">= 92%",
+          "value": 0.5043140638481449
+        },
+        "M4": {
+          "ci_high": 0.005093238811237933,
+          "ci_low": 0.0007722335709328351,
+          "den": 2015,
+          "num": 4,
+          "pass": true,
+          "target": "<= 0.5%",
+          "value": 0.0019851116625310174
+        },
+        "M5": {
+          "ci_high": 0.8972198094472776,
+          "ci_low": 0.729021253009869,
+          "den": 76,
+          "num": 63,
+          "pass": false,
+          "target": ">= 98%",
+          "value": 0.8289473684210527
+        },
+        "M6": {
+          "ci_high": 0.28328737570298945,
+          "ci_low": 0.01111934476464252,
+          "den": 16,
+          "num": 1,
+          "pass": false,
+          "target": ">= 90%",
+          "value": 0.0625
+        },
+        "M7": {
+          "ci_high": 0.4113657237163217,
+          "ci_low": 0.36866675812420785,
+          "den": 2001,
+          "num": 780,
+          "pass": false,
+          "target": "<= 15%",
+          "value": 0.38980509745127434
+        },
+        "components": {
+          "M1": {
+            "invented": 11,
+            "omitted": 317,
+            "wrong": 84
+          }
+        },
+        "crashes": {},
+        "jobs": 76,
+        "legibility": {
+          "ci_high": 1.0,
+          "ci_low": 0.9980971963876065,
+          "den": 2015,
+          "num": 2015,
+          "value": 1.0
+        }
+      },
+      "photo": {
+        "M1": {
+          "ci_high": 0.5020631662843514,
+          "ci_low": 0.41555828392656424,
+          "den": 506,
+          "num": 232,
+          "pass": false,
+          "target": "<= 1.5%",
+          "value": 0.45849802371541504
+        },
+        "M2": {
+          "ci_high": 0.8067396863412435,
+          "ci_low": 0.31951131254954973,
+          "den": 12,
+          "num": 7,
+          "pass": false,
+          "target": "= 100%",
+          "value": 0.5833333333333334
+        },
+        "M3": {
+          "ci_high": 0.2881291408137036,
+          "ci_low": 0.21620255178379172,
+          "den": 555,
+          "num": 139,
+          "pass": false,
+          "target": ">= 70%",
+          "value": 0.25045045045045045
+        },
+        "M4": {
+          "ci_high": 0.028277136675176888,
+          "ci_low": 0.00671699436697671,
+          "den": 506,
+          "num": 7,
+          "pass": false,
+          "target": "<= 0.5%",
+          "value": 0.01383399209486166
+        },
+        "M5": {
+          "ci_high": 0.8716828662282499,
+          "ci_low": 0.5897538017044264,
+          "den": 33,
+          "num": 25,
+          "pass": false,
+          "target": ">= 98%",
+          "value": 0.7575757575757576
+        },
+        "M6": {
+          "ci_high": 0.4041500267952385,
+          "ci_low": 0.017876213095072896,
+          "den": 10,
+          "num": 1,
+          "pass": null,
+          "target": "info",
+          "value": 0.1
+        },
+        "M7": {
+          "ci_high": 0.5264679827856549,
+          "ci_low": 0.4280592664478482,
+          "den": 392,
+          "num": 187,
+          "pass": null,
+          "target": "info",
+          "value": 0.4770408163265306
+        },
+        "components": {
+          "M1": {
+            "invented": 12,
+            "omitted": 158,
+            "wrong": 62
+          }
+        },
+        "crashes": {},
+        "jobs": 33,
+        "legibility": {
+          "ci_high": 0.9598022596855229,
+          "ci_low": 0.9189022713980446,
+          "den": 506,
+          "num": 477,
+          "value": 0.9426877470355731
+        }
+      },
+      "rot90": {
+        "M1": {
+          "ci_high": 0.4866533494866793,
+          "ci_low": 0.33134109612869495,
+          "den": 150,
+          "num": 61,
+          "pass": false,
+          "target": "<= 1.5%",
+          "value": 0.4066666666666667
+        },
+        "M2": {
+          "ci_high": 0.43448246478317476,
+          "ci_low": 0.0,
+          "den": 5,
+          "num": 0,
+          "pass": false,
+          "target": "= 100%",
+          "value": 0.0
+        },
+        "M3": {
+          "ci_high": 0.024032931437414938,
+          "ci_low": 0.0,
+          "den": 156,
+          "num": 0,
+          "pass": false,
+          "target": ">= 80%",
+          "value": 0.0
+        },
+        "M4": {
+          "ci_high": 0.0249702443680766,
+          "ci_low": 1.734723475976807e-18,
+          "den": 150,
+          "num": 0,
+          "pass": true,
+          "target": "<= 0.5%",
+          "value": 0.0
+        },
+        "M5": {
+          "ci_high": 0.4898908364545973,
+          "ci_low": 0.0,
+          "den": 4,
+          "num": 0,
+          "pass": false,
+          "target": ">= 98%",
+          "value": 0.0
+        },
+        "M6": {
+          "ci_high": null,
+          "ci_low": null,
+          "den": 0,
+          "num": 0,
+          "pass": null,
+          "target": "info",
+          "value": null
+        },
+        "M7": {
+          "ci_high": 1.0,
+          "ci_low": 0.6096657120978346,
+          "den": 6,
+          "num": 6,
+          "pass": null,
+          "target": "info",
+          "value": 1.0
+        },
+        "components": {
+          "M1": {
+            "invented": 0,
+            "omitted": 61,
+            "wrong": 0
+          }
+        },
+        "crashes": {},
+        "jobs": 4,
+        "legibility": {
+          "ci_high": 0.7615299568333848,
+          "ci_low": 0.6154815486776256,
+          "den": 150,
+          "num": 104,
+          "value": 0.6933333333333334
+        }
+      },
+      "scan": {
+        "M1": {
+          "ci_high": 0.3233651718491037,
+          "ci_low": 0.24512813877950163,
+          "den": 506,
+          "num": 143,
+          "pass": false,
+          "target": "<= 1.5%",
+          "value": 0.2826086956521739
+        },
+        "M2": {
+          "ci_high": 0.9851349055950829,
+          "ci_low": 0.646120088858883,
+          "den": 12,
+          "num": 11,
+          "pass": false,
+          "target": "= 100%",
+          "value": 0.9166666666666666
+        },
+        "M3": {
+          "ci_high": 0.43005671431632897,
+          "ci_low": 0.3474474450239161,
+          "den": 531,
+          "num": 206,
+          "pass": false,
+          "target": ">= 80%",
+          "value": 0.3879472693032015
+        },
+        "M4": {
+          "ci_high": 0.017284627066157562,
+          "ci_low": 0.002018351635218041,
+          "den": 506,
+          "num": 3,
+          "pass": false,
+          "target": "<= 0.5%",
+          "value": 0.005928853754940711
+        },
+        "M5": {
+          "ci_high": 0.9476312541037835,
+          "ci_low": 0.6395811352592431,
+          "den": 20,
+          "num": 17,
+          "pass": false,
+          "target": ">= 98%",
+          "value": 0.85
+        },
+        "M6": {
+          "ci_high": 0.6993581574175981,
+          "ci_low": 0.04558726080970055,
+          "den": 4,
+          "num": 1,
+          "pass": null,
+          "target": "info",
+          "value": 0.25
+        },
+        "M7": {
+          "ci_high": 0.49202487349002266,
+          "ci_low": 0.3993388746559404,
+          "den": 438,
+          "num": 195,
+          "pass": null,
+          "target": "info",
+          "value": 0.4452054794520548
+        },
+        "components": {
+          "M1": {
+            "invented": 7,
+            "omitted": 93,
+            "wrong": 43
+          }
+        },
+        "crashes": {},
+        "jobs": 20,
+        "legibility": {
+          "ci_high": 0.9531878449953445,
+          "ci_low": 0.9098255337474451,
+          "den": 506,
+          "num": 473,
+          "value": 0.9347826086956522
+        }
+      }
+    }
+  },
+  "run": {
+    "adapter": {
+      "name": "pipeline_v0",
+      "version": "1"
+    },
+    "gate_mode": "baseline",
+    "git_sha": "7e92aebc5fcb787340d142220b63c271e2e7736c",
+    "profile": "ci",
+    "renderings": [
+      "native",
+      "csv",
+      "scan",
+      "photo",
+      "rot90"
+    ],
+    "samples": {
+      "first": null,
+      "fractions": {
+        "csv": 1.0,
+        "native": 1.0,
+        "photo": 0.25,
+        "rot90": 1.0,
+        "scan": 0.25
+      }
+    },
+    "scorer": {
+      "name": "engine_floor_v0",
+      "version": "1"
+    },
+    "splits": [
+      "test"
+    ]
+  },
+  "schema": "vaidya-eval-metrics/1"
+}
