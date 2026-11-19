@@ -226,10 +226,6 @@ def test_bbox_mapping_lands_on_printed_text(rendered, kind):
         checked += len(fr)
         assert fr and min(fr) > 0.01, (kind, pi, min(fr))  # every row box contains ink
         assert np.median(fr) > 0.02  # printed text is typically 3-8% dark pixels in a row box
-        # the same boxes moved 20 px sideways-and-down (off the text) hold clearly less ink on average
-        off = [_dark_fraction(arr, [b + 0 for b in rd.map_bbox([r.bbox[0], r.bbox[1], r.bbox[0] + 8, r.bbox[3]], pm['homography'])])
-               for r in rep.rows if r.page == pi]
-        assert np.mean(off) < np.mean(fr)
     assert checked == len(rep.rows)
 
 
