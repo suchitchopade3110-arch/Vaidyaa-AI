@@ -158,3 +158,229 @@ def test_gt_side_imports_nothing_from_app():
                 if m.split(".")[0] in ("app", "clinical_reference") or m.startswith("tools.eval.adapters"):
                     bad.append((name, m))
     assert not bad
+
+
+# ======================================================================== T03: GT derivation rules
+from tools.eval import clinical as cl  # noqa: E402
+from tools.eval.clinical import OptionRange as Opt  # noqa: E402
+from tools.eval.clinical import PrintedRange as PR  # noqa: E402
+
+
+def rng(lo=None, hi=None):
+    kind = "two_sided" if lo is not None and hi is not None else "lower" if lo is not None else "upper"
+    return PR(kind, lo, hi)
+
+
+FLAG_CASES = [
+    ("potassium", 6.8, "mmol/L", rng(3.5, 5.1), "CRITICAL_HIGH", True),  # CL-01
+    ("potassium", 5.6, "mmol/L", rng(3.5, 5.1), "HIGH", False),  # CL-02
+    ("potassium", 2.3, "mmol/L", rng(3.5, 5.1), "CRITICAL_LOW", True),  # CL-03
+    ("potassium", 3.2, "mmol/L", rng(3.5, 5.1), "LOW", False),
+    ("sodium", 116, "mmol/L", rng(135, 145), "CRITICAL_LOW", True),  # CL-04
+    ("sodium", 129, "mmol/L", rng(135, 145), "LOW", False),
+    ("sodium", 150, "mmol/L", rng(135, 145), "HIGH", False),
+    ("sodium", 163, "mmol/L", rng(135, 145), "CRITICAL_HIGH", True),
+    ("glucose_fasting", 36, "mg/dL", rng(70, 100), "CRITICAL_LOW", True),  # CL-05
+    ("glucose_fasting", 2.0, "mmol/L", rng(3.9, 5.6), "CRITICAL_LOW", True),
+    ("glucose_fasting", 560, "mg/dL", rng(70, 100), "CRITICAL_HIGH", True),
+    ("glucose_fasting", 31.5, "mmol/L", rng(3.9, 5.6), "CRITICAL_HIGH", True),
+    ("glucose_pp", 268, "mg/dL", rng(hi=140), "HIGH", False),
+    ("glucose_random", 290, "mg/dL", rng(70, 140), "HIGH", False),
+    ("hemoglobin", 5.8, "g/dL", rng(12.0, 15.5), "CRITICAL_LOW", True),  # CL-08
+    ("hemoglobin", 58, "g/L", rng(120, 155), "CRITICAL_LOW", True),
+    ("hemoglobin", 9.0, "g/dL", rng(12.0, 15.5), "LOW", False),
+    ("hemoglobin", 21.6, "g/dL", rng(13.0, 17.0), "CRITICAL_HIGH", True),
+    ("platelets", 14000, "/µL", rng(150000, 450000), "CRITICAL_LOW", True),  # CL-09
+    ("platelets", 14, "10^3/µL", rng(150, 450), "CRITICAL_LOW", True),
+    ("platelets", 0.14, "lakh/cumm", rng(1.5, 4.5), "CRITICAL_LOW", True),
+    ("platelets", 60, "10^3/µL", rng(150, 450), "LOW", False),
+    ("platelets", 1200, "10^3/µL", rng(150, 450), "CRITICAL_HIGH", True),
+    ("wbc", 0.8, "10^3/µL", rng(4, 11), "CRITICAL_LOW", True),  # CL-10
+    ("wbc", 55, "10^3/µL", rng(4, 11), "CRITICAL_HIGH", True),
+    ("wbc", 25, "10^3/µL", rng(4, 11), "HIGH", False),
+    ("wbc", 7.2, "10^3/µL", rng(4.0, 11.0), "NORMAL", False),
+    ("neutrophils_abs", 0.3, "10^3/µL", rng(2.0, 7.0), "CRITICAL_LOW", True),  # CL-11
+    ("neutrophils_abs", 1.4, "10^3/µL", rng(2.0, 7.0), "LOW", False),
+    ("calcium", 5.8, "mg/dL", rng(8.5, 10.5), "CRITICAL_LOW", True),  # CL-12
+    ("calcium", 1.40, "mmol/L", rng(2.12, 2.62), "CRITICAL_LOW", True),
+    ("calcium", 14.0, "mg/dL", rng(8.5, 10.5), "CRITICAL_HIGH", True),
+    ("calcium", 11.2, "mg/dL", rng(8.5, 10.5), "HIGH", False),
+    ("ionized_calcium", 0.70, "mmol/L", rng(1.12, 1.32), "CRITICAL_LOW", True),  # CL-13
+    ("magnesium", 0.8, "mg/dL", rng(1.7, 2.4), "CRITICAL_LOW", True),
+    ("magnesium", 0.30, "mmol/L", rng(0.7, 1.0), "CRITICAL_LOW", True),
+    ("phosphorus", 0.8, "mg/dL", rng(2.5, 4.5), "CRITICAL_LOW", True),
+    ("inr", 6.2, "", rng(0.8, 1.2), "CRITICAL_HIGH", True),  # CL-14
+    ("inr", 2.8, "", rng(0.8, 1.2), "HIGH", False),
+    ("blood_ph", 7.10, "", rng(7.35, 7.45), "CRITICAL_LOW", True),  # CL-15
+    ("blood_ph", 7.68, "", rng(7.35, 7.45), "CRITICAL_HIGH", True),
+    ("pco2", 72, "mmHg", rng(35, 45), "CRITICAL_HIGH", True),
+    ("po2", 38, "mmHg", rng(80, 100), "CRITICAL_LOW", True),
+    ("bicarbonate", 8, "mmol/L", rng(22, 29), "CRITICAL_LOW", True),
+    ("creatinine", 11.2, "mg/dL", rng(0.7, 1.3), "CRITICAL_HIGH", True),  # CL-16
+    ("creatinine", 3.8, "mg/dL", rng(0.7, 1.3), "HIGH", False),
+    ("creatinine", 990, "µmol/L", rng(62, 115), "CRITICAL_HIGH", True),
+    ("hs_troponin_t", 250, "ng/L", rng(hi=14), "CRITICAL_HIGH", True),  # CL-17
+    ("troponin_i", 0.01, "ng/mL", rng(hi=0.04), "NORMAL", False),
+]
+
+
+@pytest.mark.parametrize("key,value,unit,printed,flag,crit", FLAG_CASES)
+def test_cl01_17_flags(key, value, unit, printed, flag, crit):
+    t = cl.derive_row(key, value=value, unit=unit, printed_range=printed, input_sex="F", input_age=40)
+    assert t.flag == flag and t.flag_true == flag
+    assert t.is_critical is crit
+    assert not t.ambiguity
+
+
+def test_cl06_urine_rows_never_critical():  # S5 (N3)
+    t = cl.derive_row("urine_sodium", value=38, unit="mmol/L", printed_range=rng(40, 220))
+    assert (t.flag, t.is_critical) == ("LOW", False)
+    assert cl.derive_row("urine_potassium", value=42, unit="mmol/L", printed_range=rng(25, 125)).flag == "NORMAL"
+    t = cl.derive_row("urine_creatinine", value=88, unit="mg/dL", printed_range=rng(39, 259), input_sex="M")
+    assert (t.flag, t.is_critical) == ("NORMAL", False)
+    # urine glucose quantitative variant: 1000 mg/dL against "< 15" -> HIGH (not critical, blood-only rule)
+    assert ct.critical_direction("glucose_fasting", 1000.0, "urine") is None
+
+
+def test_cl07_csf_rows_never_critical():
+    t = cl.derive_row("csf_glucose", value=28, unit="mg/dL", printed_range=rng(40, 70))
+    assert (t.flag, t.is_critical) == ("LOW", False)
+    t = cl.derive_row("csf_protein", value=120, unit="mg/dL", printed_range=rng(15, 45))
+    assert (t.flag, t.is_critical) == ("HIGH", False)
+    t = cl.derive_row("csf_neutrophils_pct", value=80, unit="%", text_value="80")
+    assert (t.flag, t.is_critical) == ("INFO", False)
+
+
+SEX_OPTS = PR("sex", options=(Opt("M", 13.5, 17.5, sex="M"), Opt("F", 12.0, 15.5, sex="F")), text="M: 13.5-17.5 F: 12.0-15.5")
+
+
+def test_cl19_sex_ranges_without_sex():
+    t = cl.derive_row("hemoglobin", value=13.0, unit="g/dL", printed_range=SEX_OPTS, true_sex="M", true_age=40)
+    assert t.flag == "UNKNOWN" and t.ambiguity == ["AMB_SEX_RANGES_NO_SEX"] and t.expected_needs_review
+    assert t.flag_true == "LOW"
+    t = cl.derive_row("hemoglobin", value=13.0, unit="g/dL", printed_range=SEX_OPTS, true_sex="F", true_age=40)
+    assert t.flag == "UNKNOWN" and t.flag_true == "NORMAL"
+    t = cl.derive_row("hemoglobin", value=10.5, unit="g/dL", printed_range=SEX_OPTS, true_sex="F", true_age=40)
+    assert t.flag == "LOW" and not t.ambiguity and t.flag_true == "LOW"
+    # sex known: the matching option applies
+    t = cl.derive_row("hemoglobin", value=13.0, unit="g/dL", printed_range=SEX_OPTS, input_sex="F", true_sex="F")
+    assert t.flag == "NORMAL" and not t.ambiguity
+
+
+def test_age_labelled_ranges_without_age():
+    opts = PR("age", options=(Opt("Adult", 12.0, 15.5, age_min=18), Opt("Child", 11.0, 14.0, age_min=0, age_max=17)))
+    t = cl.derive_row("hemoglobin", value=11.5, unit="g/dL", printed_range=opts, true_age=40, true_sex="F")
+    assert t.flag == "UNKNOWN" and t.ambiguity == ["AMB_AGE_RANGES_NO_AGE"] and t.flag_true == "LOW"
+    t = cl.derive_row("hemoglobin", value=11.5, unit="g/dL", printed_range=opts, input_age=8, true_age=8, true_sex="F")
+    assert t.flag == "NORMAL"
+
+
+def test_cl20_paediatric_printed_range_wins():
+    t = cl.derive_row("hemoglobin", value=11.8, unit="g/dL", printed_range=rng(11.5, 15.5), input_age=6, input_sex="F")
+    assert t.flag == "NORMAL" and t.flag_true == "NORMAL"
+    # against the adult female range the same value would be LOW
+    assert cl.derive_row("hemoglobin", value=11.8, unit="g/dL", printed_range=rng(12.0, 15.5)).flag == "LOW"
+
+
+def test_cl21_interpretive_only_hba1c():
+    t = cl.derive_row("hba1c", value=7.8, unit="%", printed_range=PR("interpretive", text="ADA category table"),
+                      input_sex="F", input_age=50, true_sex="F", true_age=50)
+    assert t.effective_range_page is None
+    assert t.flag == "HIGH" and t.flag_true == "HIGH" and not t.ambiguity
+
+
+def test_cl22_one_sided_with_printed_flag():
+    t = cl.derive_row("hba1c", value=7.8, unit="%", printed_range=rng(hi=5.7), printed_flag="H")
+    assert t.flag == "HIGH" and not t.ambiguity
+
+
+def test_cl23_titres():
+    t = cl.derive_row("widal_o", text_value="1:160", titre_cutoff=160)
+    assert (t.flag, t.flag_true, t.ambiguity) == ("POSITIVE", "POSITIVE", [])
+    t = cl.derive_row("widal_h", text_value="1:40")
+    assert t.flag == "UNKNOWN" and t.ambiguity == ["AMB_TITRE_NO_CUTOFF"] and t.flag_true == "NEGATIVE"
+
+
+def test_cl24_qualitative_and_info():
+    assert cl.derive_row("hiv_screen", text_value="Non-Reactive").flag == "NEGATIVE"
+    t = cl.derive_row("hbsag", text_value="Reactive")
+    assert (t.flag, t.is_critical) == ("POSITIVE", False)
+    assert cl.derive_row("blood_group_abo", text_value="B Positive").flag == "INFO"
+
+
+def test_cl25_qualifiers():
+    assert cl.derive_row("tsh", value=0.01, qualifier="<", unit="uIU/mL", printed_range=rng(0.4, 4.0)).flag == "LOW"
+    assert cl.derive_row("ferritin", value=1650, qualifier=">", unit="ng/mL", printed_range=rng(11, 307)).flag == "HIGH"
+    assert cl.derive_row("crp", value=5, qualifier="<", unit="mg/L", printed_range=rng(0, 6)).flag == "NORMAL"
+
+
+def test_cl26_printed_flag_conflict():
+    t = cl.derive_row("potassium", value=4.2, unit="mmol/L", printed_range=rng(3.5, 5.1), printed_flag="H")
+    assert t.flag == "NORMAL" and t.ambiguity == ["AMB_PRINTED_FLAG_CONFLICT"] and t.expected_needs_review
+
+
+def test_cl27_unitless_counts():
+    t = cl.derive_row("wbc", value=7.2, unit="", unit_true="10^3/µL", printed_range=PR())
+    assert t.flag == "UNKNOWN" and "AMB_UNITLESS_COUNT" in t.ambiguity and t.flag_true == "NORMAL"
+    t = cl.derive_row("wbc", value=0.8, unit="", unit_true="10^3/µL", printed_range=PR())
+    assert t.flag == "UNKNOWN" and t.flag_true == "CRITICAL_LOW" and t.is_critical
+    t = cl.derive_row("wbc", value=7.2, unit="x10^3/uL", unit_true="10^3/µL", printed_range=PR())
+    assert t.flag == "NORMAL" and not t.ambiguity
+
+
+def test_cl28_headlines():
+    def h(*rows):
+        return cl.headline([(r.is_critical, r.flag_true) for r in rows])
+
+    k = cl.derive_row("potassium", value=6.8, unit="mmol/L", printed_range=rng(3.5, 5.1))
+    alt = cl.derive_row("alt", value=85, unit="U/L", printed_range=rng(7, 56))
+    ok = cl.derive_row("sodium", value=140, unit="mmol/L", printed_range=rng(135, 145))
+    una = cl.derive_row("urine_sodium", value=38, unit="mmol/L", printed_range=rng(40, 220))
+    hbs = cl.derive_row("hbsag", text_value="Reactive")
+    amb = cl.derive_row("hemoglobin", value=13.0, unit="g/dL", printed_range=SEX_OPTS, true_sex="F")
+    assert h(k) == "critical"
+    assert h(alt) == "abnormal"
+    assert h(ok, ok) == "normal"
+    assert h(una) == "abnormal"
+    assert h(hbs) == "abnormal"
+    assert h(amb) == "normal"
+
+
+def test_cl29_urine_qualitatives():
+    assert cl.derive_row("urine_protein", text_value="Trace").flag == "POSITIVE"
+    assert cl.derive_row("urine_protein", text_value="Nil").flag == "NEGATIVE"
+    assert cl.derive_row("urine_urobilinogen", text_value="Normal").flag == "NEGATIVE"
+    assert cl.derive_row("urine_protein", text_value="2+").flag == "POSITIVE"
+
+
+def test_range_absent_sex_dependent_no_sex():
+    # Hb 7.0 with no printed range and unknown sex: low for both sexes -> determinable
+    t = cl.derive_row("hemoglobin", value=9.0, unit="g/dL", printed_range=PR(), true_sex="M", true_age=40)
+    assert t.flag == "LOW" and not t.ambiguity
+    t = cl.derive_row("hemoglobin", value=12.5, unit="g/dL", printed_range=PR(), true_sex="F", true_age=40)
+    assert t.flag == "UNKNOWN" and t.ambiguity == ["AMB_NO_RANGE_NO_DEMOGRAPHICS"] and t.flag_true == "NORMAL"
+
+
+def test_unlabelled_multivalue():
+    t = cl.derive_row("potassium", value=4.2, unit="mmol/L", printed_range=rng(3.5, 5.1), unlabelled_multivalue=True)
+    assert t.flag == "UNKNOWN" and t.ambiguity == ["AMB_UNLABELLED_MULTIVALUE"] and t.flag_true == "NORMAL"
+
+
+def test_ckd_epi_2021_hand_values():
+    assert cl.ckd_epi_2021(1.0, 50, "F") == pytest.approx(68.6, abs=0.3)
+    assert cl.ckd_epi_2021(1.0, 60, "M") == pytest.approx(86.2, abs=0.3)
+
+
+def test_oracle_scorer():
+    from types import SimpleNamespace as NS
+
+    rows = [NS(analyte_key="potassium", value_num=6.8, unit_raw="mmol/L", ref_low=3.5, ref_high=5.1, qualifier=None,
+               text_value=None, specimen="serum"),
+            NS(analyte_key="sodium", value_num=140, unit_raw="mmol/L", ref_low=135, ref_high=145, qualifier=None,
+               text_value=None, specimen="serum")]
+    s = cl.ClinicalRulesScorer().score(rows, "F", 40)
+    assert s.headline == "critical" and s.row_flags == ["CRITICAL_HIGH", "NORMAL"]
+    assert cl.ClinicalRulesScorer().score(rows[1:], None, None).headline == "normal"
+    unk = [NS(analyte_key=None, value_num=1, unit_raw="", ref_low=None, ref_high=None, qualifier=None, text_value=None,
+              specimen="serum")]
+    assert cl.ClinicalRulesScorer().score(unk, None, None).headline == "unknown"
