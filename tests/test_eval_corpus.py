@@ -219,6 +219,32 @@ def test_gn14_every_gt_validates(test_split):
     assert n_rows > 1500
 
 
+def test_oracle_reproduces_every_gt_headline(test_split):
+    """Plan 6.8 self-consistency check (T16, zoro): ``ClinicalRulesScorer`` on the GT true rows of every job scope
+    (whole report, and each page for photo jobs) must reproduce the GT headline. ``generate --verify`` does not run
+    it yet (adding it there moves every split fingerprint), so it is enforced here on the whole test split."""
+    import json
+
+    from tools.eval import clinical
+    from tools.eval import metrics as me
+    from tools.eval import review_sim as rs
+
+    root, man, _ = test_split
+    oracle = clinical.ClinicalRulesScorer()
+    bad, scopes = [], 0
+    for ent in man["reports"]:
+        gt = json.loads((root / "test" / ent["files"]["gt"]["path"]).read_text(encoding="utf-8"))
+        sex, age = gt["patient"]["input_sex"], gt["patient"]["input_age"]
+        for pages in [()] + [(n,) for n in sorted({r["page"] for r in gt["rows"]})]:
+            rows = me.scope_rows(gt, pages)
+            want = me.gt_headline(gt, rows, pages)
+            got = oracle.score(rs.corrected_rows(rows), sex, age).headline
+            scopes += 1
+            if got != want:
+                bad.append((ent["id"], pages, want, got))
+    assert scopes > 80 and bad == []
+
+
 def test_manifest_shape_and_lazy_skip(test_split):
     root, man, stats = test_split
     assert stats.built == 80 and stats.skipped == 0
