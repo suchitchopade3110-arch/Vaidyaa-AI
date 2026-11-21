@@ -221,7 +221,10 @@ def _decoy_kind(e: Any, decoys: Sequence[Any]) -> str:
 
 
 def _legible(g: Any, raw_tokens: Sequence[str]) -> bool:
-    return mt.contains_tokens(raw_tokens, mt.tokens(field(g, "value_text")))
+    """GT ``value_text`` found as a token run in the text the pipeline saw, numbers compared in normal form (a value
+    printed "37.0" or "12,2" (decimal comma) is legible as "37" or "12.2", which is how the pipeline's structured-CSV
+    text writes it; P1 review LOW-4)."""
+    return mt.contains_tokens(raw_tokens, mt.legible_value_tokens(g))
 
 
 def job_record(job: Any, gt: Mapping[str, Any], extraction: Any, scorer: Any, *, oracle_scorer: Any = None,
@@ -337,7 +340,7 @@ def job_record(job: Any, gt: Mapping[str, Any], extraction: Any, scorer: Any, *,
     c["amb_rows"] = len(amb)
     c["amb_flagged"] = sum(1 for gi in amb if gi in e_of and _flagged(E[e_of[gi]]))
     raw_text = field(extraction, "raw_text")
-    raw_tokens = mt.csv_tokens(raw_text) if str(field(job, "rendering")) == "csv" else mt.tokens(raw_text)
+    raw_tokens = mt.legibility_tokens(raw_text, delimited=str(field(job, "rendering")) == "csv")
     c["legible"] = sum(1 for g in G if _legible(g, raw_tokens))
     decoys = [d for d in gt.get("decoys") or [] if not pages or int(field(d, "page") or 0) in set(pages)]
     for ei in a.unmatched_ext:

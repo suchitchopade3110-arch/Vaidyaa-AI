@@ -93,6 +93,36 @@ def csv_tokens(text: Any) -> list[str]:
     return out
 
 
+_PLAIN_NUMBER_TOKEN = re.compile(r"^\d+(?:\.\d+)?$")
+
+
+def number_form(tok: str) -> str:
+    """A plain decimal token in normal form ("37.0" -> "37", "4.20" -> "4.2"); any other token unchanged.
+
+    Used by the legibility diagnostic only: a value the pipeline saw as "37" is legible when the page printed "37.0".
+    Digit-grouped tokens ("2,50,000") are left as they are."""
+    if not _PLAIN_NUMBER_TOKEN.match(tok):
+        return tok
+    whole, _, frac = tok.partition(".")
+    whole = whole.lstrip("0") or "0"
+    frac = frac.rstrip("0")
+    return f"{whole}.{frac}" if frac else whole
+
+
+def legibility_tokens(text: Any, *, delimited: bool = False) -> list[str]:
+    """Tokens of the text the pipeline saw, numbers in normal form (``delimited``: split CSV fields first)."""
+    return [number_form(t) for t in (csv_tokens(text) if delimited else tokens(text))]
+
+
+def legible_value_tokens(g: Any) -> list[str]:
+    """The GT value as legibility tokens. A decimal-comma CSV value ("12,2") is the number 12.2: the pipeline's
+    structured-CSV text writes it with a point (P1 review LOW-4)."""
+    text = str(field(g, "value_text") or "")
+    if "decimal_comma" in (field(g, "features") or ()):
+        text = text.replace(",", ".")
+    return [number_form(t) for t in tokens(text)]
+
+
 def name_tokens(text: Any) -> frozenset[str]:
     """Name tokens without the noise words. A name made only of noise words (urine "Blood") keeps its tokens;
     otherwise it could never be matched or covered at all."""
@@ -500,7 +530,8 @@ def align(gt_rows: Sequence[Any], extracted: Sequence[Any], unread: Sequence[Any
 
 __all__ = [
     "Alignment", "CRITICAL_FLAGS", "UNREAD_LINE_MAX_ROWS", "FIELDS", "FieldCheck", "NOISE_TOKENS", "Pair", "align",
-    "canonical_equal", "compare", "contains_tokens", "covers", "csv_tokens", "field", "flag_ok", "jaccard", "name_jaccard", "name_ok", "name_rule",
+    "canonical_equal", "compare", "contains_tokens", "covers", "csv_tokens", "legibility_tokens", "legible_value_tokens",
+    "number_form", "field", "flag_ok", "jaccard", "name_jaccard", "name_ok", "name_rule",
     "name_tokens", "norm_qualifier", "numbers_equal", "parse_number", "parse_value_text", "qualitative_equal",
     "qualitative_grade", "range_ok", "result_bounds", "titre_value", "tokens", "unit_ok", "value_cost", "value_ok",
 ]

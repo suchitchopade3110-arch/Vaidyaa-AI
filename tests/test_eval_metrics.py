@@ -562,3 +562,24 @@ def test_low4_csv_legibility_reads_comma_delimited_fields_one_by_one():
     # a semicolon file with decimal commas keeps "12,2" whole
     assert m.csv_tokens("Parameter;Value;Unit\nHaemoglobin;12,2;g/dL\n") == [
         "parameter", "value", "unit", "hemoglobin", "12,2", "g", "dl"]
+
+
+def test_low4_csv_legibility_reads_the_pipelines_structured_text_numerically():
+    """What the pipeline actually saw for a GEN-CSV job is its structured text, not the file: decimal commas become
+    points and trailing zeros go ("#structured-lab-csv v1 / Haemoglobin 12.2 g/dL 11.5-15.5 / Hematocrit 37 % 35-45").
+    The page printed "12,2" (decimal-comma dialect) and "37.0"; both values were seen, so both are legible. A value
+    the text does not hold ("44.0" for MCV) is not."""
+    hb = dict(gt_row("hemoglobin", 12.2, "g/dL", 11.5, 15.5, value_text="12,2"), features=["decimal_comma"])
+    hct = dict(gt_row("hematocrit", 37.0, "%", 35, 45, value_text="37,0"), features=["decimal_comma"])
+    mcv = gt_row("mcv", 44.0, "fL", 80, 100, value_text="44.0")
+    gt = report([hb, hct, mcv])
+    raw = "#structured-lab-csv v1\nHaemoglobin 12.2 g/dL 11.5-15.5\nHematocrit 37 % 35-45\nMCV 88 fL 80-100\n"
+    rec = record(gt, extraction(perfect(gt["rows"]), raw_text=raw), job(rendering="csv"))
+    assert nd(me.cell_results(rec.counts), "legibility") == (2, 3)
+    # the plain value printed "4.20" and read "4.2" is the same number; "42" is not
+    k = gt_row("potassium", 4.2, "mmol/L", 3.5, 5.1, value_text="4.20")
+    kgt = report([k])
+    seen = record(kgt, extraction(perfect(kgt["rows"]), raw_text="Potassium 4.2 mmol/L"), job())
+    misread = record(kgt, extraction(perfect(kgt["rows"]), raw_text="Potassium 42 mmol/L"), job())
+    assert nd(me.cell_results(seen.counts), "legibility") == (1, 1)
+    assert nd(me.cell_results(misread.counts), "legibility") == (0, 1)
