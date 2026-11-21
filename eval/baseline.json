@@ -1392,11 +1392,11 @@
         "crashes": {},
         "jobs": 4,
         "legibility": {
-          "ci_high": 0.6128465081661129,
-          "ci_low": 0.42424497820417756,
+          "ci_high": 0.9999999999999999,
+          "ci_low": 0.9643786456275479,
           "den": 104,
-          "num": 54,
-          "value": 0.5192307692307693
+          "num": 104,
+          "value": 1.0
         }
       },
       "native": {
@@ -1572,11 +1572,11 @@
         "crashes": {},
         "jobs": 33,
         "legibility": {
-          "ci_high": 0.9486875639306956,
-          "ci_low": 0.9055741799822895,
+          "ci_high": 0.9533781801622263,
+          "ci_low": 0.9118356373906689,
           "den": 544,
-          "num": 506,
-          "value": 0.9301470588235294
+          "num": 509,
+          "value": 0.9356617647058824
         }
       },
       "rot90": {
@@ -1662,11 +1662,11 @@
         "crashes": {},
         "jobs": 4,
         "legibility": {
-          "ci_high": 0.8222819808700167,
-          "ci_low": 0.6849207692776874,
+          "ci_high": 0.8402505520191177,
+          "ci_low": 0.7069945205086683,
           "den": 146,
-          "num": 111,
-          "value": 0.7602739726027398
+          "num": 114,
+          "value": 0.7808219178082192
         }
       },
       "scan": {
@@ -1767,16 +1767,16 @@
       "version": "1"
     },
     "gate_mode": "baseline",
-    "git_sha": "7f92c5485b309be9594ac51aa3de8482271acadb",
+    "git_sha": "b40a3a5a9218d81202cd218a1462d6ee79f78ea0",
     "judge": {
-      "digest": "d0870d9f23d96c777e5814bfe9bf9f50e586d66dc8e21685ada01c90994213aa",
+      "digest": "f94923b006105f93503e0da66d557e79ecd359cc4606045bb6027ab0b88f6bf0",
       "modules": {
         "tools/eval/adapters/__init__.py": "62ef1458b40d0eccddda4b2058f3a3cb40ca875c279e435edc8a7f51fc499123",
         "tools/eval/adapters/base.py": "1ab028b4b572e7378f7a89750f1fa836eb01c5864679cf47b140705e2703c4f8",
         "tools/eval/adapters/pipeline_v0.py": "11d38107a7fe42f99a880154e72ec2325ebff38b5110d94fa9bf362a242e660c",
         "tools/eval/gate.py": "25fec54651f8159c7acd578d86e36ec97deda9181fd2602425ec7db62b3d2fff",
-        "tools/eval/match.py": "77a2fcc2921dc4b08ad48a1d5497002c3cfdc64b5e2ff714f2d864bc46a19186",
-        "tools/eval/metrics.py": "0c83177e341e2a9418aa8cf78e125d89354ef5833bc89f0b500f9bff116ac7af",
+        "tools/eval/match.py": "7f47f438cbe7cd6184dbec2d16dbc12c8cb3eb6ac1ec4d63ea95e96ff0960d6d",
+        "tools/eval/metrics.py": "1c9ab4fdf2ea0e617bc5ecf609f9019e8444bff4f48f89b79a9463fa515747a7",
         "tools/eval/ocr_cache.py": "db60ac14a63b0848e606276219c96b2e483e6acf1b2e01186d47f1783e87aeb2",
         "tools/eval/review_sim.py": "6aedd2d9dcfa6be8d8446312246d72a65f81283c38c8b5df92dc5196cdd5b07b",
         "tools/eval/run.py": "5204ffa1178e8131346a871da3ebda0d8b070951ec0cb40108d6a1161a99ef72",
