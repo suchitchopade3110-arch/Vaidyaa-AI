@@ -22,13 +22,13 @@ something is enforced just because a file with the right name exists.
   `require_job_owner`; `websocket_routes.py`'s `/ws/{job_id}` does the
   same check manually (it can't use `Depends(get_current_user)` — the
   token arrives as a query param, not a header).
-- **Known gap, not covered:** `images.py`'s `/image/{analysis_id}` route
-  is keyed by an `ImageAnalysis` row PK, not a Celery task_id, and that
-  table has no `user_id` column. Needs its own fix — see the TODO on that
-  route.
-- **Integration test still needed:** the acceptance criteria calls for
-  "user A submits a job, user B requests it by ID, receives 404" as an
-  automated test. Not added in this pass — `tests/` wasn't touched.
+- The old `/analyze/image/image/{analysis_id}` route (keyed by an
+  `ImageAnalysis` PK with no owner column) was removed: it crashed on every
+  call (its `ImageService` imported schemas that no longer exist) and
+  nothing writes `image_analyses` rows on the live path. Image results are
+  read through the owner-checked `/analyze/image/{task_id}`.
+- Covered by tests: `tests/test_pipelines.py` (user B gets 404 on user A's
+  claim/report/image job) and `tests/test_security_api.py`.
 
 ## SEC-02 — close unauthenticated endpoints — **DONE**
 
@@ -40,11 +40,28 @@ something is enforced just because a file with the right name exists.
 - **Not done:** accepting the WS token via Sec-WebSocket-Protocol as a
   fallback to the query param — TODO in `websocket_routes.py`.
 
-## SEC-03 — job listing (Phase 2, not built here)
+## SEC-03 — job listing — **DONE**
 
-Noted only because SEC-01 unblocks it: `app/api/v1/routes/jobs.py`'s
-`list_recent_jobs` still hardcodes `[]`; a TODO there points at
-`AsyncJobRecord` as the read path once SEC-01's write side exists.
+`GET /api/v1/jobs?limit=&offset=` returns `{jobs, total}` for the caller's
+own `async_jobs` rows, newest first, with live Celery status where the
+result backend still has it.
+
+## Also closed (found during the hardening pass)
+
+- `GET /reports/{id}/qr` was **unauthenticated**: anyone with a signed
+  report's id could mint a share token and download the PDF. Now requires
+  auth + job ownership (404 otherwise).
+- Patient history (`/patients/{id}/...`) and the worker's history merge
+  into job results returned other users' reports for any `patient_id`.
+  Both are now scoped to reports from the caller's own jobs (admins see
+  all).
+- 500 responses echoed exception text (including SQL and bound
+  parameters). Now generic message + request id; details stay in logs.
+- Self-registration is disabled by default in production
+  (`ALLOW_SELF_REGISTRATION`); `/auth/login` and `/auth/register` are
+  rate-limited per IP; login does a constant bcrypt verify.
+- Missing/invalid/expired tokens return 401 (was 403) so clients can tell
+  "re-authenticate" from "not permitted".
 
 ## REG-01 — non-diagnostic output contract
 
@@ -79,8 +96,11 @@ Noted only because SEC-01 unblocks it: `app/api/v1/routes/jobs.py`'s
   as: authenticated PDF export gets a watermark, patient-facing QR
   sharing gets a hard block. Worth confirming with whoever owns REG-02
   if that split isn't what was intended.
-- **Not done:** validating `job_id` refers to a real, completed job
-  before accepting a sign-off (any string is currently accepted); gating
+- Sign-off now requires the job to exist, belong to the signing
+  clinician (admins may sign any job), and have finished (Celery
+  `SUCCESS`); otherwise 404 / 409. Cross-clinician review within an org
+  waits on PLT-01.
+- **Not done:** gating
   a job's own "complete" status (as returned by the various job-status
   endpoints) on sign-off — that field describes pipeline completion, not
   clinical review, and conflating the two didn't seem like the right

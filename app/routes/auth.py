@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from pydantic import BaseModel, Field
@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import get_current_user
 from app.core.config import settings
+from app.core.rate_limit import AUTH_RATE_LIMIT, limiter
 from app.db.session import get_db
 from app.models.refresh_token import RefreshToken
 from app.models.user import User
@@ -63,9 +64,22 @@ async def _create_refresh_token(user: User, db: AsyncSession) -> str:
     )
 
 
+_DUMMY_HASH = pwd_context.hash("timing-equaliser-not-a-real-password")
+
+
 @router.post("/register", status_code=status.HTTP_201_CREATED)
-async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)):
-    """Create a new user account. Defaults to the `clinician` role."""
+@limiter.limit(AUTH_RATE_LIMIT)
+async def register(request: Request, body: RegisterRequest, db: AsyncSession = Depends(get_db)):
+    """Create a new user account. Defaults to the `clinician` role.
+
+    Disabled (403) when self-registration is off — the default in
+    production; see Settings.ALLOW_SELF_REGISTRATION.
+    """
+    if not settings.self_registration_enabled:
+        raise HTTPException(
+            status_code=403,
+            detail={"code": "REGISTRATION_DISABLED", "message": "Self-registration is disabled. Ask an administrator for an account."},
+        )
     existing = await db.execute(select(User).where(User.username == body.username))
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=409, detail="Username already registered")
@@ -81,13 +95,17 @@ async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/login", response_model=TokenResponse)
-async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)):
+@limiter.limit(AUTH_RATE_LIMIT)
+async def login(request: Request, body: LoginRequest, db: AsyncSession = Depends(get_db)):
     """Authenticate with username/password; returns an access token (~20 min)
-    and a refresh token (~7 days)."""
+    and a refresh token (~7 days). Rate-limited per client IP."""
     result = await db.execute(select(User).where(User.username == body.username))
     user = result.scalar_one_or_none()
 
-    if not user or not user.is_active or not pwd_context.verify(body.password, user.hashed_password):
+    # Always run one bcrypt verify so response time doesn't reveal whether
+    # the username exists.
+    password_ok = pwd_context.verify(body.password, user.hashed_password if user else _DUMMY_HASH)
+    if not user or not user.is_active or not password_ok:
         raise HTTPException(status_code=401, detail="Invalid username or password")
 
     access_token = _create_access_token(user)
@@ -96,7 +114,8 @@ async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/refresh", response_model=TokenResponse)
-async def refresh(body: RefreshRequest, db: AsyncSession = Depends(get_db)):
+@limiter.limit("30/minute")
+async def refresh(request: Request, body: RefreshRequest, db: AsyncSession = Depends(get_db)):
     """Exchange a valid, non-revoked refresh token for a new access token."""
     try:
         payload = jwt.decode(body.refresh_token, settings.SECRET_KEY, algorithms=[ALGORITHM])

@@ -12,6 +12,23 @@ from app.workers.celery_app import celery_app
 router = APIRouter()
 
 
+WS_AUTH_SUBPROTOCOL = "vaidya.bearer"
+
+
+def _ws_credentials(websocket: WebSocket) -> tuple[str | None, str | None]:
+    """Access token from `Sec-WebSocket-Protocol: vaidya.bearer, <jwt>`
+    (preferred — browsers can't set an Authorization header on a WebSocket,
+    and unlike a query string it isn't written to access logs), falling back
+    to the legacy `?token=` query parameter. Returns (token, subprotocol to
+    echo on accept)."""
+    offered = [p.strip() for p in websocket.headers.get("sec-websocket-protocol", "").split(",") if p.strip()]
+    if WS_AUTH_SUBPROTOCOL in offered:
+        others = [p for p in offered if p != WS_AUTH_SUBPROTOCOL]
+        if others:
+            return others[0], WS_AUTH_SUBPROTOCOL
+    return websocket.query_params.get("token"), None
+
+
 @router.websocket("/ws/{job_id}")
 async def websocket_endpoint(websocket: WebSocket, job_id: str):
     """Stream live Celery task status for `job_id` every 2s until it completes.
@@ -19,15 +36,14 @@ async def websocket_endpoint(websocket: WebSocket, job_id: str):
     Sends `{job_id, status, progress, step}`, plus `result` on SUCCESS or
     `error` on FAILURE, then closes the connection.
 
-    SEC-02: authenticates via `?token=` query param before accepting.
+    SEC-02: authenticates before accepting, via the `vaidya.bearer`
+    subprotocol (or the legacy `?token=` query param).
     SEC-01: also checks the token's owner matches AsyncJobRecord.user_id
     for `job_id`, same rule `require_job_owner` applies to the HTTP routes
     — a job with no AsyncJobRecord (nothing has written one yet, or it
     predates this check) is refused too, not silently allowed.
     """
-    token = websocket.query_params.get("token")
-    # TODO(SEC-02): also accept the token via Sec-WebSocket-Protocol, for
-    # clients that can't put a bearer token in a URL query string.
+    token, subprotocol = _ws_credentials(websocket)
     try:
         user = decode_access_token(token)
     except ValueError:
@@ -42,7 +58,7 @@ async def websocket_endpoint(websocket: WebSocket, job_id: str):
         await websocket.close(code=4404)  # not found / not yours
         return
 
-    await websocket.accept()
+    await websocket.accept(subprotocol=subprotocol)
     try:
         while True:
             try:
@@ -62,7 +78,9 @@ async def websocket_endpoint(websocket: WebSocket, job_id: str):
                     break
 
                 if state == "FAILURE":
-                    payload["error"] = str(result.result)
+                    # Raw worker exceptions can carry SQL, paths or PHI; the
+                    # HTTP routes already hide them.
+                    payload["error"] = "The analysis failed. See server logs for details."
                     await websocket.send_json(payload)
                     break
 

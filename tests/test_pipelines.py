@@ -13,11 +13,25 @@ from app.main import app
 client = TestClient(app)
 
 
-def _auth_headers(role: str = "clinician") -> dict:
-    """Bearer header for a live access token — these routes all require auth."""
+@pytest.fixture(scope="module", autouse=True)
+def _client_lifespan():
+    # Run every request in this module on ONE event loop. A bare
+    # TestClient(app) spins up a fresh loop per request, and the async
+    # SQLAlchemy/asyncpg pool then hands back connections bound to a dead
+    # loop ("Future attached to a different loop").
+    with client:
+        yield
+
+
+def _auth_headers(role: str = "clinician", sub: str | None = None) -> dict:
+    """Bearer header for a live access token — these routes all require auth.
+
+    Each call mints a NEW random user unless `sub` is given. Job routes are
+    ownership-checked (SEC-01), so a submit + poll flow must reuse one user.
+    """
     token = jwt.encode(
         {
-            "sub": str(uuid.uuid4()),
+            "sub": sub or str(uuid.uuid4()),
             "role": role,
             "type": "access",
             "exp": datetime.now(timezone.utc) + timedelta(minutes=20),
@@ -71,11 +85,12 @@ def test_request_id_header():
 SAMPLE_CLAIM = "Aspirin reduces the risk of heart attack in adults over 50 with hypertension."
 
 def test_claim_pipeline_flow():
+    headers = _auth_headers()
     # 1. Submit — claim_id is generated server-side (job_id), not passed in the URL.
     r = client.post(
         "/api/v1/verify/claim",
         json={"claim_text": SAMPLE_CLAIM},
-        headers=_auth_headers(),
+        headers=headers,
     )
     assert r.status_code == 202
     data = r.json()
@@ -83,14 +98,21 @@ def test_claim_pipeline_flow():
     assert "poll_url" in data
 
     # 2. Poll Status
-    r = client.get(f"/api/v1/verify/claim/status/{task_id}", headers=_auth_headers())
+    r = client.get(f"/api/v1/verify/claim/status/{task_id}", headers=headers)
     assert r.status_code == 200
     assert "status" in r.json()
 
     # 3. Get Result (might be 425 if not ready, but we check schema if possible)
     # Since we are using TestClient and it's async celery, it won't be ready.
-    r = client.get(f"/api/v1/verify/claim/result/{task_id}", headers=_auth_headers())
+    r = client.get(f"/api/v1/verify/claim/result/{task_id}", headers=headers)
     assert r.status_code in (425, 200)
+
+    # 4. SEC-01: a different user asking for the same job id gets 404.
+    other = _auth_headers()
+    r = client.get(f"/api/v1/verify/claim/status/{task_id}", headers=other)
+    assert r.status_code == 404
+    r = client.get(f"/api/v1/verify/claim/result/{task_id}", headers=other)
+    assert r.status_code == 404
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -105,19 +127,22 @@ def _make_fake_png() -> bytes:
     )
 
 def test_image_pipeline_flow():
+    headers = _auth_headers()
     fake_img = _make_fake_png()
     # 1. Submit
     r = client.post(
         "/api/v1/analyze/image/xray",
         files={"file": ("test.png", io.BytesIO(fake_img), "image/png")},
-        headers=_auth_headers(),
+        headers=headers,
     )
     assert r.status_code in (202, 422)
     if r.status_code == 202:
         task_id = r.json()["task_id"]
         # 2. Poll
-        r = client.get(f"/api/v1/analyze/image/status/{task_id}", headers=_auth_headers())
+        r = client.get(f"/api/v1/analyze/image/status/{task_id}", headers=headers)
         assert r.status_code == 200
+        r = client.get(f"/api/v1/analyze/image/status/{task_id}", headers=_auth_headers())
+        assert r.status_code == 404
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -127,18 +152,21 @@ def test_image_pipeline_flow():
 SAMPLE_CSV = b"parameter,value,unit\nHbA1c,7.8,%\nGlucose,142,mg/dL"
 
 def test_report_pipeline_flow():
+    headers = _auth_headers()
     # 1. Submit
     r = client.post(
         "/api/v1/analyze/report/lab",
         files={"file": ("labs.csv", io.BytesIO(SAMPLE_CSV), "text/csv")},
-        headers=_auth_headers(),
+        headers=headers,
     )
     assert r.status_code == 202
     task_id = r.json()["task_id"]
 
     # 2. Poll
-    r = client.get(f"/api/v1/analyze/report/status/{task_id}", headers=_auth_headers())
+    r = client.get(f"/api/v1/analyze/report/status/{task_id}", headers=headers)
     assert r.status_code == 200
+    r = client.get(f"/api/v1/analyze/report/status/{task_id}", headers=_auth_headers())
+    assert r.status_code == 404
 
 
 # ─────────────────────────────────────────────────────────────────────────────

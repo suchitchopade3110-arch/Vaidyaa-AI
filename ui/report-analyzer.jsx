@@ -213,9 +213,9 @@ function BiasAuditDashboard() {
   const load = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${API_BASE}/admin/bias-audit`);
+      const response = await apiFetch(`${API_BASE}/admin/bias-audit`);
       const payload = await response.json();
-      if (!response.ok) throw new Error(payload?.detail || 'Unable to load bias audit');
+      if (!response.ok) throw new Error(apiErrorMessage(payload, 'Unable to load bias audit'));
       setData(payload);
     } catch (error) {
       setData({ error: error.message });
@@ -390,11 +390,76 @@ function processPayload(payload, reportType) {
   };
 }
 
+// Model/version string for clinician sign-off (backend caps it at 200 chars).
+function reportModelVersions(result) {
+  const used = result?.ensemble?.models_used;
+  if (Array.isArray(used) && used.length) return used.join(',');
+  if (typeof used === 'string' && used) return used;
+  return '';
+}
+
+// Returns an error string for the optional age field, or '' when valid/empty.
+function validateAge(raw) {
+  const v = String(raw || '').trim();
+  if (!v) return '';
+  if (!/^\d+$/.test(v)) return 'Age must be a whole number of years.';
+  const n = Number(v);
+  if (n < 0 || n > 120) return 'Age must be between 0 and 120.';
+  return '';
+}
+
+// Optional sex + age, used by the backend for sex/age-specific reference ranges.
+// Same label/input styling as PatientIdField in shared.jsx.
+function PatientDemographicsFields({ sex, onSexChange, age, onAgeChange, ageError }) {
+  const labelStyle = { fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.05em' };
+  const optionalStyle = { color: 'var(--text-muted)', fontWeight: 400, textTransform: 'none', letterSpacing: 0 };
+  const errorColor = 'oklch(0.65 0.20 25)';
+  return (
+    <div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'flex-start' }}>
+        <div style={{ flex: '1 1 260px', minWidth: 0 }}>
+          <label style={labelStyle}>Sex <span style={optionalStyle}>(optional)</span></label>
+          <SegmentedControl
+            options={[{ value: 'female', label: 'Female' }, { value: 'male', label: 'Male' }, { value: '', label: 'Not specified' }]}
+            value={sex}
+            onChange={onSexChange}
+          />
+        </div>
+        <div style={{ flex: '1 1 160px', minWidth: 0 }}>
+          <label htmlFor="report-patient-age" style={labelStyle}>Age (years) <span style={optionalStyle}>(optional)</span></label>
+          <input
+            id="report-patient-age"
+            type="text" inputMode="numeric" value={age}
+            onChange={e => onAgeChange(e.target.value)}
+            placeholder="e.g. 42"
+            aria-invalid={ageError ? 'true' : 'false'}
+            style={{
+              width: '100%', background: 'var(--bg-elevated)', border: `1px solid ${ageError ? errorColor : 'var(--border)'}`,
+              borderRadius: '6px', padding: '9px 12px', color: 'var(--text-primary)',
+              fontSize: '13px', fontFamily: 'var(--font-mono)', outline: 'none',
+              transition: 'border-color 0.2s', boxSizing: 'border-box',
+            }}
+            onFocus={e => { if (!ageError) e.target.style.borderColor = 'oklch(0.46 0.19 145)'; }}
+            onBlur={e => { e.target.style.borderColor = ageError ? errorColor : 'var(--border)'; }}
+          />
+          {ageError && <div style={{ fontSize: '12px', color: errorColor, marginTop: '6px', fontWeight: 500 }}>{ageError}</div>}
+        </div>
+      </div>
+      <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '10px' }}>
+        Used to pick sex- and age-specific reference ranges when the report doesn't print its own.
+      </div>
+    </div>
+  );
+}
+
 function ReportAnalyzer() {
   const [reportType, setReportType] = useState('lab');
   const [file, setFile] = useState(null);
   const [fileError, setFileError] = useState('');
   const [patientId, setPatientId] = useState('');
+  const [patientSex, setPatientSex] = useState(''); // '' = not specified
+  const [patientAge, setPatientAge] = useState('');
+  const ageError = validateAge(patientAge);
   const [phase, setPhase] = useState('idle');
   const [step, setStep] = useState(0);
   const [stepLabel, setStepLabel] = useState('');
@@ -404,7 +469,6 @@ function ReportAnalyzer() {
   const timerRef = useRef(null);
   const wsRef = useRef(null);
   const pollRef = useRef(null);
-  const jobId = useRef('JOB-' + Math.floor(Math.random() * 900 + 100)).current;
 
   const validateFile = (item) => {
     const ext = item.name.slice(item.name.lastIndexOf('.')).toLowerCase();
@@ -416,25 +480,29 @@ function ReportAnalyzer() {
   };
   const handleFile = (item) => { if (validateFile(item)) setFile(item); };
 
-  const finishResult = (payload) => {
+  // jobStatus is the outer job/Celery state (WS or poll); the inner result's own
+  // status field is only a fallback.
+  const finishResult = (payload, jobStatus) => {
     clearInterval(timerRef.current);
     clearTimeout(pollRef.current);
     setStep((REPORT_STEPS[reportType] || []).length);
-    setResult(processPayload(payload, reportType));
+    const processed = processPayload(payload || {}, reportType);
+    processed.status = resolveResultStatus(payload, jobStatus);
+    setResult(processed);
     setPhase('done');
   };
 
   const fallbackPoll = (reportId) => {
     const poll = async () => {
       try {
-        const response = await fetch(`${API_BASE}/analyze/report/${reportId}`);
+        const response = await apiFetch(`${API_BASE}/analyze/report/${reportId}`);
         const payload = await response.json();
         const status = (payload.status || '').toLowerCase();
         if (['pending', 'processing', 'progress', 'started'].includes(status)) {
           pollRef.current = setTimeout(poll, 2000);
           return;
         }
-        finishResult(payload.result || payload);
+        finishResult(payload.result || payload, payload.status);
       } catch (error) {
         pollRef.current = setTimeout(poll, 3000);
       }
@@ -443,8 +511,7 @@ function ReportAnalyzer() {
   };
 
   const connectWebSocket = (reportId) => {
-    const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-    const ws = new WebSocket(`${protocol}://${window.location.host}/ws/${reportId}`);
+    const ws = openAuthWebSocket(`/ws/${encodeURIComponent(reportId)}`);
     wsRef.current = ws;
 
     ws.onmessage = (event) => {
@@ -456,7 +523,7 @@ function ReportAnalyzer() {
         if (payload.step) setStepLabel(payload.step);
         if (payload.status === 'SUCCESS' && payload.result) {
           ws.close();
-          finishResult(payload.result);
+          finishResult(payload.result, payload.status);
         }
         if (payload.status === 'FAILURE' || payload.status === 'ERROR') {
           clearInterval(timerRef.current);
@@ -477,6 +544,7 @@ function ReportAnalyzer() {
 
   const handleSubmit = async () => {
     if (!file) { setFileError('Please upload a report file.'); return; }
+    if (ageError) return;
     setPhase('running');
     setStep(0);
     setResult(null);
@@ -489,10 +557,13 @@ function ReportAnalyzer() {
       formData.append('file', file);
       formData.append('explanation_mode', 'full');
       if (patientId) formData.append('patient_id', patientId);
-      const response = await fetch(`${API_BASE}/analyze/report/${reportType}`, { method: 'POST', body: formData });
+      // Omit when unknown: the backend treats missing sex/age as UNKNOWN.
+      if (patientSex === 'female' || patientSex === 'male') formData.append('gender', patientSex);
+      if (patientAge.trim()) formData.append('age', String(Number(patientAge.trim())));
+      const response = await apiFetch(`${API_BASE}/analyze/report/${reportType}`, { method: 'POST', body: formData });
       if (!response.ok) {
         const errorPayload = await response.json().catch(() => ({}));
-        throw new Error(errorPayload.detail || `API ${response.status}`);
+        throw new Error(apiErrorMessage(errorPayload, `API ${response.status}`));
       }
       const payload = await response.json();
       const reportId = payload.job_id || payload.id || payload.task_id;
@@ -540,8 +611,11 @@ function ReportAnalyzer() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <Card><SectionLabel>Report Type</SectionLabel><SegmentedControl options={[{ value: 'lab', label: 'Lab Panel' }, { value: 'clinical', label: 'Clinical Note' }, { value: 'discharge', label: 'Discharge Summary' }]} value={reportType} onChange={setReportType} /></Card>
           <Card><SectionLabel>Upload Report</SectionLabel><FileUploadZone accept=".pdf,.csv" acceptLabel="Accepts .pdf and .csv · Max 20 MB" onFile={handleFile} file={file} error={fileError} /></Card>
-          <Card><PatientIdField value={patientId} onChange={setPatientId} /></Card>
-          <Button onClick={handleSubmit} disabled={!file}>▤ Analyze Report</Button>
+          <Card style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <PatientIdField value={patientId} onChange={setPatientId} />
+            <PatientDemographicsFields sex={patientSex} onSexChange={setPatientSex} age={patientAge} onAgeChange={setPatientAge} ageError={ageError} />
+          </Card>
+          <Button onClick={handleSubmit} disabled={!file || !!ageError}>▤ Analyze Report</Button>
           <MedicalDisclaimer />
         </div>
       )}
@@ -567,7 +641,7 @@ function ReportAnalyzer() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div style={{ display: 'flex', gap: '16px', alignItems: 'stretch', flexWrap: 'wrap' }}>
             <Card style={{ flex: 1, minWidth: '300px' }}>
-              <ResultHeader status={result.status} jobId={jobId} elapsed={elapsed} />
+              <ResultHeader status={result.status} jobId={serverJobId ? String(serverJobId).slice(0, 8) : ''} elapsed={elapsed} />
               <div style={{ marginTop: '16px', display: 'flex', gap: '14px', flexWrap: 'wrap' }}>
                 <div style={{ flex: 1, minWidth: '160px', padding: '14px', background: 'var(--bg-elevated)', borderRadius: '8px', border: '1px solid var(--border)' }}>
                   <MiniLabel>Risk Score</MiniLabel>
@@ -591,7 +665,7 @@ function ReportAnalyzer() {
                 </div>
               </div>
             </Card>
-            {window.ReportQRWidget && <ReportQRWidget reportId={serverJobId} patientId={patientId} />}
+            {window.ReportQRWidget && <ReportQRWidget reportId={serverJobId} patientId={patientId} modelVersions={reportModelVersions(result)} />}
           </div>
 
           <Card><SectionLabel>Lab Values</SectionLabel><LabTable rows={result.labValues} anomalyMap={anomalyMap} /></Card>

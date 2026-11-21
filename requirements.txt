@@ -29,6 +29,10 @@ python-dotenv==1.0.1
 
 # ── Celery + Redis ────────────────────────────────────────────────────────────
 celery[redis]==5.4.0
+kombu==5.4.2                     # Pinned: celery 5.4 accepts kombu<6, and kombu
+                                  # >=5.5 needs redis-py>=6.1 — with redis==5.0.4
+                                  # every task dispatch failed ("Redis transport
+                                  # requires redis-py versions 6.1.0 or later").
 redis==5.0.4
 flower==2.0.1                    # Celery monitoring UI
 aiofiles==23.2.1
@@ -40,6 +44,11 @@ httpx==0.27.0
 Pillow==12.2.0
 opencv-python-headless==4.10.0.84
 pydicom==2.4.4                   # DICOM parsing
+SimpleITK==2.5.7                 # Imported at module level by
+                                  # app/image_pipeline/segmentor.py — the worker
+                                  # could not start without it.
+matplotlib==3.9.2                # segmentor.py / ml_prediction_engine.py; was only
+                                  # present transitively via ultralytics.
 
 # ── OCR ───────────────────────────────────────────────────────────────────────
 pytesseract==0.3.10
@@ -51,6 +60,9 @@ passlib[bcrypt]==1.7.4            # Password hashing for user auth
 bcrypt==4.0.1                     # Pinned: bcrypt>=4.1 dropped __about__, breaks passlib 1.7.4
 paddlepaddle==2.6.2              # PaddleOCR runtime
 paddleocr==2.7.3                 # Medical document OCR
+setuptools>=69,<81               # paddleocr imports pkg_resources at runtime but
+                                  # doesn't declare it; without it OCR silently
+                                  # fell back to the legacy engine.
 
 # ── Data ──────────────────────────────────────────────────────────────────────
 pandas==2.2.2
@@ -66,6 +78,10 @@ segment-anything @ git+https://github.com/facebookresearch/segment-anything.git
                                   # MedSAM/SAM segmentation (app/image_pipeline/segmentor.py).
                                   # Was missing entirely — _run_segmentation_safe() caught the
                                   # resulting ImportError and silently fell back to full-image.
+
+torchxrayvision==1.5.7           # CT/X-ray modality models (classifier_v2.py,
+                                  # modality_classifier.py); imported lazily, was
+                                  # undeclared so those paths always fell back.
 
 # ── NLP / LLM (Phase 1: install only; Phase 2: wire) ─────────────────────────
 transformers==4.41.1             # ClinicalBERT, BioGPT

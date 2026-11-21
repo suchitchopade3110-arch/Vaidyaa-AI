@@ -1,0 +1,149 @@
+# RULE R3: only a neutral / normal-like labelled range (or a sex / age band matching the patient) is a reference
+# range. Interpretation categories (Deficiency, Borderline, Kidney failure ...) are never the range.
+@@ R3 | M | 40 | ferritin with a deficiency category and a normal range
+Ferritin 8 ng/mL Deficiency: <15 Normal: 24-336
+=> Ferritin | LOW | 8
+@@ R3 | M | 40 | cholesterol categories, Desirable is the range
+Cholesterol 255 mg/dL Desirable <200  Borderline 200-239  High >=240
+=> Cholesterol | HIGH | 255
+@@ R3 | M | 40 | triglyceride categories
+Triglycerides 620 mg/dL Normal: <150 Borderline: 150-199 High: 200-499 Very High: >=500
+=> Triglycerides | CRITICAL_HIGH | 620
+@@ R3 | M | 40 | HbA1c categories
+HbA1c 7.8 % Normal <5.7 Prediabetes 5.7-6.4 Diabetes >=6.5
+=> HbA1c | HIGH | 7.8
+@@ R3 | M | 40 | fasting glucose categories
+Fasting Glucose 112 mg/dL Normal: 70-99 Impaired: 100-125 Diabetes: >=126
+=> Fasting Glucose | HIGH | 112
+@@ R3 | M | 40 | folate categories
+Folate 1.8 ng/mL Deficient: <3.0 Normal: >5.4
+=> Folate | LOW | 1.8
+@@ R3 | M | 40 | creatinine with only severity categories: registry range, with a warning
+Creatinine 4.0 mg/dL Mild: 1.3-2.0 Moderate: 2.1-4.0 Severe: >4.0
+=> Creatinine | HIGH | 4.0
+=> warn
+@@ R3 | M | 40 | vitamin D with only deficiency categories
+Vitamin D 18 ng/mL Deficient: <10 Insufficient: 10-30
+=> Vitamin D | LOW | 18
+=> warn
+@@ R3 | M | 40 | PSA categories
+PSA 8.2 ng/mL Normal: 0-4.0 Borderline: 4.0-10.0 High: >10
+=> PSA | HIGH | 8.2
+@@ R3 | M | 40 | sex labelled haemoglobin, male patient
+Hemoglobin 12.5 g/dL Male: 13.5-17.5 Female: 12.0-15.5
+=> Hemoglobin | LOW | 12.5
+@@ R3 | F | 40 | sex labelled haemoglobin, female patient
+Hemoglobin 12.5 g/dL Male: 13.5-17.5 Female: 12.0-15.5
+=> Hemoglobin | NORMAL | 12.5
+@@ R3 | F | 40 | creatinine Males / Females
+Creatinine 1.2 mg/dL Males: 0.7-1.3 Females: 0.5-1.1
+=> Creatinine | HIGH | 1.2
+@@ R3 | M | 40 | ALP with age bands, adult
+Alkaline Phosphatase 280 U/L 0-14 yrs: 150-420 >14 yrs: 44-147
+=> Alkaline Phosphatase | HIGH | 280
+@@ R3 | M | 10 | ALP with age bands, child
+Alkaline Phosphatase 280 U/L 0-14 yrs: 150-420 >14 yrs: 44-147
+=> Alkaline Phosphatase | NORMAL | 280
+@@ R3 | M | 40 | haemoglobin Children / Adults, adult
+Hemoglobin 11.0 g/dL Children: 11.0-14.0 Adults: 13.0-17.0
+=> Hemoglobin | LOW | 11.0
+@@ R3 | M | 8 | haemoglobin Children / Adults, child
+Hemoglobin 11.0 g/dL Children: 11.0-14.0 Adults: 13.0-17.0
+=> Hemoglobin | NORMAL | 11.0
+@@ R3 | M | 40 | creatinine Adult / Child, adult
+Creatinine 0.6 mg/dL Adult: 0.7-1.3 Child: 0.3-0.7
+=> Creatinine | LOW | 0.6
+@@ R3 | M | 6 | creatinine Adult / Child, child
+Creatinine 0.6 mg/dL Adult: 0.7-1.3 Child: 0.3-0.7
+=> Creatinine | NORMAL | 0.6
+@@ R3 | M | - | creatinine Adult / Child, age unknown: registry range plus a warning
+Creatinine 0.6 mg/dL Adult: 0.7-1.3 Child: 0.3-0.7
+=> Creatinine | LOW | 0.6
+=> warn
+@@ R3 | M | 40 | TSH reference plus a category
+TSH 9.5 mIU/L Reference: 0.4-4.0 Hypothyroid: >4.0
+=> TSH | HIGH | 9.5
+@@ R3 | M | 40 | calcium Normal plus Hypocalcemia
+Calcium 7.4 mg/dL Normal 8.5-10.5 Hypocalcemia <8.5
+=> Calcium | LOW | 7.4
+@@ R3 | M | 40 | HDL Low / Normal / High categories, Normal range wins
+HDL Cholesterol 32 mg/dL Low <40 Normal 40-59 High >=60
+=> HDL Cholesterol | LOW | 32
+@@ R3 | M | 40 | haemoglobin severity categories only
+Hemoglobin 9.0 g/dL Mild anemia: 10-12.9 Moderate: 8-9.9 Severe: <8
+=> Hemoglobin | LOW | 9.0
+=> warn
+@@ R3 | M | 40 | sodium Hyponatremia / Normal / Hypernatremia
+Sodium 128 mmol/L Hyponatremia <135 Normal 135-145 Hypernatremia >145
+=> Sodium | LOW | 128
+@@ R3 | M | 40 | potassium, a critical value with a plain Normal label
+Potassium 6.2 mmol/L Normal: 3.5-5.1
+=> Potassium | CRITICAL_HIGH | 6.2
+@@ R3 | M | 40 | urea Normal / Elevated
+Urea 90 mg/dL Normal: 15-45 Elevated: >45
+=> Urea | HIGH | 90
+@@ R3 | M | 40 | B12 Deficient / Indeterminate / Normal
+Vitamin B12 150 pg/mL Deficient <200 Indeterminate 200-300 Normal >300
+=> Vitamin B12 | LOW | 150
+@@ R3 | M | 40 | total protein Normal
+Total Protein 5.1 g/dL Normal 6.0-8.3
+=> Total Protein | LOW | 5.1
+@@ R3 | M | 40 | ESR gradations
+ESR 45 mm/hr Normal: 0-15 Mildly elevated: 16-30 Elevated: >30
+=> ESR | HIGH | 45
+@@ R3 | M | 40 | CRP gradations
+CRP 48 mg/L Normal: <5 Mild inflammation: 5-40 Marked: >40
+=> CRP | HIGH | 48
+@@ R3 | M | 40 | total bilirubin Adults / Neonates, adult
+Total Bilirubin 2.4 mg/dL Adults: 0.2-1.2 Neonates: 0-12
+=> Total Bilirubin | HIGH | 2.4
+@@ R3 | M | 0 | total bilirubin Adults / Neonates, newborn
+Total Bilirubin 8.0 mg/dL Adults: 0.2-1.2 Neonates: 0-12
+=> Total Bilirubin | NORMAL | 8.0
+@@ R3 | - | 40 | printed Men / Women ranges and no sex given: not guessed
+Hemoglobin 15.0 g/dL Men: 13.5-17.5 Women: 12.0-15.5
+=> Hemoglobin | UNKNOWN | 15.0
+=> warn
+@@ R3 | M | 40 | platelets Normal / Thrombocytopenia
+Platelet Count 90000 /cumm Normal: 150000-450000 Thrombocytopenia: <150000
+=> Platelet Count | LOW | 90000
+@@ R3 | M | 40 | eGFR stage list, Normal label first
+eGFR 45 mL/min/1.73m2 Normal: >=90 Mild: 60-89 Moderate: 30-59 Severe: 15-29 Failure: <15
+=> eGFR | LOW | 45
+@@ R3 | M | 40 | INR Normal plus Therapeutic category
+INR 2.4 Normal: 0.8-1.1 Therapeutic: 2.0-3.0
+=> INR | HIGH | 2.4
+@@ R3 | M | 40 | lymphocytes Adults / Children, adult
+Lymphocytes 62 % Adults: 20-40 Children: 40-70
+=> Lymphocytes | HIGH | 62
+@@ R3 | M | 5 | lymphocytes Adults / Children, child
+Lymphocytes 62 % Adults: 20-40 Children: 40-70
+=> Lymphocytes | NORMAL | 62
+@@ R3 | M | 40 | cortisol with time-of-day labels (unknown labels are not a reference range)
+Cortisol 28 ug/dL Morning: 6-23 Evening: 2-12
+=> Cortisol | HIGH | 28
+=> warn
+@@ R3 | M | 40 | T4 reference plus a category
+T4 Total 2.9 ug/dL Reference: 5-12 Hypothyroid: <5
+=> T4 Total | LOW | 2.9
+@@ R3 | M | 40 | LDL optimal list, optimal is the range
+LDL Cholesterol 175 mg/dL Optimal <100; Near optimal 100-129; Borderline 130-159; High 160-189; Very high >=190
+=> LDL Cholesterol | HIGH | 175
+@@ R3 | M | 40 | category line after the row (interpretation under the result)
+Vitamin D 14 ng/mL
+Deficient: <20 ng/mL
+Insufficient: 20-29 ng/mL
+Sufficient: 30-100 ng/mL
+=> Vitamin D | LOW | 14
+@@ R3 | M | 40 | category-only lines after the row, no normal-like label: registry
+Creatinine 1.0 mg/dL
+Stage 1: <1.2
+Stage 2: 1.2-2.0
+=> Creatinine | NORMAL | 1.0
+=> warn
+@@ R3 | M | 40 | wrong-sex-labelled single range is not the patient's
+Ferritin 400 ng/mL Female: 11-150
+=> Ferritin | HIGH | 400
+@@ R3 | F | 40 | sex-labelled, male only range printed for a female patient: registry
+Hemoglobin 12.2 g/dL Male: 13.5-17.5
+=> Hemoglobin | NORMAL | 12.2

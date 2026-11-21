@@ -7,6 +7,7 @@ entry points.
 
 import json
 import logging
+import re
 import os
 import time
 import traceback
@@ -45,7 +46,21 @@ from app.ml.ml_prediction_engine import (
     predict_tabular,
     to_json_safe,
 )
-from clinical_reference import analyze_blood_report, enrich_lab_with_who_ranges, clean_test_name
+from clinical_reference import HIGH_MEANINGS, LOW_MEANINGS, analyze_blood_report, clean_test_name
+from app.core.config import settings
+from app.services.lab_engine import (
+    ANALYTE_TO_LEGACY_KEY,
+    LabAnalysis,
+    ParsedRow,
+    ScoredRow,
+    analyze_lab_rows,
+    apply_risk_floor,
+    decorate_explanation,
+    normalize_age,
+    normalize_sex,
+    parse_report_text,
+)
+from app.services.lab_engine.units import is_unit_token
 
 logger = logging.getLogger("vaidya.pipeline")
 
@@ -119,6 +134,7 @@ class PipelineResponse(BaseModel):
     plain_language_summary: Optional[str] = None
     sources: List[Dict[str, Any]] = Field(default_factory=list)
     uncertainty_flag: bool = False
+    warnings: List[str] = Field(default_factory=list)
     hallucination_flagged: bool = False
 
     shap_top_factors: List[Dict[str, Any]] = Field(default_factory=list)
@@ -285,6 +301,33 @@ def _extract_lab_values_safe(raw_text: str, ner_result: Any, report_type: str) -
         return values
 
 
+_COLUMN_PARSER_MIN_FRACTION = 0.6
+
+
+def _column_parser_output_usable(parsed: Dict[str, Any]) -> bool:
+    """Accept the x-band column parser's rows only when they look like a real
+    table: >= 60% carry a numeric result AND >= 60% carry a printed range or a
+    recognisable unit. On other layouts ("Hemoglobin: 9.2 g/dL (Ref: 13-17.5)
+    LOW") it emits whole lines as test names with no numeric result and, when
+    accepted, those rows replaced real extraction and every value scored
+    NORMAL."""
+    from app.services.lab_report_column_parser import column_rows_to_parsed
+
+    rows = column_rows_to_parsed(parsed.get("lab_values") or [])
+    if not rows:
+        return False
+    numeric = sum(1 for r in rows if r.value is not None)
+    structured = sum(
+        1
+        for r in rows
+        if r.ref_low is not None or r.ref_high is not None or r.sex_ranges or (r.unit and is_unit_token(r.unit))
+    )
+    return (
+        numeric >= _COLUMN_PARSER_MIN_FRACTION * len(rows)
+        and structured >= _COLUMN_PARSER_MIN_FRACTION * len(rows)
+    )
+
+
 def _parse_column_lab_report_safe(file_path: str, report_type: str) -> Dict[str, Any]:
     if report_type != "lab" or Path(file_path).suffix.lower() != ".pdf":
         return {}
@@ -292,10 +335,18 @@ def _parse_column_lab_report_safe(file_path: str, report_type: str) -> Dict[str,
         from app.services.lab_report_column_parser import parse_lab_report_for_pipeline
 
         parsed = parse_lab_report_for_pipeline(file_path)
-        if parsed.get("lab_values"):
+        rows = parsed.get("lab_values") or []
+        if rows and not _column_parser_output_usable(parsed):
+            logger.info(
+                "Column-aware lab parser output rejected (%s rows; too few numeric results or ranges/units); "
+                "using text extraction",
+                len(rows),
+            )
+            return {}
+        if rows:
             logger.info(
                 "Column-aware lab parser extracted %s rows; panel=%s",
-                len(parsed["lab_values"]),
+                len(rows),
                 parsed.get("panel_type"),
             )
             return parsed
@@ -389,6 +440,92 @@ def _explain_report_safe(
         }
 
 
+def _to_0_100(value: Any, default: float = 0.0) -> float:
+    """Confidence is reported on 0-100 everywhere (README contract); LLM
+    and fallback payloads use 0-1, so scale those up."""
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return default
+    if number != number:  # NaN
+        return default
+    number = number * 100.0 if 0.0 <= number <= 1.0 else number
+    return round(max(0.0, min(100.0, number)), 1)
+
+
+def relevant_sources(sources: Optional[List[Dict[str, Any]]]) -> List[Dict[str, Any]]:
+    """Keep only passages whose retrieval score clears MIN_SOURCE_RELEVANCE.
+
+    Retrieval always returns top-k hits, including keyword-fallback matches
+    on a single shared word ("diabetes"); counting those let a nonsense
+    claim reach the >=2-sources bar. Unscored passages don't count.
+    """
+    floor = float(getattr(settings, "MIN_SOURCE_RELEVANCE", 0.40))
+    kept = []
+    for source in sources or []:
+        try:
+            score = float(source.get("score"))
+        except (TypeError, ValueError, AttributeError):
+            continue
+        if score >= floor:
+            kept.append(source)
+    return kept
+
+
+def apply_evidence_threshold(verdict: Dict[str, Any], sources: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Hallucination-mitigation layer 3 (README "Threshold flagging").
+
+    Returns the claim payload with the verdict downgraded to Uncertain /
+    "Insufficient evidence" whenever ANY of these hold:
+      - fewer than MIN_SOURCES_REQUIRED supporting sources,
+      - the reasoning step failed (the RAG fallback records an `error`),
+      - the self-verification step flagged a hallucination,
+      - confidence is below MIN_CONFIDENCE_THRESHOLD.
+    The confidence comes from the reasoning step itself; it is never a
+    hard-coded constant.
+    """
+    sources = relevant_sources(sources)
+    min_sources = int(getattr(settings, "MIN_SOURCES_REQUIRED", 2))
+    min_conf = _to_0_100(getattr(settings, "MIN_CONFIDENCE_THRESHOLD", 0.30))
+
+    raw_verdict = str(verdict.get("verdict") or "uncertain").strip().lower()
+    confidence = _to_0_100(verdict.get("confidence_score"), default=0.0)
+    hallucinated = bool(verdict.get("hallucination_detected", False))
+    details = verdict.get("hallucination_details") or {}
+    reasoning_failed = isinstance(details, dict) and bool(details.get("error"))
+
+    reasons = []
+    if len(sources) < min_sources:
+        reasons.append(f"only {len(sources)} supporting source(s); {min_sources} required")
+    if reasoning_failed:
+        reasons.append("the reasoning step could not be completed")
+    if hallucinated:
+        reasons.append("self-verification flagged unsupported statements")
+    if confidence < min_conf:
+        reasons.append(f"confidence {confidence:.0f} is below the {min_conf:.0f} threshold")
+
+    if reasons:
+        return {
+            "verdict": "Uncertain",
+            "confidence_score": min(confidence, min_conf),
+            "explanation": "Insufficient evidence: " + "; ".join(reasons) + ".",
+            "sources": sources,
+            "uncertainty_flag": True,
+            "hallucination_flagged": hallucinated,
+        }
+
+    label = {"verified": "Verified", "supported": "Verified", "refuted": "Refuted",
+             "contradicted": "Refuted"}.get(raw_verdict, "Uncertain")
+    return {
+        "verdict": label,
+        "confidence_score": confidence,
+        "explanation": verdict.get("explanation"),
+        "sources": sources,
+        "uncertainty_flag": label == "Uncertain",
+        "hallucination_flagged": False,
+    }
+
+
 def _verify_claim_safe(claim_text: str, entities: Dict[str, Any]) -> Dict[str, Any]:
     rag = _rag_service()
     if rag is None:
@@ -401,16 +538,10 @@ def _verify_claim_safe(claim_text: str, entities: Dict[str, Any]) -> Dict[str, A
             "hallucination_flagged": False,
         }
     try:
-        sources = rag.retrieve_evidence(claim_text)
+        # Only on-topic evidence reaches the LLM and the citation list.
+        sources = relevant_sources(rag.retrieve_evidence(claim_text))
         verdict = rag.verify_claim(claim_text, entities, sources)
-        return {
-            "verdict": str(verdict.get("verdict", "Uncertain")).title(),
-            "confidence_score": 50.0 if not sources else 70.0,
-            "explanation": verdict.get("explanation"),
-            "sources": sources,
-            "uncertainty_flag": len(sources) == 0,
-            "hallucination_flagged": bool(verdict.get("hallucination_detected", False)),
-        }
+        return apply_evidence_threshold(verdict, sources)
     except Exception as exc:
         logger.warning("Claim RAG fallback: %s", exc)
         return {
@@ -431,7 +562,7 @@ def _ner_entities_dict(ner_result: Any) -> Dict[str, Any]:
     }
 
 
-def _lab_value_to_row(lab_value: Any, gender: str = "male", age: int = 40) -> Dict[str, Any]:
+def _lab_value_to_row(lab_value: Any, gender: Optional[str] = None, age: Optional[int] = None) -> Dict[str, Any]:
     name = getattr(lab_value, "name", None)
     value = getattr(lab_value, "value", None)
     unit = getattr(lab_value, "unit", "")
@@ -463,6 +594,8 @@ def _lab_value_to_row(lab_value: Any, gender: str = "male", age: int = 40) -> Di
         except Exception:
             reference = None
 
+    value_type = lab_value.get("value_type") if isinstance(lab_value, dict) else getattr(lab_value, "value_type", None)
+    note = lab_value.get("result_text") if isinstance(lab_value, dict) else getattr(lab_value, "result_text", "")
     return {
         "field": name,
         "test": name,
@@ -472,20 +605,169 @@ def _lab_value_to_row(lab_value: Any, gender: str = "male", age: int = 40) -> Di
         "flag": flag or "NORMAL",
         "ref_low": ref_low,
         "ref_high": ref_high,
+        "value_type": value_type or "numeric",
+        "note": note or "",
     }
 
 
-def _lab_values_to_dict(lab_values: List[Any], gender: str, age: int) -> Dict[str, Any]:
-    lab_dict = {}
+def _lab_values_to_dict(lab_values: List[Any], gender: Optional[str], age: Optional[int]) -> Dict[str, Any]:
+    """Feature dict for the non-lab report types (NER-extracted values).
+
+    Lab reports use `_engine_lab_dict` (canonical keys and units). Sex/age are
+    only included when known."""
+    lab_dict: Dict[str, Any] = {}
     for lab_value in lab_values:
         row = _lab_value_to_row(lab_value, gender=gender, age=age)
         if row["test"] is None or row["result"] is None:
             continue
+        if row.get("value_type") == "unit_mismatch":
+            continue
         key = _normalize_lab_key(row["test"]).replace(" ", "_")
         lab_dict[key] = row["result"]
-    lab_dict["gender"] = 1 if gender.lower() == "male" else 0
-    lab_dict["age"] = age
+    sex = normalize_sex(gender)
+    if sex:
+        lab_dict["gender"] = 1 if sex == "M" else 0
+    if age is not None:
+        lab_dict["age"] = age
     return lab_dict
+
+
+# ── lab engine -> response shapes ────────────────────────────────────────────
+
+_SEVERITY_ORDER = {"CRITICAL": 0, "HIGH": 1, "MODERATE": 2, "MILD": 3, "NONE": 4}
+
+
+def _legacy_key(analyte_key: Optional[str]) -> Optional[str]:
+    keys = ANALYTE_TO_LEGACY_KEY.get(analyte_key or "")
+    return keys[0] if keys else None
+
+
+def _row_meaning(row: ScoredRow) -> str:
+    key = _legacy_key(row.analyte_key)
+    if row.direction == "HIGH":
+        return HIGH_MEANINGS.get(key, "Value above normal range") if key else "Value above normal range"
+    if row.direction == "LOW":
+        return LOW_MEANINGS.get(key, "Value below normal range") if key else "Value below normal range"
+    if row.direction == "POSITIVE":
+        return "Reported as positive / reactive"
+    return ""
+
+
+def _scored_to_row(row: ScoredRow) -> Dict[str, Any]:
+    note = row.note or ""
+    if row.value is None and row.text_value:
+        note = "; ".join(part for part in (row.text_value, note) if part)
+    if row.discrepancy:
+        note = "; ".join(part for part in (note, row.discrepancy) if part)
+    return {
+        "field": row.display_name,
+        "test": row.display_name,
+        "result": row.value if row.value is not None else row.text_value,
+        "unit": row.unit,
+        "reference": row.reference_text,
+        "flag": row.flag,
+        "ref_low": row.ref_low,
+        "ref_high": row.ref_high,
+        "value_type": row.value_type,
+        "note": note,
+        "range_source": row.range_source,
+        "analyte_key": row.analyte_key,
+        "qualifier": row.qualifier,
+        "severity": row.severity,
+        "clinical_meaning": _row_meaning(row) if row.direction else "",
+    }
+
+
+def _engine_anomaly_dicts(analysis: LabAnalysis) -> List[Dict[str, Any]]:
+    """Engine anomalies in the response shape, most severe first. Computed
+    from the engine alone, outside any model try-block."""
+    out: List[Dict[str, Any]] = []
+    for row in sorted(analysis.anomalies, key=lambda r: _SEVERITY_ORDER.get(r.severity, 4)):
+        severity = row.severity if row.severity != "NONE" else "MODERATE"
+        arrow = {"HIGH": "⬆️", "LOW": "⬇️"}.get(row.direction, "⚠️")
+        item = {
+            "field": row.display_name,
+            "test": row.display_name,
+            "value": row.value if row.value is not None else row.text_value,
+            "unit": row.unit,
+            "reference": row.reference_text,
+            "direction": row.direction or "ABNORMAL",
+            "severity": severity,
+            "flag": f"{arrow} {severity}",
+            "clinical_meaning": _row_meaning(row),
+            "status": "ABNORMAL",
+            "analyte_key": row.analyte_key,
+            "range_source": row.range_source,
+        }
+        if row.critical:
+            item["critical_alert"] = row.critical.get("message")
+        out.append(item)
+    return out
+
+
+def _engine_lab_dict(analysis: LabAnalysis, sex: Optional[str], age: Optional[int]) -> Dict[str, Any]:
+    """Feature dict keyed by the names XGBoost / the clinical patterns use,
+    holding canonical-unit values. Sex and age are included only when known."""
+    lab_dict: Dict[str, Any] = {}
+    for row in analysis.rows:
+        if row.value is None or row.value_type not in ("numeric", "qualified") or not row.analyte_key:
+            continue
+        for key in ANALYTE_TO_LEGACY_KEY.get(row.analyte_key, ()):
+            lab_dict.setdefault(key, row.value)
+    if sex:
+        lab_dict["gender"] = 1 if sex == "M" else 0
+    if age is not None:
+        lab_dict["age"] = age
+    return lab_dict
+
+
+def _engine_legacy_anomalies(analysis: LabAnalysis) -> Dict[str, Dict[str, Any]]:
+    """Engine anomalies keyed like the clinical-pattern table expects
+    (direction + canonical value), so conditions are derived from the engine's
+    verdicts rather than re-flagging against the registry."""
+    out: Dict[str, Dict[str, Any]] = {}
+    for row in analysis.anomalies:
+        if row.value is None or not row.analyte_key or row.direction not in ("HIGH", "LOW"):
+            continue
+        for key in ANALYTE_TO_LEGACY_KEY.get(row.analyte_key, ()):
+            out.setdefault(
+                key,
+                {
+                    "status": "ABNORMAL",
+                    "direction": row.direction,
+                    "severity": row.severity,
+                    "value": row.value,
+                    "ref_low": row.ref_low,
+                    "ref_high": row.ref_high,
+                    "unit": row.unit,
+                    "reference": row.reference_text,
+                    "clinical_meaning": _row_meaning(row),
+                },
+            )
+    return out
+
+
+def _ensemble_rows(lab_rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Rows handed to the ensemble's own anomaly model: only those with a full
+    range resolved by the engine. The ensemble would otherwise fall back to a
+    male/40 registry guess for rows the engine left UNKNOWN."""
+    return [
+        row
+        for row in lab_rows
+        if row.get("value_type") in ("numeric", "qualified")
+        and row.get("ref_low") is not None
+        and row.get("ref_high") is not None
+    ]
+
+
+def _lab_rows_from_report(raw_text: str, parsed_lab_report: Dict[str, Any]) -> tuple[List[ParsedRow], int, List[str]]:
+    """(rows, unread numeric lines, warnings) from the column parser (when it
+    produced a usable table) or from the report text/structured CSV."""
+    if parsed_lab_report.get("lab_values"):
+        from app.services.lab_report_column_parser import column_rows_to_parsed
+
+        return column_rows_to_parsed(parsed_lab_report["lab_values"]), 0, []
+    return parse_report_text(raw_text)
 
 
 def _engine_anomalies_to_rows(anomalies: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -525,6 +807,48 @@ def _deduplicate_anomalies(anomalies: List[Dict[str, Any]]) -> List[Dict[str, An
     return list(seen.values())
 
 
+_RISK_ORDER = {"unknown": 0, "normal": 1, "low": 1, "moderate": 2, "medium": 2, "high": 3, "critical": 4}
+
+
+# Urine dipstick / physical analytes the engine also recognises. A report
+# whose only engine rows are these (or qualitative +/- results) is a
+# urinalysis report and keeps the richer urinalysis path.
+_URINE_ONLY_ANALYTES = {"specific_gravity", "urine_ph"}
+
+
+_URINE_DIPSTICK_NAMES = {
+    "protein", "albumin", "glucose", "sugar", "ketone", "ketones", "ketonebodies", "acetone", "nitrite", "nitrites",
+    "leukocyteesterase", "leucocyteesterase", "leukocytes", "blood", "occultblood", "haemoglobin", "hemoglobin",
+    "bilirubin", "urobilinogen", "bilesalts", "bilepigments", "colour", "color", "appearance", "clarity",
+    "transparency", "reaction", "deposit", "sediment", "crystals", "casts", "bacteria", "yeast", "mucus",
+}
+
+
+def _is_blood_row(row: Any) -> bool:
+    """True for any row that isn't a urine dipstick/physical/microscopy item.
+
+    Qualitative results count: a reactive HIV / HBsAg / malaria antigen next
+    to a urine routine used to send the whole report down the urinalysis
+    branch, where the serology vanished and the headline was "low".
+    """
+    key = getattr(row, "analyte_key", None) or ""
+    if key in _URINE_ONLY_ANALYTES or key.startswith("urine_"):
+        return False
+    if getattr(row, "value_type", "") == "qualitative" and not key:
+        name = _lab_name_key(str(getattr(row, "display_name", "") or ""))
+        name = re.sub(r"^urine|urine$", "", name)
+        return name not in _URINE_DIPSTICK_NAMES
+    return True
+
+
+def _lab_name_key(name: str) -> str:
+    return "".join(ch for ch in name.lower() if ch.isalnum())
+
+
+def _not_reported(value: Any) -> bool:
+    return value is None or (isinstance(value, str) and value.strip() in ("", "--", "-", "n/a", "N/A"))
+
+
 def _urine_entities_to_rows(entities: Dict[str, Any]) -> List[Dict[str, Any]]:
     rows = []
     dipstick = entities.get("dipstick") or {}
@@ -541,6 +865,8 @@ def _urine_entities_to_rows(entities: Dict[str, Any]) -> List[Dict[str, Any]]:
         for key, value in section.items():
             if key == "casts" and isinstance(value, dict):
                 for cast_name, cast_value in value.items():
+                    if _not_reported(cast_value):
+                        continue
                     rows.append(
                         {
                             "field": cast_name.replace("_", " ").title(),
@@ -554,7 +880,10 @@ def _urine_entities_to_rows(entities: Dict[str, Any]) -> List[Dict[str, Any]]:
                         }
                     )
                 continue
-            if not isinstance(value, dict):
+            if not isinstance(value, dict) or _not_reported(value.get("value")):
+                # The urinalysis extractor emits a slot for every parameter;
+                # an empty one used to be shown as a NORMAL result for a test
+                # that was never on the report.
                 continue
             rows.append(
                 {
@@ -621,6 +950,88 @@ def _urine_risk_from_patterns(patterns: List[str]) -> float:
 # ============================================================================
 # PIPELINE 1 - IMAGE ANALYSIS
 # ============================================================================
+
+def _whole_radiograph(image_path: str, fallback_array: Any):
+    """The full, un-enhanced image as RGB PIL (DICOM: its decoded pixels)."""
+    import numpy as np
+    from PIL import Image
+
+    if Path(image_path).suffix.lower() != ".dcm":
+        try:
+            return Image.open(image_path).convert("RGB")
+        except Exception as exc:  # unreadable by PIL — fall back to the decoded array
+            logger.warning("Could not reopen %s for classification: %s", image_path, exc)
+    return Image.fromarray(np.asarray(fallback_array)).convert("RGB")
+
+
+def radiograph_plausibility(image: Any) -> tuple[bool, str]:
+    """Cheap in-distribution check before the chest X-ray model runs.
+
+    The model returns findings for ANY input — random noise came back as
+    "URGENT FINDING: Pneumothorax". Measured on public chest radiographs:
+    colour deviation <= 1.5, neighbour roughness 0.016-0.019, contrast std
+    0.11-0.26; noise, colour photos, flat frames and synthetic shapes fall
+    outside. Bounds are deliberately generous so real films aren't rejected.
+    """
+    import numpy as np
+
+    rgb = np.asarray(image.convert("RGB").resize((224, 224)), dtype=np.float32)
+    colour = float(np.abs(rgb - rgb.mean(axis=2, keepdims=True)).mean())
+    grey = rgb.mean(axis=2) / 255.0
+    contrast = float(grey.std())
+    roughness = float((np.abs(np.diff(grey, axis=0)).mean() + np.abs(np.diff(grey, axis=1)).mean()) / 2)
+    if colour > 8.0:
+        return False, "it is a colour image"
+    if contrast < 0.04:
+        return False, "it has almost no contrast"
+    if roughness > 0.06:
+        return False, "it looks like noise"
+    if roughness < 0.004:
+        return False, "it has no anatomical texture"
+    grey_u8 = np.asarray(image.convert("L").resize((224, 224)), dtype=np.uint8)
+    hist = np.bincount(grey_u8.ravel(), minlength=256) / grey_u8.size
+    entropy = float(-(hist[hist > 0] * np.log2(hist[hist > 0])).sum())
+    # Films span the grey scale (entropy 7.1-7.9 measured); documents,
+    # drawings and shapes are a few flat levels (0.5-4.0).
+    if entropy < 6.0:
+        return False, "it has too few grey levels for a radiograph (document, drawing or shapes)"
+    error = _radiograph_reconstruction_error(image)
+    # torchxrayvision's chest-X-ray autoencoder: real films reconstruct with
+    # mean abs error 42-54; documents, blurred blobs and noise 127-195.
+    if error is not None and error > 100.0:
+        return False, f"it is unlike the chest radiographs the model was trained on (score {error:.0f})"
+    return True, ""
+
+
+_XRV_AE = None
+
+
+def _radiograph_reconstruction_error(image: Any) -> Optional[float]:
+    """Mean abs reconstruction error from torchxrayvision's chest X-ray
+    autoencoder, or None if it can't be loaded (the gate then relies on the
+    cheaper checks above)."""
+    global _XRV_AE
+    try:
+        import numpy as np
+        import torch
+        import torchxrayvision as xrv
+
+        if _XRV_AE is None:
+            _XRV_AE = xrv.autoencoders.ResNetAE(weights="101-elastic").eval()
+        grey = np.asarray(image.convert("L"), dtype=np.float32)
+        grey = xrv.datasets.normalize(grey, 255)[None]
+        height, width = grey.shape[1:]
+        side = min(height, width)
+        top, left = (height - side) // 2, (width - side) // 2
+        grey = xrv.datasets.XRayResizer(224)(grey[:, top:top + side, left:left + side])
+        tensor = torch.from_numpy(grey)[None].float()
+        with torch.no_grad():
+            recon = _XRV_AE(tensor)["out"]
+        return float(torch.mean(torch.abs(recon - tensor)))
+    except Exception as exc:
+        logger.warning("Radiograph autoencoder unavailable (%s); using heuristic gate only", exc)
+        return None
+
 
 def run_image_pipeline(
     image_path: str,
@@ -711,15 +1122,31 @@ def run_image_pipeline(
         normalized_image_type = str(image_type or "xray").lower().strip()
         is_chest_modality = normalized_image_type in CHEST_MODALITIES
 
+        # The chest X-ray model is trained on whole radiographs with its own
+        # normalisation. It used to receive the MedSAM ROI crop after CLAHE /
+        # denoise / contrast stretch, which shifted its outputs (e.g. a Mass
+        # at 0.72 on the raw film was reported as "Pneumonia 50%").
+        classifier_input = roi_pil
+        if is_chest_modality:
+            classifier_input = _whole_radiograph(image_path, primary_image_array)
+            plausible, why = radiograph_plausibility(classifier_input)
+            if not plausible:
+                return _build_error_response(
+                    ctx,
+                    f"Quality gate: this does not look like a chest radiograph ({why}). "
+                    "No findings were produced.",
+                    "low_quality",
+                )
+
         if MODALITY_ROUTER_AVAILABLE:
             classification = classify_by_modality(
                 image_path=image_path,
                 modality=normalized_image_type,
                 fallback_classify_fn=classify_image,
-                fallback_image=roi_pil,
+                fallback_image=classifier_input,
             )
         else:
-            classification = classify_image(roi_pil)
+            classification = classify_image(classifier_input)
 
         if is_dataclass(classification):
             classification_json = to_json_safe(asdict(classification))
@@ -729,7 +1156,7 @@ def run_image_pipeline(
         gradcam_path = None
         if is_chest_modality:
             try:
-                gradcam_path = generate_gradcam_overlay(roi_pil, job_id=ctx.job_id)["gradcam_path"]
+                gradcam_path = generate_gradcam_overlay(classifier_input, job_id=ctx.job_id)["gradcam_path"]
                 if hasattr(classification, "gradcam_path"):
                     classification.gradcam_path = gradcam_path
                 if isinstance(classification_json, dict):
@@ -854,12 +1281,19 @@ def run_report_pipeline(
     patient_id: Optional[str] = None,
     report_type: str = "lab",
     job_id: Optional[str] = None,
-    gender: str = "male",
-    age: int = 40,
+    gender: Optional[str] = None,
+    age: Optional[int] = None,
     explanation_mode: str = "brief",
 ) -> PipelineResponse:
-    """PDF/CSV report -> OCR -> NER -> optional XGBoost/SHAP -> optional RAG."""
+    """PDF/CSV report -> OCR -> NER -> lab engine -> optional XGBoost/SHAP -> optional RAG.
+
+    For lab reports every row is read, unit-normalised, range-checked and
+    flagged by the deterministic lab engine; models only contribute a score
+    and explanations, and the engine's findings are a floor under the final
+    risk. `gender` / `age` may be None: they are never assumed."""
     ctx = _make_context("report", patient_id, job_id)
+    sex = normalize_sex(gender)
+    patient_age = normalize_age(age)
     logger.info("[%s] Starting report pipeline: %s type=%s", ctx.job_id, file_path, report_type)
 
     try:
@@ -875,18 +1309,37 @@ def run_report_pipeline(
         try:
             from app.services.clinical_ner_service import detect_report_type, run_clinical_pipeline
 
-            if not parsed_lab_report and detect_report_type(raw_text) == "urinalysis":
+            # A urine section is analysed IN ADDITION to the blood tests, never
+            # instead of them: routing the whole report to the urinalysis
+            # branch on two urine keywords dropped Hb 6.1 / K 6.9 / platelets
+            # 12k from a mixed report and returned "low risk".
+            if detect_report_type(raw_text) == "urinalysis":
                 urine_result = run_clinical_pipeline(raw_text)
         except Exception as exc:
             logger.warning("[%s] Urinalysis NER enrichment skipped: %s", ctx.job_id, exc)
-        ner_result = _NerResult(conditions=[], medications=[], dates=[], lab_values=[]) if urine_result else _run_ner_safe(raw_text)
+        ner_result = _run_ner_safe(raw_text)
 
-        lab_values = parsed_lab_report.get("lab_values") or _extract_lab_values_safe(raw_text, ner_result, report_type)
-        if report_type == "lab" and not parsed_lab_report:
-            lab_values = enrich_lab_with_who_ranges(lab_values, gender=gender)
-        lab_rows = [_lab_value_to_row(value) for value in lab_values]
-        lab_dict = _lab_values_to_dict(lab_values, gender=gender, age=age)
-        clinical_analysis = analyze_blood_report(lab_dict, gender=gender, age=age) if report_type == "lab" else None
+        analysis: Optional[LabAnalysis] = None
+        clinical_analysis = None
+        if report_type == "lab":
+            parsed_rows, unparsed_lines, parse_warnings = _lab_rows_from_report(raw_text, parsed_lab_report)
+            analysis = analyze_lab_rows(
+                parsed_rows, sex, patient_age, unparsed_numeric_lines=unparsed_lines,
+                extra_warnings=tuple(parse_warnings),
+            )
+            lab_rows = [_scored_to_row(row) for row in analysis.rows]
+            lab_dict = _engine_lab_dict(analysis, sex, patient_age)
+            clinical_analysis = analyze_blood_report(
+                lab_dict,
+                gender=sex,
+                age=patient_age,
+                anomalies=_engine_legacy_anomalies(analysis),
+                critical_alerts=analysis.critical_alerts,
+            )
+        else:
+            lab_values = _extract_lab_values_safe(raw_text, ner_result, report_type)
+            lab_rows = [_lab_value_to_row(value, gender=sex, age=patient_age) for value in lab_values]
+            lab_dict = _lab_values_to_dict(lab_values, gender=sex, age=patient_age)
 
         entities = _ner_entities_dict(ner_result)
         if clinical_analysis is not None:
@@ -895,21 +1348,33 @@ def run_report_pipeline(
         anomalies = []
         risk_score = 50.0
         risk_factors = []
+        urine_rows: List[Dict[str, Any]] = []
+        urine_anomalies: List[Dict[str, Any]] = []
+        urine_risk = 0.0
+        has_blood_rows = analysis is not None and any(_is_blood_row(row) for row in analysis.rows)
         if urine_result:
-            panel_type = "urinalysis"
-            entities = urine_result.get("entities") or {}
-            entities["_source"] = urine_result.get("model_used")
-            lab_rows = _urine_entities_to_rows(entities)
-            lab_dict = urine_result.get("features") or {}
-            anomalies = _urine_pattern_anomalies(
-                entities.get("detected_patterns") or [],
+            urine_entities = urine_result.get("entities") or {}
+            urine_entities["_source"] = urine_result.get("model_used")
+            urine_rows = _urine_entities_to_rows(urine_entities)
+            urine_anomalies = _urine_pattern_anomalies(
+                urine_entities.get("detected_patterns") or [],
                 urine_result.get("rag_evidence") or [],
             )
-            risk_score = _urine_risk_from_patterns(entities.get("detected_patterns") or [])
+            urine_risk = _urine_risk_from_patterns(urine_entities.get("detected_patterns") or [])
+            if has_blood_rows:
+                entities["urinalysis"] = urine_entities
+            else:
+                panel_type = "urinalysis"
+                entities = urine_entities
+                lab_rows = urine_rows
+                lab_dict = urine_result.get("features") or {}
+                anomalies = list(urine_anomalies)
+                risk_score = urine_risk
             risk_factors = [
                 {"feature": pattern, "shap": 0.0}
-                for pattern in (entities.get("detected_patterns") or [])
+                for pattern in (urine_entities.get("detected_patterns") or [])
             ]
+        if urine_result and not has_blood_rows:
             tabular_prediction = {
                 "report_type": "urinalysis",
                 "features": urine_result.get("features") or {},
@@ -917,70 +1382,20 @@ def run_report_pipeline(
                 "model_used": urine_result.get("model_used"),
             }
 
-        if report_type == "lab" and lab_values and not urine_result:
+        if analysis is not None and analysis.rows:
+            # Engine verdicts come first and never depend on a model succeeding.
+            anomalies = _engine_anomaly_dicts(analysis)
+            risk_map = {"normal": 0.0, "moderate": 30.0, "high": 70.0, "critical": 95.0}
+            risk_score = risk_map.get(str(clinical_analysis["risk_level"]).lower(), 30.0 if anomalies else 0.0)
+            risk_factors = clinical_analysis["conditions"]
             try:
                 tabular = predict_tabular(lab_dict, raw_text)
                 tabular_prediction = to_json_safe(tabular)
-                risk_factors = tabular_prediction.get("top_contributors", [])
-                if clinical_analysis is not None:
-                    row_lookup = {
-                        _normalize_lab_key(row.get("field") or row.get("test")): row
-                        for row in lab_rows
-                    }
-                    anomalies = []
-                    for key, item in clinical_analysis["anomalies"].items():
-                        if not isinstance(item, dict) or item.get("status") != "ABNORMAL":
-                            continue
-                        row = row_lookup.get(_normalize_lab_key(key), {})
-                        anomalies.append(
-                            {
-                                "field": clean_test_name(item.get("field") or key),
-                                "test": clean_test_name(key),
-                                "value": item.get("value", row.get("result")),
-                                "unit": item.get("unit", row.get("unit", "")),
-                                "reference": item.get("reference", row.get("reference", "--")),
-                                "direction": item.get("direction", "ABNORMAL"),
-                                "severity": item.get("severity", "HIGH"),
-                                "flag": item.get("flag", "⚠️ ABNORMAL"),
-                                "clinical_meaning": item.get("clinical_meaning", ""),
-                                "status": "ABNORMAL",
-                            }
-                        )
-                    risk_map = {"normal": 0.0, "moderate": 30.0, "high": 70.0, "critical": 95.0}
-                    risk_score = risk_map.get(str(clinical_analysis["risk_level"]).lower(), 30.0 if anomalies else 0.0)
-                    risk_factors = clinical_analysis["conditions"] or risk_factors
-                    for row in lab_rows:
-                        key = _normalize_lab_key(row.get("field") or row.get("test"))
-                        item = clinical_analysis["anomalies"].get(key)
-                        if isinstance(item, dict):
-                            row["reference"] = item.get("reference", row.get("reference", "--"))
-                            row["flag"] = item.get("flag", row.get("flag", "NORMAL"))
-                            row["clinical_meaning"] = item.get("clinical_meaning", "")
-                else:
-                    risk_score = float(tabular_prediction.get("risk_score", 0.5)) * 100
-                    anomaly_map = tabular_prediction.get("anomalies", {}) or {}
-                    row_lookup = {
-                        _normalize_lab_key(row.get("field") or row.get("test")): row
-                        for row in lab_rows
-                    }
-                    for test_name, details in anomaly_map.items():
-                        if not isinstance(details, dict) or details.get("status") != "ABNORMAL":
-                            continue
-                        row = row_lookup.get(_normalize_lab_key(test_name), {})
-                        anomalies.append(
-                            {
-                                "field": clean_test_name(row.get("field") or details.get("field") or test_name),
-                                "test": clean_test_name(test_name),
-                                "value": row.get("result", details.get("value", lab_dict.get(test_name))),
-                                "unit": row.get("unit", details.get("unit", "")),
-                                "reference": row.get("reference", details.get("reference", "--")),
-                                "direction": details.get("direction", "ABNORMAL"),
-                                "severity": details.get("severity", "HIGH"),
-                                "flag": details.get("flag", "⚠️ ABNORMAL"),
-                                "clinical_meaning": details.get("clinical_meaning", ""),
-                                "status": "ABNORMAL",
-                            }
-                        )
+                # The model's own registry flags (male/40 defaults, no unit
+                # handling) are not shown; the engine's anomalies are.
+                tabular_prediction["anomalies"] = {}
+                if not risk_factors:
+                    risk_factors = tabular_prediction.get("top_contributors", [])
             except Exception as exc:
                 logger.warning("[%s] XGBoost skipped/failed: %s", ctx.job_id, exc)
 
@@ -992,7 +1407,7 @@ def run_report_pipeline(
                 risk_score = min(95.0, 15.0 + (critical * 25.0) + (high * 15.0))
 
         ensemble_details = None
-        if urine_result:
+        if urine_result and not has_blood_rows:
             risk_label = _confidence_label(risk_score)
             ensemble_details = {
                 "ensemble_risk_score": risk_score,
@@ -1014,19 +1429,58 @@ def run_report_pipeline(
 
                 ensemble_details = ensemble_predict(
                     ml_features=lab_dict,
-                    lab_values=lab_rows,
+                    lab_values=_ensemble_rows(lab_rows) if analysis is not None else lab_rows,
                     clinical_risk_level=clinical_analysis.get("risk_level") if clinical_analysis else None,
                 )
                 risk_score = float(ensemble_details.get("ensemble_risk_score", risk_score))
                 risk_label = ensemble_details.get("risk_label")
-                ensemble_anomalies = ensemble_details.get("anomalies") or []
-                if ensemble_anomalies:
-                    anomalies = _deduplicate_anomalies(anomalies + ensemble_anomalies)
+                if analysis is not None:
+                    # The engine's anomalies are authoritative; the ensemble's
+                    # registry-based flags (male/40 defaults) are not merged in.
+                    ensemble_details["anomalies"] = anomalies
+                else:
+                    ensemble_anomalies = ensemble_details.get("anomalies") or []
+                    if ensemble_anomalies:
+                        anomalies = _deduplicate_anomalies(anomalies + ensemble_anomalies)
                 if ensemble_details.get("top_factors"):
                     risk_factors = ensemble_details["top_factors"]
             except Exception as exc:
                 logger.warning("[%s] Ensemble predictor skipped: %s", ctx.job_id, exc)
                 risk_label = _confidence_label(risk_score)
+
+        floor_uncertain = False
+        # A pure urinalysis report: the blood-test engine found nothing to
+        # score, and its floor must not overwrite the urinalysis verdict.
+        engine_applies = analysis is not None and (has_blood_rows or not urine_result)
+        warnings: List[str] = list(analysis.warnings) if engine_applies else []
+        if engine_applies:
+            # LAST word on risk: the engine's findings are a floor no model
+            # output can lower (critical -> >=90, high -> >=70, any anomaly ->
+            # >=40) and unassessed rows can never read as "low".
+            risk_label, risk_score, floor_uncertain = apply_risk_floor(analysis, risk_label, risk_score)
+            if str(risk_label).lower() == "critical" and not any(getattr(r, "critical", None) for r in analysis.rows):
+                # Ceiling: "critical" needs a critical value. The ensemble's
+                # sigmoid used to call a cluster of mild abnormalities (an
+                # 88-year-old's Hb 12.4 / Cr 1.4 / Na 134) "critical".
+                risk_label = "high"
+                risk_score = min(float(risk_score), 89.0) if risk_score is not None else risk_score
+            if sex is None or patient_age is None:
+                missing = " and ".join(n for n, v in (("sex", sex), ("age", patient_age)) if v is None)
+                warnings.append(
+                    f"Patient {missing} not provided: reference ranges that depend on it were not assumed, "
+                    "and the statistical risk model ran without it (its score is approximate)."
+                )
+        if urine_result and has_blood_rows:
+            panel_type = f"{panel_type}+urinalysis"
+            seen = {_lab_name_key(str(row.get("test") or "")) for row in lab_rows}
+            lab_rows = lab_rows + [r for r in urine_rows if _lab_name_key(str(r.get("test") or "")) not in seen]
+            anomalies = _deduplicate_anomalies(anomalies + urine_anomalies)
+            if urine_risk and (risk_score is None or urine_risk > float(risk_score)):
+                urine_label = _confidence_label(urine_risk)
+                if _RISK_ORDER.get(str(urine_label).lower(), 0) > _RISK_ORDER.get(str(risk_label).lower(), 0):
+                    risk_label = urine_label
+                risk_score = urine_risk
+        score_num = float(risk_score) if risk_score is not None else 0.0
 
         try:
             from app.services.differential_diagnosis import generate_differential, generate_explanation
@@ -1034,21 +1488,21 @@ def run_report_pipeline(
             differential_diagnosis = generate_differential(
                 entities=entities,
                 anomalies=anomalies,
-                risk_score=risk_score,
+                risk_score=score_num,
                 report_type=report_type,
             )
             explanation_mode = "full" if str(explanation_mode).lower() == "full" else "brief"
             generated_explanation = generate_explanation(
                 entities=entities,
                 anomalies=anomalies,
-                risk_score=risk_score,
+                risk_score=score_num,
                 risk_label=risk_label,
                 mode=explanation_mode,
             )
             explanation_brief = (
                 generated_explanation
                 if explanation_mode == "brief"
-                else generate_explanation(entities, anomalies, risk_score, risk_label, mode="brief")
+                else generate_explanation(entities, anomalies, score_num, risk_label, mode="brief")
             )
             explanation_full = generated_explanation if explanation_mode == "full" else None
         except Exception as exc:
@@ -1061,7 +1515,7 @@ def run_report_pipeline(
         rag_result = _explain_report_safe(
             raw_text=raw_text,
             entities=entities,
-            risk_score=risk_score,
+            risk_score=score_num,
             risk_factors=risk_factors,
             anomalies=anomalies,
             report_type=report_type,
@@ -1074,10 +1528,10 @@ def run_report_pipeline(
             try:
                 from app.services.patient_history_service import compare_with_latest_history, get_patient_history_sync
 
-                patient_history = get_patient_history_sync(patient_id, limit=5)
+                patient_history = get_patient_history_sync(patient_id, limit=5, owner_job_id=ctx.job_id)
                 current_for_compare = {
                     "report_id": ctx.job_id,
-                    "risk_score": risk_score,
+                    "risk_score": score_num,
                     "lab_values": lab_rows,
                     "extracted_entities": entities,
                     "completed_at": datetime.now(timezone.utc).isoformat(),
@@ -1092,6 +1546,53 @@ def run_report_pipeline(
             else risk_label or _confidence_label(float(rag_result.get("confidence_score", 50.0)))
         )
 
+        if engine_applies:
+            if risk_label == "unknown":
+                confidence_label = "low"
+            explanation_brief = decorate_explanation(explanation_brief, analysis)
+            explanation_full = decorate_explanation(explanation_full, analysis) if explanation_full else None
+            rag_result = dict(rag_result)
+            rag_result["explanation"] = decorate_explanation(rag_result.get("explanation"), analysis)
+            rag_result["plain_language_summary"] = decorate_explanation(
+                rag_result.get("plain_language_summary"), analysis
+            )
+
+        if report_type == "lab" and not lab_rows and not urine_result:
+            # Nothing was read from the report (unreadable scan, unsupported
+            # layout, OCR failure). Scoring an empty panel yields "low risk /
+            # no critical finding" — a false negative. Say what happened.
+            logger.warning("[%s] No lab values extracted; returning insufficient-evidence result", ctx.job_id)
+            message = (
+                "Insufficient evidence: no lab values could be extracted from this report, "
+                "so no risk assessment was made. Check the file is a readable lab report "
+                "and review it manually."
+            )
+            return PipelineResponse(
+                job_id=ctx.job_id,
+                patient_id=ctx.patient_id,
+                pipeline_type="report",
+                status="completed",
+                extracted_entities=entities,
+                lab_values=[],
+                anomalies=[],
+                warnings=warnings,
+                panel_type=panel_type,
+                verdict="Uncertain",
+                risk_score=None,
+                risk_label="unknown",
+                confidence_score=0.0,
+                confidence_label="low",
+                explanation=message,
+                plain_language_summary=message,
+                sources=[],
+                uncertainty_flag=True,
+                hallucination_flagged=False,
+                ocr_engine="text" if Path(file_path).suffix.lower() in {".csv", ".tsv", ".txt"} else "paddle",
+                ocr_confidence=getattr(ocr_result, "confidence", None),
+                processing_time_ms=ctx.elapsed_ms,
+                completed_at=datetime.now(timezone.utc).isoformat(),
+            )
+
         return PipelineResponse(
             job_id=ctx.job_id,
             patient_id=ctx.patient_id,
@@ -1102,6 +1603,7 @@ def run_report_pipeline(
             extracted_entities=entities,
             lab_values=lab_rows,
             anomalies=anomalies,
+            warnings=warnings,
             panel_type=panel_type,
             verdict=rag_result["verdict"],
             risk_score=risk_score,
@@ -1116,7 +1618,11 @@ def run_report_pipeline(
             explanation=explanation_brief or rag_result["explanation"],
             plain_language_summary=explanation_brief or rag_result["plain_language_summary"],
             sources=rag_result["sources"],
-            uncertainty_flag=rag_result["uncertainty_flag"] or bool((ensemble_details or {}).get("uncertainty_flag")),
+            uncertainty_flag=(
+                rag_result["uncertainty_flag"]
+                or bool((ensemble_details or {}).get("uncertainty_flag"))
+                or floor_uncertain
+            ),
             hallucination_flagged=rag_result["hallucination_flagged"],
             shap_top_factors=risk_factors,
             patient_history=patient_history[:3],
@@ -1202,8 +1708,8 @@ def run_pipeline(input_data: Dict[str, Any], job_id: Optional[str] = None) -> Pi
             patient_id=patient_id,
             report_type=input_data.get("report_type", "lab"),
             job_id=job_id,
-            gender=input_data.get("gender", "male"),
-            age=input_data.get("age", 40),
+            gender=input_data.get("gender"),
+            age=input_data.get("age"),
         )
     if pipeline_type == "claim":
         return run_claim_pipeline(

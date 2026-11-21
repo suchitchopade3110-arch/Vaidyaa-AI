@@ -53,11 +53,36 @@ def _clinician(sub: str) -> dict:
     return {"sub": sub, "role": "clinician", "type": "access"}
 
 
+class _State:
+    def __init__(self, state, result=None):
+        self.state = state
+        self.result = result if result is not None else {"status": "completed"}
+
+
+class _Record:
+    def __init__(self, status="queued"):
+        self.status = status
+
+
+@pytest.fixture
+def owned_completed_job(monkeypatch):
+    """The job exists, is the caller's, and Celery reports it finished.
+    (Those checks have their own tests below and in test_security_api.py.)"""
+    import app.api.v1.routes.signoff as signoff_mod
+
+    async def _owned(db, job_id, user, allow_admin=False):
+        return _Record()
+
+    monkeypatch.setattr(signoff_mod, "get_owned_job", _owned)
+    monkeypatch.setattr(signoff_mod, "AsyncResult", lambda job_id, app=None: _State("SUCCESS"))
+    return signoff_mod
+
+
 # ── sign_off_job ─────────────────────────────────────────────────────────────
 
 
 @pytest.mark.asyncio
-async def test_sign_off_writes_signoff_and_audit_log():
+async def test_sign_off_writes_signoff_and_audit_log(owned_completed_job):
     clinician = uuid.uuid4()
     db = _FakeSession()
 
@@ -80,7 +105,7 @@ async def test_sign_off_writes_signoff_and_audit_log():
 
 
 @pytest.mark.asyncio
-async def test_duplicate_sign_off_rejected_with_409():
+async def test_duplicate_sign_off_rejected_with_409(owned_completed_job):
     clinician = uuid.uuid4()
     existing = SignOff(
         id=uuid.uuid4(), job_id="job-1", clinician_id=clinician, model_versions="chexnet:v1"
@@ -96,6 +121,39 @@ async def test_duplicate_sign_off_rejected_with_409():
         )
     assert exc.value.status_code == 409
     # Nothing new should have been staged once the duplicate check fires.
+    assert db.added == []
+
+
+@pytest.mark.asyncio
+async def test_sign_off_unknown_or_foreign_job_is_404(monkeypatch):
+    import app.api.v1.routes.signoff as signoff_mod
+
+    async def _not_owned(db, job_id, user, allow_admin=False):
+        return None
+
+    monkeypatch.setattr(signoff_mod, "get_owned_job", _not_owned)
+    db = _FakeSession()
+    with pytest.raises(HTTPException) as exc:
+        await sign_off_job("nope", SignOffRequest(model_versions="x"), user=_clinician(str(uuid.uuid4())), db=db)
+    assert exc.value.status_code == 404
+    assert db.added == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("state", ["PENDING", "STARTED", "RETRY", "FAILURE"])
+async def test_sign_off_unfinished_job_is_409(monkeypatch, state):
+    import app.api.v1.routes.signoff as signoff_mod
+
+    async def _owned(db, job_id, user, allow_admin=False):
+        return _Record()
+
+    monkeypatch.setattr(signoff_mod, "get_owned_job", _owned)
+    monkeypatch.setattr(signoff_mod, "AsyncResult", lambda job_id, app=None: _State(state))
+    db = _FakeSession()
+    with pytest.raises(HTTPException) as exc:
+        await sign_off_job("job-1", SignOffRequest(model_versions="x"), user=_clinician(str(uuid.uuid4())), db=db)
+    assert exc.value.status_code == 409
+    assert exc.value.detail["code"] == "JOB_NOT_COMPLETE"
     assert db.added == []
 
 

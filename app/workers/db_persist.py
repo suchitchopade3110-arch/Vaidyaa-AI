@@ -24,9 +24,7 @@ def _get_conn():
     import psycopg2
     from app.core.config import settings
     
-    # Construct sync URL from settings
-    db_url = f"postgresql://{settings.POSTGRES_USER}:{settings.POSTGRES_PASSWORD}@{settings.POSTGRES_HOST}:{settings.POSTGRES_PORT}/{settings.POSTGRES_DB}"
-    return psycopg2.connect(db_url)
+    return psycopg2.connect(settings.SYNC_DATABASE_URL)
 
 
 def persist_claim(result: dict) -> bool:
@@ -227,6 +225,99 @@ def mark_failed(table: str, record_id: str, error: str) -> bool:
         return True
     except Exception as e:
         logger.error(f"mark_failed error for {table}/{record_id}: {e}")
+        return False
+
+
+def set_job_status(task_id: str, status: str) -> bool:
+    """Record a job's outcome on its async_jobs row (SEC-01 table).
+
+    The Celery result backend forgets results after `result_expires`; this
+    is the durable copy used by the job list and by sign-off once the
+    result has expired. `status` is the pipeline's own outcome
+    ("completed", "failed", "low_quality", ...), truncated to the column.
+    """
+    try:
+        conn = _get_conn()
+        cur = conn.cursor()
+        cur.execute("UPDATE async_jobs SET status = %s WHERE id = %s", (str(status)[:20], str(task_id)))
+        conn.commit()
+        cur.close()
+        conn.close()
+        return True
+    except Exception as e:
+        logger.error(f"set_job_status failed for {task_id}: {e}")
+        return False
+
+
+def upsert_report_result(task_id: str, result: dict) -> bool:
+    """Persist a finished report job to `reports` (keyed by celery_task_id).
+
+    The live pipeline only kept results in the Celery backend, which expires
+    them after 24 h — after that the QR preview / PDF returned 404 and
+    patient history was always empty. Re-running for the same task updates
+    the row instead of duplicating it.
+    """
+    import uuid as _uuid
+
+    try:
+        patient_uuid = None
+        try:
+            if result.get("patient_id"):
+                patient_uuid = str(_uuid.UUID(str(result["patient_id"])))
+        except (ValueError, TypeError):
+            patient_uuid = None  # free-text patient refs aren't patient rows
+
+        values = {
+            "patient_id": patient_uuid,
+            "report_type": "lab" if result.get("panel_type") or result.get("lab_values") else "report",
+            "status": str(result.get("status") or "completed").upper(),
+            "parsed_data": json.dumps({"lab_values": result.get("lab_values") or [],
+                                       "panel_type": result.get("panel_type")}, default=str),
+            "risk_score": result.get("risk_score"),
+            "anomalies": json.dumps(result.get("anomalies") or [], default=str),
+            "explanation": result.get("explanation"),
+            "confidence_score": result.get("confidence_score"),
+            "uncertainty_flag": bool(result.get("uncertainty_flag", False)),
+            "analysis_result": json.dumps(result, default=str),
+            "source_citations": json.dumps(result.get("sources") or [], default=str),
+            "task_id": str(task_id),
+        }
+        conn = _get_conn()
+        cur = conn.cursor()
+        if patient_uuid:
+            cur.execute(
+                "INSERT INTO patients (id, patient_code) VALUES (%s, %s) ON CONFLICT DO NOTHING",
+                (patient_uuid, "P-" + patient_uuid.replace("-", "")),
+            )
+        cur.execute(
+            """
+            UPDATE reports SET patient_id=%(patient_id)s, report_type=%(report_type)s, status=%(status)s,
+                   parsed_data=%(parsed_data)s, risk_score=%(risk_score)s, anomalies=%(anomalies)s,
+                   explanation=%(explanation)s, confidence_score=%(confidence_score)s,
+                   uncertainty_flag=%(uncertainty_flag)s, analysis_result=%(analysis_result)s,
+                   source_citations=%(source_citations)s, completed_at=NOW()
+             WHERE celery_task_id=%(task_id)s
+            """,
+            values,
+        )
+        if cur.rowcount == 0:
+            cur.execute(
+                """
+                INSERT INTO reports (id, patient_id, report_type, status, parsed_data, risk_score, anomalies,
+                                     explanation, confidence_score, uncertainty_flag, analysis_result,
+                                     source_citations, celery_task_id, created_at, completed_at)
+                VALUES (%(id)s, %(patient_id)s, %(report_type)s, %(status)s, %(parsed_data)s, %(risk_score)s,
+                        %(anomalies)s, %(explanation)s, %(confidence_score)s, %(uncertainty_flag)s,
+                        %(analysis_result)s, %(source_citations)s, %(task_id)s, NOW(), NOW())
+                """,
+                {**values, "id": str(_uuid.uuid4())},
+            )
+        conn.commit()
+        cur.close()
+        conn.close()
+        return True
+    except Exception as e:
+        logger.error(f"upsert_report_result failed for {task_id}: {e}")
         return False
 
 

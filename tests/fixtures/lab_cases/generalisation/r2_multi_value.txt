@@ -1,0 +1,163 @@
+# Format: "@@ RULE | sex(M/F/-) | age(n/-) | label", report lines, then "=> name-substring | FLAG | value" per expected row,
+# in row order (row count must match). Also: "=> warn", "=> nowarn", "=> risk>=LABEL", "=> risk=unknown".
+# RULE R2: a line may hold several tests; two bare numbers before the unit are resolved only from a column header.
+@@ R2 | M | 40 | two tests, urea + creatinine just under critical
+Urea 28 mg/dL 15-45   Creatinine 9.8 mg/dL 0.7-1.3
+=> Urea | NORMAL | 28
+=> Creatinine | HIGH | 9.8
+@@ R2 | M | 40 | two tests, calcium critical in the second panel
+Chloride 99 mmol/L 98-107 | Calcium 5.8 mg/dL 8.5-10.5
+=> Chloride | NORMAL | 99
+=> Calcium | CRITICAL_LOW | 5.8
+=> risk>=critical
+@@ R2 | M | 40 | transaminases side by side
+ALT 45 U/L 7-55 AST 380 U/L 8-48
+=> ALT | NORMAL | 45
+=> AST | HIGH | 380
+@@ R2 | F | 40 | thyroid pair
+TSH 2.1 mIU/L 0.4-4.0   Free T4 0.3 ng/dL 0.8-1.8
+=> TSH | NORMAL | 2.1
+=> Free T4 | LOW | 0.3
+@@ R2 | M | 40 | fasting and post-prandial glucose on one line
+Glucose Fasting 88 mg/dL 70-99   Glucose PP 410 mg/dL 70-140
+=> Glucose Fasting | NORMAL | 88
+=> Glucose PP | CRITICAL_HIGH | 410
+@@ R2 | M | 40 | three tests on a line, hypokalaemia in the middle
+Sodium 142 mmol/L 135-145 Potassium 2.6 mmol/L 3.5-5.1 Chloride 104 mmol/L 98-107
+=> Sodium | NORMAL | 142
+=> Potassium | CRITICAL_LOW | 2.6
+=> Chloride | NORMAL | 104
+@@ R2 | M | 40 | pipe separated, haemoglobin not yet critical, leukocytosis critical
+Hemoglobin 7.9 g/dL 13.0-17.0 | WBC 55000 /cumm 4000-11000
+=> Hemoglobin | LOW | 7.9
+=> WBC | CRITICAL_HIGH | 55000
+@@ R2 | M | 40 | two tests no printed ranges
+Sodium 150 mmol/L  Potassium 4.4 mmol/L
+=> Sodium | HIGH | 150
+=> Potassium | NORMAL | 4.4
+@@ R2 | M | 40 | magnesium critical low next to phosphorus
+Magnesium 0.8 mg/dL 1.7-2.2   Phosphorus 4.0 mg/dL 2.5-4.5
+=> Magnesium | CRITICAL_LOW | 0.8
+=> Phosphorus | NORMAL | 4.0
+@@ R2 | M | 40 | renal failure creatinine in the second panel
+Uric Acid 5.1 mg/dL 3.4-7.0  Creatinine 12.2 mg/dL 0.7-1.3
+=> Uric Acid | NORMAL | 5.1
+=> Creatinine | CRITICAL_HIGH | 12.2
+@@ R2 | M | 40 | three spaces between panels (OCR column break)
+Urea   30 mg/dL   15 - 45   Calcium   5.9 mg/dL   8.5 - 10.5
+=> Urea | NORMAL | 30
+=> Calcium | CRITICAL_LOW | 5.9
+@@ R2 | F | 40 | albumin and globulin
+Albumin 2.1 g/dL 3.5-5.0   Globulin 3.0 g/dL 2.3-3.5
+=> Albumin | LOW | 2.1
+=> Globulin | NORMAL | 3.0
+@@ R2 | M | 40 | lipid pair, triglycerides critical
+Total Cholesterol 190 mg/dL <200   Triglycerides 1100 mg/dL <150
+=> Total Cholesterol | NORMAL | 190
+=> Triglycerides | CRITICAL_HIGH | 1100
+@@ R2 | M | 40 | hematocrit and RBC
+Hematocrit 41 % 40-50   RBC 2.0 million/cumm 4.5-5.9
+=> Hematocrit | NORMAL | 41
+=> RBC | LOW | 2.0
+@@ R2 | M | 40 | cumulative, header Test | Previous | Current | Unit | Range
+Test | Previous | Current | Unit | Range
+Sodium 140 118 mmol/L 135-145
+=> Sodium | CRITICAL_LOW | 118
+@@ R2 | M | 40 | cumulative, Today before Last: the first number is current
+Test Today Last Unit Ref
+Creatinine 11.0 1.1 mg/dL 0.7-1.3
+=> Creatinine | CRITICAL_HIGH | 11.0
+@@ R2 | M | 40 | cumulative, Latest before Prior
+Test Latest Prior Unit Ref
+Hemoglobin 6.3 14.0 g/dL 13.0-17.0
+=> Hemoglobin | CRITICAL_LOW | 6.3
+@@ R2 | M | 40 | cumulative with dated columns, later date second
+Test 05/01/2026 10/03/2026 Unit Ref
+Hemoglobin 14.0 6.4 g/dL 13.0-17.0
+=> Hemoglobin | CRITICAL_LOW | 6.4
+@@ R2 | M | 40 | cumulative with dated columns, later date first
+Test 10/03/2026 05/01/2026 Unit Ref
+Potassium 6.5 4.0 mmol/L 3.5-5.1
+=> Potassium | CRITICAL_HIGH | 6.5
+@@ R2 | M | 40 | two numbers and no header: never pick one, warn the critical possibility
+Sodium 140 118 mmol/L 135-145
+=> Sodium | UNKNOWN
+=> warn
+=> risk=unknown
+@@ R2 | M | 40 | three numbers and no header
+Hemoglobin 13.9 12.5 6.1 g/dL 13.0-17.0
+=> Hemoglobin | UNKNOWN
+=> warn
+=> risk=unknown
+@@ R2 | M | 40 | Result before Previous Result
+Test Result Previous Result Unit Ref
+Glucose Fasting 310 95 mg/dL 70-99
+=> Glucose Fasting | CRITICAL_HIGH | 310
+@@ R2 | M | 40 | three dated columns, the last date is current
+Test 01/01/2026 01/02/2026 01/03/2026 Unit Ref
+Platelet Count 250000 180000 15000 /cumm 150000-450000
+=> Platelet Count | CRITICAL_LOW | 15000
+@@ R2 | M | 40 | Prior Current, triglycerides
+Test Prior Current Unit Ref
+Triglycerides 140 560 mg/dL <150
+=> Triglycerides | CRITICAL_HIGH | 560
+@@ R2 | M | 40 | cumulative hematocrit
+Test Previous Current Unit Range
+Hematocrit 41 19 % 40-50
+=> Hematocrit | LOW | 19
+@@ R2 | M | 40 | cumulative with pipes
+Test | Previous | Current | Unit | Range
+Albumin | 3.9 | 1.9 | g/dL | 3.5-5.0
+=> Albumin | LOW | 1.9
+@@ R2 | M | 40 | cumulative normal
+Test Previous Current Unit Ref
+Sodium 138 140 mmol/L 135-145
+=> Sodium | NORMAL | 140
+=> risk=low
+@@ R2 | M | 40 | previous was critical, current normal: no alert on the previous value
+Test Previous Current Unit Ref
+Potassium 6.8 4.1 mmol/L 3.5-5.1
+=> Potassium | NORMAL | 4.1
+=> risk=low
+@@ R2 | M | 40 | Current before Previous
+Test Current Previous Unit Ref
+Potassium 4.1 6.8 mmol/L 3.5-5.1
+=> Potassium | NORMAL | 4.1
+@@ R2 | M | 40 | OCR text with three-space column breaks
+Test   Previous   Current   Unit   Reference Range
+Sodium   139   118   mmol/L   135 - 145
+=> Sodium | CRITICAL_LOW | 118
+@@ R2 | M | 40 | cumulative with a printed flag
+Test Previous Current Unit Ref
+Potassium 4.0 6.6 H mmol/L 3.5-5.1
+=> Potassium | CRITICAL_HIGH | 6.6
+@@ R2 | M | 40 | cumulative, two rows, second row critical only in current
+Test Previous Current Unit Ref
+Sodium 139 140 mmol/L 135-145
+Calcium 9.2 5.8 mg/dL 8.5-10.5
+=> Sodium | NORMAL | 140
+=> Calcium | CRITICAL_LOW | 5.8
+@@ R2 | M | 40 | two panels each with its own range, Hb critical in the left one
+Hemoglobin 5.9 g/dL 13.0-17.0   Sodium 140 mmol/L 135-145
+=> Hemoglobin | CRITICAL_LOW | 5.9
+=> Sodium | NORMAL | 140
+@@ R2 | M | 40 | second panel unit-less range borrowed from nobody: ranges stay with their own test
+Sodium 123 mmol/L 135-145   Potassium 6.4 mmol/L 3.5-5.1
+=> Sodium | CRITICAL_LOW | 123
+=> Potassium | CRITICAL_HIGH | 6.4
+@@ R2 | M | 40 | four tests in two lines
+Sodium 138 mmol/L 135-145  Potassium 4.4 mmol/L 3.5-5.1
+Urea 31 mg/dL 15-45  Creatinine 1.0 mg/dL 0.7-1.3
+=> Sodium | NORMAL | 138
+=> Potassium | NORMAL | 4.4
+=> Urea | NORMAL | 31
+=> Creatinine | NORMAL | 1.0
+=> risk=low
+@@ R2 | M | 40 | tab separated panels
+Hemoglobin 14.2 g/dL 13.0-17.0	TLC 5200 /cumm 4000-11000
+=> Hemoglobin | NORMAL | 14.2
+=> TLC | NORMAL | 5200
+@@ R2 | F | 40 | qualitative result next to a numeric on one line
+Calcium 9.4 mg/dL 8.5-10.5   Hemoglobin 6.8 g/dL 12.0-15.5
+=> Calcium | NORMAL | 9.4
+=> Hemoglobin | CRITICAL_LOW | 6.8

@@ -1,0 +1,122 @@
+# RULE R5: the result is the number directly followed by a unit / flag / range / end of line; a number followed by
+# name words (hours, hr, Hydroxy, tests ...) belongs to the NAME; several candidates -> UNKNOWN + warning.
+@@ R5 | M | 40 | 2 hour post meal glucose
+Glucose, 2 Hour Post Meal 168 mg/dL 70-140
+=> Glucose | HIGH | 168
+@@ R5 | M | 40 | vitamin D, 25 hydroxy
+Vitamin D, 25 Hydroxy 18 ng/mL 30-100
+=> Vitamin D | LOW | 18
+@@ R5 | M | 40 | 25-hydroxy vitamin D3
+25-Hydroxy Vitamin D3 22 ng/mL 30-100
+=> 25-Hydroxy | LOW | 22
+@@ R5 | M | 40 | vitamin B 12 level
+Vitamin B 12 Level 150 pg/mL 200-900
+=> Vitamin B 12 | LOW | 150
+@@ R5 | M | 40 | vitamin B12 cobalamin
+Vitamin B12 (Cobalamin) 150 pg/mL
+=> Vitamin B12 | LOW | 150
+@@ R5 | M | 40 | 1 hour post load glucose, unmatched name, no range
+Glucose, 1 Hour Post Load 190 mg/dL
+=> Glucose | UNKNOWN | 190
+=> warn
+@@ R5 | M | 40 | glucose 2 hr post prandial
+Glucose 2 Hr Post Prandial 215 mg/dL 70-140
+=> Glucose | HIGH | 215
+@@ R5 | M | 40 | glucose PP (2 hrs)
+Glucose PP (2 hrs) 145 mg/dL 70-140
+=> Glucose | HIGH | 145
+@@ R5 | M | 40 | fasting glucose with a fasting duration
+Glucose, Fasting, 12 hr 320 mg/dL 70-100
+=> Glucose | CRITICAL_HIGH | 320
+@@ R5 | M | 40 | overnight fasting 8 hours
+Glucose Fasting (8 hours) 92 mg/dL 70-100
+=> Glucose | NORMAL | 92
+@@ R5 | M | 40 | glucose 2 hrs after meal
+Glucose 2 hrs after meal 320 mg/dL
+=> Glucose | CRITICAL_HIGH | 320
+@@ R5 | M | 40 | CA 19-9 (digits and a dash inside the name)
+CA 19-9 45 U/mL <37
+=> CA 19-9 | HIGH | 45
+@@ R5 | M | 40 | CA 15.3 is ambiguous: two numbers before the unit
+CA 15.3 52 U/mL <30
+=> CA | UNKNOWN
+=> warn
+@@ R5 | M | 40 | interleukin 6 is ambiguous: two numbers
+Interleukin 6 12 pg/mL <7
+=> Interleukin | UNKNOWN
+=> warn
+@@ R5 | M | 40 | IL-6 alphanumeric name token
+IL-6 12 pg/mL <7
+=> IL-6 | HIGH | 12
+@@ R5 | M | 40 | vitamin B1
+Vitamin B1 80 nmol/L 70-180
+=> Vitamin B1 | NORMAL | 80
+@@ R5 | M | 40 | complement C3
+Complement C3 70 mg/dL 90-180
+=> Complement C3 | LOW | 70
+@@ R5 | M | 40 | T3 total
+T3 Total 95 ng/dL 80-200
+=> T3 | NORMAL | 95
+@@ R5 | M | 40 | free T3
+Free T3 1.1 pg/mL 2.3-4.2
+=> Free T3 | LOW | 1.1
+@@ R5 | M | 40 | CD4 count
+CD4 Count 180 /uL 500-1500
+=> CD4 | CRITICAL_LOW | 180
+@@ R5 | M | 40 | 24 hour urine protein
+Urine Protein 24 Hours 450 mg/24hr <150
+=> Urine Protein | HIGH | 450
+@@ R5 | M | 40 | creatinine clearance 24 hr
+Creatinine Clearance 24 Hr 45 mL/min 90-140
+=> Creatinine Clearance | LOW | 45
+@@ R5 | M | 40 | vitamin D3 25 OH
+Vitamin D3 25 OH 15 ng/mL 30-100
+=> Vitamin D3 | LOW | 15
+@@ R5 | M | 40 | glucose 2 hr PP no unit
+Glucose 2 hr PP 135
+=> Glucose | NORMAL | 135
+@@ R5 | M | 40 | serial number then name
+1. Hemoglobin 6.2 g/dL 13-17
+=> Hemoglobin | CRITICAL_LOW | 6.2
+@@ R5 | M | 40 | serial with bracket
+12) Potassium 7.1 mmol/L 3.5-5.1
+=> Potassium | CRITICAL_HIGH | 7.1
+@@ R5 | M | 40 | serial with space
+3 Platelet Count 15000 /cumm 150000-450000
+=> Platelet Count | CRITICAL_LOW | 15000
+@@ R5 | M | 40 | apolipoprotein A1
+Apolipoprotein A1 110 mg/dL 110-205
+=> Apolipoprotein A1 | NORMAL | 110
+@@ R5 | M | 40 | lipoprotein (a)
+Lipoprotein (a) 85 mg/dL <30
+=> Lipoprotein | HIGH | 85
+@@ R5 | M | 40 | factor VIII
+Factor VIII 45 % 50-150
+=> Factor VIII | LOW | 45
+@@ R5 | M | 40 | HbA1c with a name digit
+HbA1c 9.4 % 4.0-5.6
+=> HbA1c | HIGH | 9.4
+@@ R5 | M | 40 | Hb A2 electrophoresis
+Hb A2 6.5 % 2.2-3.2
+=> Hb A2 | HIGH | 6.5
+@@ R5 | M | 40 | IgG1 subclass
+IgG1 280 mg/dL 380-930
+=> IgG1 | LOW | 280
+@@ R5 | M | 40 | protein C activity 3 numbers? name has a letter token
+Protein C Activity 60 % 70-140
+=> Protein C | LOW | 60
+@@ R5 | F | 40 | beta 2 microglobulin
+Beta 2 Microglobulin 3.4 mg/L 0.8-2.2
+=> Beta 2 | HIGH | 3.4
+@@ R5 | F | 40 | beta-2 microglobulin dash form
+Beta-2 Microglobulin 3.4 mg/L 0.8-2.2
+=> Beta-2 | HIGH | 3.4
+@@ R5 | M | 40 | 5 hydroxy indole acetic acid
+5-HIAA 14 mg/24hr 2-9
+=> 5-HIAA | HIGH | 14
+@@ R5 | M | 40 | Troponin I 3rd generation
+Troponin I (3rd generation) 0.8 ng/mL <0.04
+=> Troponin I | CRITICAL_HIGH | 0.8
+@@ R5 | M | 40 | PT with 12 second control in brackets
+Prothrombin Time (Control 12 sec) 18 sec 11-13.5
+=> Prothrombin | HIGH | 18

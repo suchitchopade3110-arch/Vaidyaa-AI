@@ -7,7 +7,7 @@ import qrcode
 from celery.result import AsyncResult
 from fastapi import HTTPException
 from jose import JWTError, jwt
-from sqlalchemy import or_, select
+from sqlalchemy import or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -130,6 +130,25 @@ async def validate_report_token(token: str, db: AsyncSession, *, burn: bool) -> 
         await db.commit()
 
     return payload
+
+
+async def burn_report_token(payload: dict[str, Any], db: AsyncSession) -> None:
+    """Spend a one-time QR token AFTER the report has been produced.
+
+    A conditional UPDATE, so two simultaneous scans can't both succeed.
+    Burning before rendering used to lose the token whenever the PDF step
+    failed (404, then 410 on every retry).
+    """
+    if not ONE_TIME_SCAN:
+        return
+    result = await db.execute(
+        update(QRToken)
+        .where(QRToken.id == payload.get("token_id"), QRToken.is_active.is_(True))
+        .values(is_active=False, scan_count=QRToken.scan_count + 1)
+    )
+    await db.commit()
+    if result.rowcount != 1:
+        raise HTTPException(status_code=410, detail="QR code already used. Request a new one.")
 
 
 def generate_qr_image(token: str, base_url: str) -> bytes:

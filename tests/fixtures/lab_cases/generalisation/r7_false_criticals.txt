@@ -1,0 +1,176 @@
+# RULE R7: no false criticals / highs. Blood pH needs blood-gas context; a critical never fires on a value the
+# lab prints as normal for an assay cut-off (troponin) and hs-TnT is judged in ng/L; blood group / Rh are
+# information, not an anomaly; PCT needs a unit or CBC context; negative concentrations are not results.
+@@ R7 | M | 40 | bare pH 5.0 is a urine pH
+pH 5.0
+=> pH | NORMAL | 5.0
+=> risk=low
+@@ R7 | M | 40 | bare pH 8.5 is an alkaline urine, not a blood pH
+pH 8.5
+=> pH | HIGH | 8.5
+@@ R7 | M | 40 | urine pH
+Urine pH 6.5
+=> Urine pH | NORMAL | 6.5
+@@ R7 | M | 40 | Reaction 7.0 is urine pH
+Reaction 7.0
+=> Reaction | NORMAL | 7.0
+@@ R7 | M | 40 | blood pH 7.1 critical
+Blood pH 7.1
+=> Blood pH | CRITICAL_LOW | 7.1
+@@ R7 | M | 40 | arterial pH 7.62 critical
+Arterial pH 7.62
+=> Arterial pH | CRITICAL_HIGH | 7.62
+@@ R7 | M | 40 | pH (Arterial) 7.30 low
+pH (Arterial) 7.30
+=> pH (Arterial) | LOW | 7.30
+@@ R7 | M | 40 | venous pH normal
+Venous pH 7.38
+=> Venous pH | NORMAL | 7.38
+@@ R7 | M | 40 | blood-gas context makes pH a blood pH
+pH 7.1
+pCO2 28 mmHg
+pO2 95 mmHg
+=> pH | CRITICAL_LOW | 7.1
+=> pCO2 | LOW | 28
+=> pO2 | NORMAL | 95
+@@ R7 | M | 40 | arterial blood gas heading
+ARTERIAL BLOOD GAS
+pH 7.28
+pCO2 30 mmHg
+=> pH | LOW | 7.28
+=> pCO2 | LOW | 30
+@@ R7 | M | 40 | urine routine with pH 7.5
+URINE ROUTINE EXAMINATION
+Specific Gravity 1.015
+pH 7.5
+=> Specific Gravity | NORMAL | 1.015
+=> pH | NORMAL | 7.5
+@@ R7 | M | 40 | printed urine range
+pH 6.0 4.6-8.0
+=> pH | NORMAL | 6.0
+@@ R7 | M | 40 | printed blood range, normal
+pH 7.40 7.35-7.45
+=> pH | NORMAL | 7.40
+@@ R7 | M | 40 | printed blood range, critical
+pH 7.1 7.35-7.45
+=> pH | CRITICAL_LOW | 7.1
+@@ R7 | M | 40 | bare pH in the blood/urine ambiguous band is not scored
+pH 7.4
+=> pH | UNKNOWN | 7.4
+=> warn
+@@ R7 | M | 40 | hs Troponin T normal
+hs Troponin T 9 ng/L <14
+=> hs Troponin T | NORMAL | 9
+@@ R7 | M | 40 | hs-cTnT
+hs-cTnT 8 ng/L 0-14
+=> hs-cTnT | NORMAL | 8
+@@ R7 | M | 40 | hs troponin T raised but not critical
+Troponin T hs 40 ng/L <14
+=> Troponin T hs | HIGH | 40
+@@ R7 | M | 40 | hs troponin T markedly raised
+hs Troponin T 150 ng/L <14
+=> hs Troponin T | CRITICAL_HIGH | 150
+@@ R7 | M | 40 | troponin I normal
+Troponin I 0.02 ng/mL <0.04
+=> Troponin I | NORMAL | 0.02
+@@ R7 | M | 40 | troponin I critical
+Troponin I 0.5 ng/mL <0.04
+=> Troponin I | CRITICAL_HIGH | 0.5
+@@ R7 | M | 40 | hs troponin I in ng/L normal
+hs Troponin I 4 ng/L <34
+=> hs Troponin I | NORMAL | 0.004
+@@ R7 | M | 40 | hs troponin I just below its cut-off
+hs Troponin I 30 ng/L <34
+=> hs Troponin I | NORMAL | 0.03
+@@ R7 | M | 40 | hs troponin I markedly raised
+hs Troponin I 120 ng/L <34
+=> hs Troponin I | CRITICAL_HIGH | 0.12
+@@ R7 | M | 40 | troponin T in ng/mL normal
+Troponin T 0.005 ng/mL
+=> Troponin T | NORMAL | 0.005
+@@ R7 | M | 40 | troponin I under the lab's own higher cut-off
+Troponin I 45 ng/L <50
+=> Troponin I | NORMAL | 0.045
+@@ R7 | M | 40 | blood group A positive
+Blood Group A Positive
+=> Blood Group | INFO
+=> risk=low
+@@ R7 | M | 40 | ABO group B positive
+ABO Group B Positive
+=> ABO | INFO
+@@ R7 | M | 40 | Rh factor negative
+Rh Factor Negative
+=> Rh Factor | INFO
+@@ R7 | M | 40 | Rh type positive
+Rh Type Positive
+=> Rh Type | INFO
+@@ R7 | M | 40 | Rhesus
+Rhesus (Rh) Positive
+=> Rhesus | INFO
+@@ R7 | M | 40 | ABO and Rh on one line
+ABO & Rh Typing O Positive
+=> ABO | INFO
+@@ R7 | M | 40 | antibody screen positive IS an abnormal finding
+Irregular Antibody Screen Positive
+=> Antibody | POSITIVE
+@@ R7 | M | 40 | indirect Coombs positive
+Indirect Coombs Test Positive
+=> Coombs | POSITIVE
+@@ R7 | M | 40 | direct antiglobulin test positive
+Direct Antiglobulin Test Positive
+=> Antiglobulin | POSITIVE
+@@ R7 | M | 40 | urine nitrite positive is abnormal
+Urine Nitrite Positive
+=> Nitrite | POSITIVE
+@@ R7 | M | 40 | PCT with no unit and no CBC is not scored
+PCT 0.4
+=> PCT | UNKNOWN | 0.4
+=> warn
+@@ R7 | M | 40 | PCT in ng/mL is procalcitonin
+PCT 0.4 ng/mL <0.5
+=> PCT | NORMAL | 0.4
+@@ R7 | M | 40 | procalcitonin written out
+Procalcitonin 12 ng/mL <0.5
+=> Procalcitonin | HIGH | 12
+@@ R7 | M | 40 | PCT in % is plateletcrit
+PCT 0.28 %
+=> PCT | NORMAL | 0.28
+@@ R7 | M | 40 | PCT on a CBC is plateletcrit
+Hemoglobin 14.2 g/dL 13.0-17.0
+MCV 90 fL 80-100
+PCT 0.25
+=> Hemoglobin | NORMAL | 14.2
+=> MCV | NORMAL | 90
+=> PCT | NORMAL | 0.25
+@@ R7 | M | 40 | plateletcrit low
+Plateletcrit 0.1 %
+=> Plateletcrit | LOW | 0.1
+@@ R7 | M | 40 | negative potassium
+Potassium -4.1 mmol/L
+=> Potassium | UNKNOWN | -4.1
+=> warn
+@@ R7 | M | 40 | negative creatinine with a printed range
+Creatinine -1.0 mg/dL 0.7-1.3
+=> Creatinine | UNKNOWN | -1.0
+=> warn
+@@ R7 | M | 40 | negative haemoglobin
+Hemoglobin -13 g/dL
+=> Hemoglobin | UNKNOWN | -13
+=> warn
+@@ R7 | M | 40 | negative sodium with a unicode minus
+Sodium −140 mmol/L
+=> Sodium | UNKNOWN | -140
+=> warn
+@@ R7 | M | 40 | negative TSH
+TSH -2.0 mIU/L 0.4-4.0
+=> TSH | UNKNOWN | -2.0
+=> warn
+@@ R7 | M | 40 | base excess may be negative
+Base Excess -4 mmol/L
+=> Base Excess | LOW | -4
+@@ R7 | M | 40 | a dash separator is not a minus sign
+Sodium - 140 mmol/L 135-145
+=> Sodium | NORMAL | 140
+@@ R7 | M | 40 | colon and dash separator
+Potassium : - 4.2 mmol/L 3.5-5.1
+=> Potassium | NORMAL | 4.2

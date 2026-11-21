@@ -1,0 +1,377 @@
+%PDF-1.4
+%“Œ‹ž ReportLab Generated PDF document (opensource)
+1 0 obj
+<<
+/F1 2 0 R /F2 3 0 R
+>>
+endobj
+2 0 obj
+<<
+/BaseFont /Helvetica /Encoding /WinAnsiEncoding /Name /F1 /Subtype /Type1 /Type /Font
+>>
+endobj
+3 0 obj
+<<
+/BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding /Name /F2 /Subtype /Type1 /Type /Font
+>>
+endobj
+4 0 obj
+<<
+/Contents 8 0 R /MediaBox [ 0 0 612 792 ] /Parent 7 0 R /Resources <<
+/Font 1 0 R /ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
+>> /Rotate 0 /Trans <<
+
+>> 
+  /Type /Page
+>>
+endobj
+5 0 obj
+<<
+/PageMode /UseNone /Pages 7 0 R /Type /Catalog
+>>
+endobj
+6 0 obj
+<<
+/Author () /CreationDate (D:20000101000000+00'00') /Creator (vaidya-eval) /Keywords () /ModDate (D:20000101000000+00'00') /Producer (ReportLab PDF Library - \(opensource\)) 
+  /Subject (unspecified) /Title (Orchid Valley Pathology - Laboratory Report) /Trapped /False
+>>
+endobj
+7 0 obj
+<<
+/Count 1 /Kids [ 4 0 R ] /Type /Pages
+>>
+endobj
+8 0 obj
+<<
+/Length 7778
+>>
+stream
+1 0 0 1 0 0 cm  BT /F1 12 Tf 14.4 TL ET
+0 0 0 rg
+BT /F2 15 Tf 18 TL ET
+BT 1 0 0 1 36 743.6 Tm (Orchid Valley Pathology) Tj T* ET
+0 0 0 rg
+BT /F1 8 Tf 9.6 TL ET
+BT 1 0 0 1 36 731.32 Tm (4954 Harvest Lane, Springfield, OH 16655) Tj T* ET
+0 0 0 rg
+BT /F1 8 Tf 9.6 TL ET
+BT 1 0 0 1 36 720.32 Tm (Phone: \(755\) 555-0111) Tj T* ET
+1 w
+0 0 0 RG
+0 0 0 rg
+n 456 734 120 24 re S
+0 0 0 rg
+BT /F2 11 Tf 13.2 TL ET
+BT 1 0 0 1 475.36 741.44 Tm (FINAL REPORT) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 40 697.84 Tm (Patient Name: Rohan Kulkarni) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 40 685.34 Tm (Age / Sex: 44 Years / Male) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 40 672.84 Tm (Patient ID: PID-706154) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 316 697.84 Tm (Lab No: LN18385503) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 316 685.34 Tm (Sample ID: S8374863) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 316 672.84 Tm (Referred By: Dr. Ravi Rangan) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 316 660.34 Tm (Collected: 03/28/2026) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 456 660.34 Tm (Reported: 03/28/2026) Tj T* ET
+.5 w
+.9 .9 .9 RG
+.9 .9 .9 rg
+n 36 623 540 15 re f*
+0 0 0 rg
+BT /F2 9 Tf 10.8 TL ET
+BT 1 0 0 1 40 626.36 Tm (CBC With Differential) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 36 612.32 Tm (Test) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 194.44 612.32 Tm (Current Result) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 268 612.32 Tm (Flag) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 322 612.32 Tm (Reference Interval) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 440 612.32 Tm (Units) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 520 612.32 Tm (Lab) Tj T* ET
+.6 w
+0 0 0 RG
+0 0 0 rg
+n 36 609 m 576 609 l S
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 36 594 Tm (WBC) Tj T* ET
+0 0 0 rg
+BT /F2 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 238.19 594 Tm (0.7) Tj T* ET
+0 0 0 rg
+BT /F2 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 268 594 Tm (LL) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 322 594 Tm (4.5 - 11.0) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 440 594 Tm (K/\265L) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 520 594 Tm (01) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 36 577.95 Tm (PLT) Tj T* ET
+0 0 0 rg
+BT /F2 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 228.73 577.95 Tm (1,135) Tj T* ET
+0 0 0 rg
+BT /F2 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 268 577.95 Tm (HH) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 322 577.95 Tm (150 - 450) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 440 577.95 Tm (10\263/\265L) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 520 577.95 Tm (01) Tj T* ET
+.5 w
+.9 .9 .9 RG
+.9 .9 .9 rg
+n 36 549.8985 540 15 re f*
+0 0 0 rg
+BT /F2 9 Tf 10.8 TL ET
+BT 1 0 0 1 40 553.26 Tm (Thyroid Panel) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 36 539.22 Tm (Test) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 194.44 539.22 Tm (Current Result) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 268 539.22 Tm (Flag) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 322 539.22 Tm (Reference Interval) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 440 539.22 Tm (Units) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 520 539.22 Tm (Lab) Tj T* ET
+.6 w
+0 0 0 RG
+0 0 0 rg
+n 36 535.8985 m 576 535.8985 l S
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 36 520.9 Tm (Thyroid Stimulating Hormone \(TSH\)) Tj T* ET
+0 0 0 rg
+BT /F2 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 226.13 520.9 Tm (> 5.06) Tj T* ET
+0 0 0 rg
+BT /F2 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 268 520.9 Tm (H) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 322 520.9 Tm (0.27 - 4.20) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 440 520.9 Tm (\265IU/mL) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 520 520.9 Tm (01) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 36 504.85 Tm (Free T4) Tj T* ET
+0 0 0 rg
+BT /F2 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 233.46 504.85 Tm (0.40) Tj T* ET
+0 0 0 rg
+BT /F2 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 268 504.85 Tm (L) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 322 504.85 Tm (0.80 - 1.80) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 440 504.85 Tm (ng/dL) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 520 504.85 Tm (01) Tj T* ET
+.5 w
+.9 .9 .9 RG
+.9 .9 .9 rg
+n 36 476.7969 540 15 re f*
+0 0 0 rg
+BT /F2 9 Tf 10.8 TL ET
+BT 1 0 0 1 40 480.16 Tm (Prothrombin Time) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 36 466.12 Tm (Test) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 194.44 466.12 Tm (Current Result) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 268 466.12 Tm (Flag) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 322 466.12 Tm (Reference Interval) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 440 466.12 Tm (Units) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 520 466.12 Tm (Lab) Tj T* ET
+.6 w
+0 0 0 RG
+0 0 0 rg
+n 36 462.7969 m 576 462.7969 l S
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 36 447.8 Tm (INR) Tj T* ET
+0 0 0 rg
+BT /F2 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 233.46 447.8 Tm (7.92) Tj T* ET
+0 0 0 rg
+BT /F2 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 268 447.8 Tm (HH) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 322 447.8 Tm (0.80 - 1.20) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 520 447.8 Tm (01) Tj T* ET
+.5 w
+.9 .9 .9 RG
+.9 .9 .9 rg
+n 36 419.7462 540 15 re f*
+0 0 0 rg
+BT /F2 9 Tf 10.8 TL ET
+BT 1 0 0 1 40 423.11 Tm (Iron and TIBC) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 36 409.07 Tm (Test) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 194.44 409.07 Tm (Current Result) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 268 409.07 Tm (Flag) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 322 409.07 Tm (Reference Interval) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 440 409.07 Tm (Units) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 520 409.07 Tm (Lab) Tj T* ET
+.6 w
+0 0 0 RG
+0 0 0 rg
+n 36 405.7462 m 576 405.7462 l S
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 36 390.75 Tm (Ferritin) Tj T* ET
+0 0 0 rg
+BT /F2 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 235.82 390.75 Tm (404) Tj T* ET
+0 0 0 rg
+BT /F2 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 268 390.75 Tm (H) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 322 390.75 Tm (Male: 24 - 336) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 322 380.38 Tm (Female: 11 - 307) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 440 390.75 Tm (\265g/L) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 520 390.75 Tm (01) Tj T* ET
+0 0 0 rg
+BT /F2 7.5 Tf 9 TL ET
+BT 1 0 0 1 36 360.13 Tm (Footnotes:) Tj T* ET
+0 0 0 rg
+BT /F1 7.5 Tf 9 TL ET
+BT 1 0 0 1 36 349.13 Tm (01 = Main Laboratory, 4954 Harvest Lane, Springfield, OH 16655) Tj T* ET
+0 0 0 rg
+BT /F1 7.5 Tf 9 TL ET
+BT 1 0 0 1 36 338.13 Tm (** Fasting specimen recommended for glucose and lipid tests.) Tj T* ET
+.4 w
+.4 .4 .4 RG
+.4 .4 .4 rg
+n 36 81 m 576 81 l S
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 268 70.32 Tm (*** End of Report ***) Tj T* ET
+0 0 0 rg
+BT /F1 7 Tf 8.4 TL ET
+BT 1 0 0 1 404.17 60.08 Tm (Dr. Anil Rangan, MD \(Pathology\)  |  Reg. No. FX-23700) Tj T* ET
+0 0 0 rg
+BT /F1 7 Tf 8.4 TL ET
+BT 1 0 0 1 36 50.28 Tm (Tel: \(755\) 555-0111) Tj T* ET
+0 0 0 rg
+BT /F1 7 Tf 8.4 TL ET
+BT 1 0 0 1 166 50.28 Tm (Toll Free: \(800\) 555-0176) Tj T* ET
+0 0 0 rg
+BT /F1 7 Tf 8.4 TL ET
+BT 1 0 0 1 497.41 50.28 Tm (Turnaround time: 6 hours) Tj T* ET
+0 0 0 rg
+BT /F1 7 Tf 8.4 TL ET
+BT 1 0 0 1 36 40.48 Tm (Accreditation Cert. No. FA-6206) Tj T* ET
+0 0 0 rg
+BT /F2 7 Tf 8.4 TL ET
+BT 1 0 0 1 539.04 40.48 Tm (Page 1 of 1) Tj T* ET
+0 0 0 rg
+BT /F1 7 Tf 8.4 TL ET
+BT 1 0 0 1 36 30.68 Tm (Orchid Valley Pathology, 4954 Harvest Lane, Springfield, OH 16655  |  info@orchid.example.org) Tj T* ET
+ 
+endstream
+endobj
+xref
+0 9
+0000000000 65535 f 
+0000000061 00000 n 
+0000000102 00000 n 
+0000000209 00000 n 
+0000000321 00000 n 
+0000000514 00000 n 
+0000000582 00000 n 
+0000000871 00000 n 
+0000000930 00000 n 
+trailer
+<<
+/ID 
+[<aace9eacbc1f0d6fc371ed20feca7733><aace9eacbc1f0d6fc371ed20feca7733>]
+% ReportLab generated PDF document -- digest (opensource)
+
+/Info 6 0 R
+/Root 5 0 R
+/Size 9
+>>
+startxref
+8759
+%%EOF

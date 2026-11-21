@@ -135,7 +135,7 @@ function ClaimVerifier() {
       const body = { claim_text: claim };
       if (patientId) body.patient_id = patientId;
 
-      const submitRes = await fetch(`${API_BASE}/verify/claim`, {
+      const submitRes = await apiFetch(`${API_BASE}/verify/claim`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -143,7 +143,7 @@ function ClaimVerifier() {
 
       if (!submitRes.ok) {
         const errData = await submitRes.json().catch(() => ({}));
-        throw new Error(errData.detail || `API returned ${submitRes.status}`);
+        throw new Error(apiErrorMessage(errData, `API returned ${submitRes.status}`));
       }
 
       const submitData = await submitRes.json();
@@ -154,7 +154,7 @@ function ClaimVerifier() {
       // Poll for result
       const poll = async () => {
         try {
-          const pollRes = await fetch(`${API_BASE}/verify/claim/${claimId}`);
+          const pollRes = await apiFetch(`${API_BASE}/verify/claim/${claimId}`);
           const data = await pollRes.json();
           
           const st = (data.status || '').toLowerCase();
@@ -169,7 +169,8 @@ function ClaimVerifier() {
           const raw = data.result || data;
           const nested = raw.analysis_result || {};
           const verdictRaw = (raw.verdict || nested.verdict || raw.status || 'uncertain').toLowerCase();
-          const displayVerdict = verdictRaw.includes('verif') ? 'verified'
+          const displayVerdict = normalizeJobStatus(st, '') === 'failed' ? 'failed'
+                               : verdictRaw.includes('verif') ? 'verified'
                                : verdictRaw.includes('refut') || verdictRaw.includes('contra') ? 'refuted'
                                : 'uncertain';
 

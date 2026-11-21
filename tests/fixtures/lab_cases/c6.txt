@@ -1,0 +1,16 @@
+male|female patient, UI sends no gender (API default male)
+Hemoglobin 12.4 g/dL 12.0 - 15.5
+Creatinine 1.25 mg/dL 0.5 - 1.1
+Testosterone 250 ng/dL 15 - 70
+SGPT 28 U/L 7 - 19
+---
+female|same with gender=female
+Hemoglobin 12.4 g/dL 12.0 - 15.5
+Creatinine 1.25 mg/dL 0.5 - 1.1
+Testosterone 250 ng/dL 15 - 70
+SGPT 28 U/L 7 - 19
+---
+male|child 4y Hb (age ignored in ranges?)
+Hemoglobin 11.5 g/dL 11.0 - 14.0
+Alkaline Phosphatase 320 U/L 150 - 420
+WBC 13500 /µL 5000 - 15500

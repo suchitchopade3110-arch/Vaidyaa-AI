@@ -228,6 +228,7 @@ def parse_lab_report_for_pipeline(pdf_path: str) -> dict:
                 "reference_range": reference,
                 "ref_low": item.ref_low,
                 "ref_high": item.ref_high,
+                "ref_raw": item.ref_raw,
                 "flag": item.flag,
                 "section": item.section,
             }
@@ -245,3 +246,64 @@ def parse_lab_report_for_pipeline(pdf_path: str) -> dict:
         "normal_count": len(parsed) - len(abnormal_items),
         "abnormal_items": abnormal_items,
     }
+
+
+_RESULT_CELL = re.compile(
+    r"^\s*(?P<q><=|>=|[<>\u2264\u2265])?\s*(?P<n>[+-]?(?:\d[\d,]*\.?\d*|\.\d+))\s*(?P<rest>.*?)\s*$"
+)
+_QUALIFIERS = {"<": "<", ">": ">", "<=": "<=", ">=": ">=", "\u2264": "<=", "\u2265": ">="}
+
+
+def column_rows_to_parsed(lab_values: list) -> list:
+    """Column-parser rows (the dicts from parse_lab_report_for_pipeline) ->
+    lab-engine ParsedRow list, so they are scored by exactly the same code as
+    rows read from text or CSV.
+
+    The printed reference text (`ref_raw`) is re-read with the engine's range
+    parser, which understands one-sided, strict and sex-labelled ranges; the
+    parser's own ref_low/ref_high (first number pair found) is only a fallback."""
+    from app.services.lab_engine.models import ParsedRow
+    from app.services.lab_engine.tokenizer import normalize_flag, parse_range_text, qualitative_class
+    from app.services.lab_engine.units import is_unit_token, parse_number
+
+    out = []
+    for item in lab_values or []:
+        row = item if isinstance(item, dict) else dict(getattr(item, "__dict__", {}))
+        name = str(row.get("test") or row.get("name") or "").strip()
+        result = str(row.get("result", row.get("value", "")) if row.get("result", row.get("value")) is not None else "").strip()
+        unit = (row.get("unit") or "").strip() or None
+        ref_raw = row.get("ref_raw") or None
+        if not name or not result:
+            continue
+        parsed = ParsedRow(name=name, unit=unit, source="column_parser",
+                           line=f"{name} | {result} | {unit or ''} | {ref_raw or row.get('reference') or ''}")
+        m = _RESULT_CELL.match(result)
+        value = parse_number(m.group("n").lstrip("+"), False) if m else None
+        if m and value is not None:
+            parsed.value = value
+            parsed.qualifier = _QUALIFIERS.get(m.group("q") or "")
+            flags, leftovers = [], []
+            for tok in re.sub(r"[()\[\]]", " ", m.group("rest")).split():
+                if normalize_flag([tok]):
+                    flags.append(tok)
+                elif is_unit_token(tok) and not parsed.unit:
+                    parsed.unit = tok
+                else:
+                    leftovers.append(tok)
+            parsed.printed_flag = normalize_flag(flags) if flags else None
+            if leftovers:
+                parsed.warnings.append(f"{name}: unread text after the result ({' '.join(leftovers)})")
+        else:
+            parsed.text_value = result
+            if qualitative_class(result) is None:
+                parsed.warnings.append(f"{name}: result '{result}' is not a number the parser could read")
+        rng = parse_range_text(ref_raw) if ref_raw else None
+        if rng is not None:
+            parsed.ref_low, parsed.ref_high = rng["lo"], rng["hi"]
+            parsed.ref_strict_low, parsed.ref_strict_high = rng["strict_lo"], rng["strict_hi"]
+            parsed.ref_unit, parsed.sex_ranges, parsed.ref_text = rng["unit"], rng["sex_ranges"], ref_raw
+        elif row.get("ref_low") is not None or row.get("ref_high") is not None:
+            parsed.ref_low, parsed.ref_high = row.get("ref_low"), row.get("ref_high")
+            parsed.ref_text = ref_raw or row.get("reference")
+        out.append(parsed)
+    return out

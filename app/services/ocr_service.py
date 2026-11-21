@@ -27,7 +27,11 @@ def _get_ocr_engine():
             directory.mkdir(parents=True, exist_ok=True)
 
         _ocr_engine = PaddleOCR(
-            use_angle_cls=True,
+            # The per-crop angle classifier flips digits on clean, upright
+            # scans ("99" -> "66", "9" -> "6" at 0.999 confidence: 16/240
+            # values misread vs 0/240 without it). Lab reports are upright
+            # pages; leave rotation to page-level handling.
+            use_angle_cls=False,
             lang="en",
             use_gpu=False,
             show_log=False,
@@ -54,7 +58,7 @@ def preprocess_image(image: np.ndarray) -> np.ndarray:
 @with_retry(max_retries=1, backoff_seconds=1.0)
 def ocr_image(image: np.ndarray) -> list[dict[str, Any]]:
     """Run PaddleOCR on a numpy image and return text/confidence/bbox rows."""
-    result = _get_ocr_engine().ocr(image, cls=True)
+    result = _get_ocr_engine().ocr(image, cls=False)
     if not result or not result[0]:
         return []
 
@@ -74,6 +78,46 @@ def ocr_image(image: np.ndarray) -> list[dict[str, Any]]:
     return extracted
 
 
+def lines_from_boxes(ocr_lines: list[dict[str, Any]]) -> str:
+    """Rebuild reading-order text from PaddleOCR boxes.
+
+    PaddleOCR returns one box per word group; these used to be joined with
+    single spaces, so a scanned report became ONE line and the line-based lab
+    parser couldn't tell rows (or columns) apart. Boxes are grouped into rows
+    by vertical centre, ordered left to right, and a wide horizontal gap is
+    kept as three spaces (a column break the lab tokenizer can use).
+    """
+    boxes = []
+    for item in ocr_lines:
+        bbox = item.get("bbox")
+        if not bbox:
+            continue
+        xs = [float(pt[0]) for pt in bbox]
+        ys = [float(pt[1]) for pt in bbox]
+        boxes.append((min(xs), max(xs), (min(ys) + max(ys)) / 2.0, max(ys) - min(ys), item["text"]))
+    if not boxes:
+        return " ".join(item.get("text", "") for item in ocr_lines)
+
+    heights = sorted(b[3] for b in boxes if b[3] > 0) or [10.0]
+    median_h = heights[len(heights) // 2]
+    rows: list[list[tuple]] = []
+    for box in sorted(boxes, key=lambda b: b[2]):
+        if rows and abs(box[2] - (sum(b[2] for b in rows[-1]) / len(rows[-1]))) <= median_h * 0.5:
+            rows[-1].append(box)
+        else:
+            rows.append([box])
+
+    out = []
+    for row in rows:
+        row.sort(key=lambda b: b[0])
+        parts = [row[0][4]]
+        for prev, cur in zip(row, row[1:]):
+            gap = cur[0] - prev[1]
+            parts.append(("   " if gap > median_h * 2.0 else " ") + cur[4])
+        out.append("".join(parts))
+    return "\n".join(out)
+
+
 def extract_text_from_pdf(pdf_path: str | Path | bytes, dpi: int = 200) -> dict[str, Any]:
     """Extract PDF text using native text plus PaddleOCR page rendering."""
     doc = fitz.open(stream=pdf_path, filetype="pdf") if isinstance(pdf_path, bytes) else fitz.open(str(pdf_path))
@@ -86,7 +130,7 @@ def extract_text_from_pdf(pdf_path: str | Path | bytes, dpi: int = 200) -> dict[
             pix = page.get_pixmap(matrix=fitz.Matrix(dpi / 72, dpi / 72))
             img = cv2.imdecode(np.frombuffer(pix.tobytes("png"), dtype=np.uint8), cv2.IMREAD_COLOR)
             ocr_lines = ocr_image(preprocess_image(img))
-            ocr_text = " ".join(line["text"] for line in ocr_lines)
+            ocr_text = lines_from_boxes(ocr_lines)
             avg_conf = round(sum(line["confidence"] for line in ocr_lines) / len(ocr_lines), 3) if ocr_lines else 0.0
 
             use_native = bool(native_text) and len(native_text) > len(ocr_text) * 0.8
@@ -121,7 +165,7 @@ def extract_text_from_image(image_path: str | Path | bytes) -> dict[str, Any]:
         img = cv2.imread(str(image_path))
 
     ocr_lines = ocr_image(preprocess_image(img))
-    full_text = " ".join(line["text"] for line in ocr_lines)
+    full_text = lines_from_boxes(ocr_lines)
     avg_conf = round(sum(line["confidence"] for line in ocr_lines) / len(ocr_lines), 3) if ocr_lines else 0.0
     return {
         "full_text": full_text,

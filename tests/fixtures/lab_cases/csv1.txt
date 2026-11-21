@@ -1,0 +1,59 @@
+csv|flag column + status
+Test,Result,Flag,Unit,Reference Range
+Hemoglobin,9.2,L,g/dL,13.0-17.0
+Potassium,6.8,H,mmol/L,3.5-5.1
+Troponin I,>50,HH,ng/mL,<0.04
+HbA1c,9.4,H,%,<5.7
+---
+csv|value with H glued and qualitative
+Parameter,Value,Units,Normal Range
+Potassium,6.8 H,mmol/L,3.5 - 5.1
+Sodium,118*,mmol/L,135 - 145
+HIV 1&2,Reactive,,Non Reactive
+Glucose,"1,250",mg/dL,70-99
+---
+csv|headers Observed Value / Biological Reference Interval
+Test Description,Observed Value,Unit,Biological Reference Interval
+Haemoglobin,6.1,gm/dL,13.0 - 17.0
+Platelet Count,0.12,lakhs/cumm,1.5 - 4.5
+Total WBC Count,"25,400",cells/cumm,"4,000 - 11,000"
+Serum Creatinine,9.8,mg/dL,0.7 - 1.3
+---
+csv|no header, extra leading id column
+1,Hemoglobin,9.2,g/dL,13.0-17.0
+2,Potassium,6.8,mmol/L,3.5-5.1
+3,Sodium,118,mmol/L,135-145
+---
+csv|patient/date columns per row (long format)
+Patient ID,Date,Test,Result,Unit,Ref Low,Ref High
+P001,2026-01-04,Potassium,6.8,mmol/L,3.5,5.1
+P001,2026-01-04,Sodium,118,mmol/L,135,145
+P001,2026-01-04,Hemoglobin,6.1,g/dL,13,17
+---
+csv|wide format (one row per patient)
+Patient,Hemoglobin,Potassium,Sodium,Glucose
+P001,6.1,6.9,118,480
+---
+csv|two results columns previous/current
+Test,Previous Result,Current Result,Unit,Reference
+Potassium,4.2,6.9,mmol/L,3.5-5.1
+Hemoglobin,13.9,6.1,g/dL,13.0-17.0
+---
+csv|semicolon decimal comma thousands dot
+Test;Ergebnis;Einheit;Referenzbereich
+Kalium;6,8;mmol/l;3,5-5,1
+Thrombozyten;12.000;/µl;150.000-400.000
+Hämoglobin;6,1;g/dl;13,5-17,5
+---
+csv|result unit in one cell and range with unit
+Test,Result,Reference Range
+Potassium,6.8 mmol/L,3.5-5.1 mmol/L
+Hemoglobin,6.1 g/dL,13.0-17.0 g/dL
+WBC,25.4 x10^9/L,4.0-11.0 x10^9/L
+Platelets,12 x10^9/L,150-400 x10^9/L
+---
+csv|negative and sci
+Test,Result,Unit,Reference
+Base Excess,-12.5,mmol/L,-2 - 2
+WBC,2.54E+04,/uL,4000-11000
+pH,7.05,,7.35-7.45

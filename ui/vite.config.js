@@ -26,6 +26,8 @@ export default defineConfig({
       // Same-origin API calls during `npm run dev`, matching how the
       // built app will talk to FastAPI once served together.
       "/api": "http://localhost:8000",
+      "/auth": "http://localhost:8000",
+      "/reports": "http://localhost:8000",
       "/ws": { target: "ws://localhost:8000", ws: true },
     },
   },

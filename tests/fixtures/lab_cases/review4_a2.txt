@@ -1,0 +1,95 @@
+male,5|A6 child 5y, no printed ranges
+Creatinine 1.0 mg/dL
+Hemoglobin 10.2 g/dL
+WBC 14000 /uL
+Alkaline Phosphatase 320 U/L
+---
+male,0|A6b newborn
+Hemoglobin 12.0 g/dL
+Total Bilirubin 12.0 mg/dL
+Glucose 45 mg/dL
+---
+female,1|A6c infant 1y
+Hemoglobin 9.0 g/dL
+Creatinine 0.9 mg/dL
+Lymphocytes 62 %
+---
+male|A8 units zoo (crit)
+RBC 2.1 mill/cumm 4.5-5.5
+MCV 62 fl 83-101
+MCH 19 pg 27-32
+Haemoglobin 61 g/L
+Platelets 12 x10^9/L
+WBC 0.8 x 10^9/L
+---
+male|A8b units zoo 2
+Platelet Count 12 X 10³ / µL 150 - 410
+Total Leucocyte Count 800 cells/cu.mm 4000 - 10000
+Absolute Neutrophil Count 0.3 thou/mm3 2.0 - 7.0
+---
+male|A8c labcorp units
+WBC 25.4 High x10E3/uL 3.4-10.8
+Platelets 12 Low x10E3/uL 150-450
+RBC 2.10 Low x10E6/uL 4.14-5.80
+Hemoglobin 6.1 Low g/dL 13.0-17.7
+---
+male|A8d K/uL and 10*9
+Platelets 12 K/uL 150-400
+White cell count 25.4 10*9/L (4.0-11.0)
+Platelets 12 10*9/L (150-400)
+---
+male|A8e lakh variants
+Platelet Count 0.12 Lakh/cmm 1.5 - 4.5
+Platelet Count 0.12 lacs/cu mm 1.5-4.5
+---
+male|A8f IU/mL etc unmatched w/ range
+Anti-TPO 250 IU/mL <35
+CA-125 95 U/mL 0-35
+RA Factor 64 IU/mL <14
+IgE 450 IU/mL <100
+---
+male|A8g unit mismatch
+Hemoglobin 3.8 mmol/L 8.5-11.0
+Calcium 7.2 mEq/L
+Creatinine 0.45 mmol/L
+T3, Total 0.4 ng/mL 0.8-2.0
+Vitamin B12 90 ng/L (197-771)
+MCHC 28 % 32-36
+Haematocrit 0.19 L/L (0.40-0.50)
+---
+male|A8h SI crit no range
+Creatinine 1100 µmol/L
+Bilirubin 250 umol/L
+Glucose 2.1 mmol/l
+Calcium 1.2 mmol/L
+Troponin I 850 pg/mL
+Troponin T 0.5 µg/L
+---
+male|A8i NHS style
+Haemoglobin 61 g/L (130-180)
+Sodium 118 mmol/L (133-146)
+Potassium 6.9 mmol/L (3.5-5.3)
+Creatinine 450 umol/L (59-104)
+Urea 35.0 mmol/L (2.5-7.8)
+CRP 250 mg/L (<5)
+HbA1c 75 mmol/mol (20-41)
+Bilirubin 250 umol/L (<21)
+ALT 400 U/L (<41)
+Albumin 25 g/L (35-50)
+Adjusted calcium 3.6 mmol/L (2.2-2.6)
+Neutrophils 0.3 10*9/L (2.0-7.0)
+TSH 25 mU/L (0.27-4.2)
+Free T4 4.0 pmol/L (12-22)
+Troponin T 500 ng/L (<14)
+---
+male|A8j Quest style
+CHOLESTEROL, TOTAL 260 H <200 mg/dL
+HDL CHOLESTEROL 25 L > OR = 40 mg/dL
+GLUCOSE 320 H 65-99 mg/dL
+EGFR 12 L > OR = 60 mL/min/1.73m2
+TSH 25.00 H 0.40-4.50 mIU/L
+POTASSIUM 6.9 H 3.5-5.3 mmol/L
+---
+male|A8k Quest style no flags
+HDL CHOLESTEROL 25 > OR = 40 mg/dL
+EGFR 12 > OR = 60 mL/min/1.73m2

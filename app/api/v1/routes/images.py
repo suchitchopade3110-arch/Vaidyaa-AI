@@ -4,7 +4,7 @@ from pathlib import Path
 import aiofiles
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, status, Depends
 from celery.result import AsyncResult
-from datetime import timezone, datetime
+from datetime import timezone
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import get_current_user
@@ -14,11 +14,10 @@ from app.models.async_job import AsyncJobRecord
 
 UTC = timezone.utc
 
-from app.schemas.image import ImageAsyncResponse, AnalysisType
+from app.schemas.image import AnalysisType
 from app.schemas.job import JobStatus
 from app.workers.pipeline_tasks import analyze_image_task
 from app.workers.celery_app import celery_app
-from app.core.disclaimer import MEDICAL_DISCLAIMER
 
 router = APIRouter()
 
@@ -135,125 +134,6 @@ async def get_image_status(task_id: str, _owner: AsyncJobRecord = Depends(requir
     if state == "FAILURE":
         return JobStatus(request_id=request_id, task_id=task_id, status="failed", error=str(meta))
     return JobStatus(request_id=request_id, task_id=task_id, status=state.lower())
-
-
-@router.get("/image/{analysis_id}")
-async def get_image_status_or_result(
-    analysis_id: uuid.UUID,
-    db: AsyncSession = Depends(get_db),
-    user=Depends(get_current_user),
-):
-    """Poll image analysis job status and get result when complete.
-
-    TODO(SEC-01): this route is keyed by `analysis_id` (an ImageAnalysis
-    row PK), not a Celery task_id, so `require_job_owner` (which looks up
-    AsyncJobRecord by task_id) doesn't apply here as-is. ImageAnalysis has
-    no `user_id` column — the same ownership gap exists on this endpoint
-    and needs its own fix (add user_id to ImageAnalysis, or resolve
-    analysis_id -> celery_task_id -> AsyncJobRecord and reuse the same
-    check). Not covered by this pass.
-    """
-    from app.services.image_service import ImageService
-    
-    service = ImageService(db)
-    image_record = await service.get(analysis_id)
-    
-    if not image_record:
-        raise HTTPException(status_code=404, detail="Analysis not found")
-        
-    request_id = str(uuid.uuid4())
-    
-    if image_record.status.value in ["pending", "processing"]:
-        if image_record.celery_task_id:
-            result = AsyncResult(image_record.celery_task_id, app=celery_app)
-            state = result.state
-            meta = result.info or {}
-            
-            if state == "SUCCESS":
-                return {"status": "processing"} 
-            elif state == "FAILURE":
-                 return JobStatus(
-                    request_id=request_id,
-                    task_id=image_record.celery_task_id,
-                    status="failed",
-                    error=str(meta),
-                )
-        return JobStatus(request_id=request_id, task_id=image_record.celery_task_id or "", status=image_record.status.value)
-
-    from app.services.fix_image_analysis import build_classification_findings, get_severity, get_severity_color
-
-    score = image_record.confidence or 0.0
-    severity = get_severity(score)
-    
-    confidence_data = {
-        "score": score,
-        "color": get_severity_color(severity),
-        "label": severity,
-        "uncertainty_flag": image_record.uncertainty_flag,
-    }
-    
-    # Map to frontend structure
-    findings = []
-    if image_record.classification:
-        raw_predictions = [
-            {
-                "label": k,
-                "classification_prob": v,
-                "detection_confidence": v,
-            }
-            for k, v in (image_record.classification_probs.items() if image_record.classification_probs else {image_record.classification: score}.items())
-        ]
-        findings = build_classification_findings(raw_predictions)
-    yolo_detections = image_record.roi_metadata if isinstance(image_record.roi_metadata, list) else []
-
-    return {
-        "request_id": request_id,
-        "medical_disclaimer": MEDICAL_DISCLAIMER,
-        "timestamp": datetime.now(UTC).isoformat(),
-        "analysis_id": str(analysis_id),
-        "id": str(analysis_id),
-        "status": image_record.status.value,
-        "type": image_record.image_type.value,
-        "impression": image_record.explanation or "",
-        "explanation": image_record.explanation or "",
-        "findings": findings,
-        "roi": image_record.roi_metadata or [],
-        "yolo": {
-            "detections": yolo_detections,
-            "annotated_path": image_record.segmentation_overlay,
-            "model_used": "chest_xray_yolo" if yolo_detections else None,
-        },
-        "yolo_detections": yolo_detections,
-        "yolo_annotated_path": image_record.segmentation_overlay,
-        "confidence": confidence_data,
-        "uncertainty": image_record.uncertainty_flag,
-        "anomaly_detected": image_record.anomaly_detected,
-        "citations": image_record.source_citations or [],
-        "sources": image_record.source_citations or [],
-        "gradcam": {
-            "heatmap_url": image_record.gradcam_path,
-            "top_regions": image_record.gradcam_regions or [],
-        },
-        "segmentation": {
-            "mask_url": image_record.segmentation_mask_path,
-            "overlay_url": image_record.segmentation_overlay,
-            "yolo_overlay_url": image_record.segmentation_overlay,
-            "roi_bounding_box": image_record.roi_metadata,
-            "confidence": image_record.segmentation_confidence or 0.0
-        },
-        "classification": {
-            "label": image_record.classification or "unknown",
-            "probabilities": image_record.classification_probs or {},
-            "top_class": image_record.classification or "unknown",
-            "top_confidence": score,
-            "classification_prob": score,
-            "detection_confidence": score,
-            "label_classification": "Class probability",
-            "label_detection": "Detection confidence",
-            "severity": severity,
-            "severity_color": get_severity_color(severity),
-        }
-    }
 
 
 @router.get("/{task_id}")

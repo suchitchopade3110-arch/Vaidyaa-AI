@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import os
 import time
+import uuid
 from pathlib import Path
 from typing import Any
 
@@ -33,6 +34,8 @@ IMAGE_POLL_ENDPOINT = "/api/v1/analyze/image"
 
 DONE_STATUSES = {"complete", "completed", "success", "succeeded"}
 FAILED_STATUSES = {"failed", "failure", "revoked"}
+# Finished, but the pipeline declined to analyse the input (quality gate).
+REJECTED_STATUSES = {"low_quality"}
 
 
 @pytest.fixture(scope="session")
@@ -46,6 +49,18 @@ def client() -> httpx.Client:
 
         if response.status_code >= 500:
             pytest.skip(f"E2E API server unhealthy at {BASE_URL}: {response.text}")
+
+        # Every analysis/job route requires a bearer token. Use a throwaway
+        # account (self-registration is on in the development stack), or
+        # E2E_USERNAME / E2E_PASSWORD for an environment where it's off.
+        username = os.getenv("E2E_USERNAME") or f"e2e_{uuid.uuid4().hex[:10]}"
+        password = os.getenv("E2E_PASSWORD") or f"E2e-{uuid.uuid4().hex}"
+        if not os.getenv("E2E_USERNAME"):
+            reg = live_client.post("/auth/register", json={"username": username, "password": password})
+            assert reg.status_code == 201, f"E2E registration failed: {reg.status_code} {reg.text}"
+        login = live_client.post("/auth/login", json={"username": username, "password": password})
+        assert login.status_code == 200, f"E2E login failed: {login.status_code} {login.text}"
+        live_client.headers["Authorization"] = f"Bearer {login.json()['access_token']}"
 
         yield live_client
 
@@ -88,7 +103,7 @@ def wait_for_task(
         data = _unwrap_result(payload)
         status = _status(data) or _status(payload)
 
-        if status in DONE_STATUSES:
+        if status in DONE_STATUSES or status in REJECTED_STATUSES:
             return data
 
         if status in FAILED_STATUSES:
@@ -177,16 +192,10 @@ class TestAC2ImageAnalysis:
     """AC2: Image output includes classification, GradCAM, segmentation, disclaimer."""
 
     @pytest.fixture(scope="class")
-    def sample_image_path(self, tmp_path_factory: pytest.TempPathFactory) -> Path:
-        import cv2
-        import numpy as np
-
-        tmp_path = tmp_path_factory.mktemp("e2e_images")
-        image = np.ones((224, 224, 3), dtype=np.uint8) * 128
-        cv2.circle(image, (112, 112), 40, (200, 200, 200), -1)
-        path = tmp_path / "sample_xray.png"
-        cv2.imwrite(str(path), image)
-        return path
+    def sample_image_path(self) -> Path:
+        # A real de-identified chest radiograph (see tests/fixtures/README.md).
+        # Synthetic shapes are now rejected by the radiograph plausibility gate.
+        return Path(__file__).parent / "fixtures" / "nih_cxr_00000001_000.png"
 
     @pytest.fixture(scope="class")
     def image_result(self, client: httpx.Client, sample_image_path: Path) -> dict[str, Any]:
@@ -199,12 +208,30 @@ class TestAC2ImageAnalysis:
         assert response.status_code in (200, 201, 202), f"Image submit failed: {response.status_code} {response.text}"
         return wait_for_task(client, IMAGE_POLL_ENDPOINT, _task_id(response.json()), timeout=180)
 
+    def test_non_radiograph_is_rejected_without_findings(self, client: httpx.Client, tmp_path: Path):
+        import numpy as np
+        from PIL import Image
+
+        path = tmp_path / "noise.png"
+        Image.fromarray(np.random.default_rng(0).integers(0, 255, (512, 512), dtype=np.uint8)).save(path)
+        with path.open("rb") as handle:
+            response = client.post(IMAGE_ENDPOINT, files={"file": ("noise.png", handle, "image/png")})
+        assert response.status_code in (200, 201, 202), response.text
+        result = wait_for_task(client, IMAGE_POLL_ENDPOINT, _task_id(response.json()), timeout=180)
+        assert _status(result) == "low_quality", result
+        assert not result.get("image_classification")
+
     def test_image_returns_classification(self, image_result: dict[str, Any]):
-        assert isinstance(image_result.get("classification"), dict)
-        assert image_result["classification"].get("label") or image_result["classification"].get("top_class")
+        # The API's field is `image_classification` (the UI maps it to its own
+        # `classification` view model).
+        classification = image_result.get("image_classification")
+        assert isinstance(classification, dict)
+        assert classification.get("label") or classification.get("top_class") or classification.get("primary_finding")
 
     def test_image_returns_gradcam(self, image_result: dict[str, Any]):
-        assert "gradcam" in image_result
+        # Path to the Grad-CAM overlay. Null when the explainer could not run
+        # (e.g. its backbone weights are not downloadable in this environment).
+        assert "gradcam_path" in image_result
 
     def test_image_returns_segmentation(self, image_result: dict[str, Any]):
         assert "segmentation" in image_result
@@ -416,11 +443,32 @@ class TestReportPipeline:
         assert _status(report_result) in DONE_STATUSES
 
     def test_report_has_lab_values(self, report_result: dict[str, Any]):
-        entities = report_result.get("extracted_entities") or {}
-        assert len(entities.get("lab_values") or []) > 0
+        # Rows live at the top level (`lab_values`); the sample's abnormal
+        # values must come back flagged, not NORMAL.
+        flags = {row.get("test"): row.get("flag") for row in report_result.get("lab_values") or []}
+        assert flags.get("Hemoglobin") == "LOW", flags
+        assert flags.get("Fasting Blood Sugar") == "HIGH", flags
+        assert report_result.get("risk_label") not in ("low", "unknown")
 
     def test_report_has_risk_score(self, report_result: dict[str, Any]):
         assert "risk_score" in report_result
+
+    def test_qr_requires_clinician_sign_off_then_returns_png(self, client: httpx.Client, report_result: dict[str, Any]):
+        """REG-02: a share link exists only for a signed-off, completed report."""
+        job_id = report_result.get("job_id")
+        if not job_id or _status(report_result) not in DONE_STATUSES:
+            pytest.skip("Report job did not complete; nothing to sign off")
+
+        unsigned = client.get(f"/reports/{job_id}/qr")
+        assert unsigned.status_code == 403
+        assert unsigned.json()["error"]["code"] == "NOT_SIGNED_OFF"
+
+        signed = client.post(f"/api/v1/jobs/{job_id}/sign-off", json={"model_versions": "e2e"})
+        assert signed.status_code == 201, signed.text
+
+        qr_response = client.get(f"/reports/{job_id}/qr")
+        assert qr_response.status_code == 200
+        assert qr_response.headers.get("content-type", "").startswith("image/png")
 
     def test_report_has_disclaimer(self, report_result: dict[str, Any]):
         assert DISCLAIMER_NEEDLE in disclaimer_text(report_result)
@@ -437,22 +485,6 @@ class TestReportPipeline:
 
 class TestQRFeature:
     """QR endpoint behavior for existing/completed report IDs."""
-
-    def test_qr_endpoint_returns_png_when_completed_job_exists(self, client: httpx.Client):
-        response = client.get("/api/v1/jobs/", params={"limit": 1})
-        assert response.status_code == 200
-        jobs = response.json()
-        if not jobs:
-            pytest.skip("No completed jobs available for QR endpoint smoke test")
-
-        job = jobs[0] if isinstance(jobs, list) else jobs.get("jobs", [{}])[0]
-        report_id = job.get("report_id") or job.get("job_id") or job.get("id")
-        if not report_id:
-            pytest.skip("No report id found in recent jobs response")
-
-        qr_response = client.get(f"/reports/{report_id}/qr")
-        assert qr_response.status_code == 200
-        assert qr_response.headers.get("content-type", "").startswith("image/png")
 
     def test_qr_expired_or_invalid_token_returns_error(self, client: httpx.Client):
         fake_expired_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjF9.invalid"

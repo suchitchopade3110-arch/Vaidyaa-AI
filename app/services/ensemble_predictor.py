@@ -133,7 +133,11 @@ def ensemble_predict(
         "shap_values": shap_values,
         "top_factors": top_factors,
         "anomalies": anomalies,
-        "uncertainty_flag": consensus_score < 40 or agreement == "low",
+        # Uncertainty = the models disagree. A LOW consensus score is a
+        # confident "low risk", not uncertainty — the old `score < 40` term
+        # marked every normal report as uncertain, so the flag carried no
+        # information.
+        "uncertainty_flag": agreement == "low",
         "confidence": consensus_score,
         "models_used": [name for name, weight in weights.items() if weight > 0],
     }
