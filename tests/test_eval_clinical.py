@@ -418,9 +418,14 @@ PRD_TARGETS = {  # metric -> rendering -> (op, percent) ; None = informational
            "photo": (">=", "70")},
     "M4": dict.fromkeys(("native", "csv", "scan", "rot90", "photo"), ("<=", "0.5")),
     "M5": dict.fromkeys(("native", "csv", "scan", "rot90", "photo"), (">=", "98")),
-    "M6": {"native": (">=", "90"), "csv": (">=", "90"), "scan": None, "rot90": None, "photo": None},
+    # PRD M6 names no rendering (only M7 says "native-text"), so 90% applies to every rendering (P1 review LOW-2)
+    "M6": dict.fromkeys(("native", "csv", "scan", "rot90", "photo"), (">=", "90")),
     "M7": {"native": ("<=", "15"), "csv": ("<=", "15"), "scan": None, "rot90": None, "photo": None},
 }
+# Not a PRD section 3 row: S3's final state ("can never END UP not CRITICAL and not needs_review"). After
+# confirmation nothing is needs_review and alerts come only from scoring the confirmed rows (FR-1.4), so a GT critical
+# must end up CRITICAL: the same 100% as M2, on every rendering (P1 review MED-5).
+S3_TARGETS = {"M2_post": dict.fromkeys(("native", "csv", "scan", "rot90", "photo"), ("==", "100"))}
 
 
 def test_cl31_targets_equal_prd_section_3():
@@ -428,8 +433,9 @@ def test_cl31_targets_equal_prd_section_3():
 
     from tools.eval import targets as tg
 
-    assert set(tg.TARGETS) == set(PRD_TARGETS)
-    for m, by_r in PRD_TARGETS.items():
+    assert set(tg.TARGETS) == set(PRD_TARGETS) | set(S3_TARGETS)
+    assert set(tg.RATCHETED) == {"M1", "M2", "M2_post", "M3", "M4", "M5"}  # M6 and M7 are target-only (plan 6.9)
+    for m, by_r in {**PRD_TARGETS, **S3_TARGETS}.items():
         assert set(tg.TARGETS[m]) == set(by_r)
         for r, want in by_r.items():
             got = tg.TARGETS[m][r]
@@ -460,6 +466,8 @@ def test_cl31_exact_boundaries():
     assert tg.passes("M5", "native", 49, 50) is True and tg.passes("M5", "native", 48, 50) is False
     assert tg.passes("M7", "native", 15, 100) is True and tg.passes("M7", "native", 16, 100) is False
     assert tg.passes("M7", "scan", 99, 100) is None and tg.passes("M2", "native", 0, 0) is None
+    assert tg.passes("M2_post", "scan", 35, 36) is False and tg.passes("M2_post", "scan", 36, 36) is True
+    assert tg.passes("M6", "photo", 9, 10) is True and tg.passes("M6", "photo", 89, 100) is False
 
 
 # ======================================================================== T04: sampling invariants

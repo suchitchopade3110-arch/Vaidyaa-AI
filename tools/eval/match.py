@@ -11,6 +11,7 @@ silent (documented inline).
 
 from __future__ import annotations
 
+import csv
 import math
 import re
 from dataclasses import dataclass, field as dc_field
@@ -58,6 +59,38 @@ def tokens(text: Any) -> list[str]:
     for pat, rep in _SPELLING:
         s = pat.sub(rep, s)
     return _TOKEN.findall(s)
+
+
+_CSV_DELIMITERS = ("\t", ";", ",")
+
+
+def _csv_delimiter(lines: Sequence[str]) -> str | None:
+    """The delimiter found on the most lines (tab, then semicolon, then comma on ties); None when there is none."""
+    best, best_n = None, 0
+    for d in _CSV_DELIMITERS:
+        n = sum(1 for ln in lines if d in ln)
+        if n > best_n:
+            best, best_n = d, n
+    return best
+
+
+def csv_tokens(text: Any) -> list[str]:
+    """Tokens of delimited text (a GEN-CSV export), field by field and in order.
+
+    ``tokens`` keeps digit grouping ("2,50,000"), so on comma-delimited text it glues neighbouring numeric fields:
+    "WBC,7.2,10^3/uL,4.0,11.0" gave "7.2,10" and "4.0,11.0", and a field "250" next to "150,450" read as
+    "250,150,450" (P1 review LOW-4). Splitting on the file's delimiter first keeps every field's number whole and
+    still reads decimal-comma values ("12,2") inside a semicolon file as one token."""
+    s = str(text or "")
+    lines = [ln for ln in s.splitlines() if ln.strip()]
+    delim = _csv_delimiter(lines)
+    if delim is None:
+        return tokens(s)
+    out: list[str] = []
+    for row in csv.reader(lines, delimiter=delim):
+        for cell in row:
+            out += tokens(cell)
+    return out
 
 
 def name_tokens(text: Any) -> frozenset[str]:
@@ -459,8 +492,8 @@ def align(gt_rows: Sequence[Any], extracted: Sequence[Any], unread: Sequence[Any
 
 
 __all__ = [
-    "Alignment", "CRITICAL_FLAGS", "UNREAD_LINE_MAX_ROWS", "FIELDS", "FieldCheck", "NOISE_TOKENS", "Pair", "align", "canonical_equal",
-    "compare", "contains_tokens", "covers", "field", "flag_ok", "jaccard", "name_jaccard", "name_ok", "name_rule",
+    "Alignment", "CRITICAL_FLAGS", "UNREAD_LINE_MAX_ROWS", "FIELDS", "FieldCheck", "NOISE_TOKENS", "Pair", "align",
+    "canonical_equal", "compare", "contains_tokens", "covers", "csv_tokens", "field", "flag_ok", "jaccard", "name_jaccard", "name_ok", "name_rule",
     "name_tokens", "norm_qualifier", "numbers_equal", "parse_number", "parse_value_text", "qualitative_equal",
     "qualitative_grade", "range_ok", "result_bounds", "titre_value", "tokens", "unit_ok", "value_cost", "value_ok",
 ]

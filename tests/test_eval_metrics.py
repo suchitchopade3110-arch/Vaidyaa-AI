@@ -110,7 +110,7 @@ def test_me02_critical_read_as_previous_value_not_flagged():
     assert nd(res, "M3") == (19, 20)
     assert nd(res, "M5") == (0, 1) and (rec.gt_headline, rec.confirmed_headline) == ("critical", "normal")
     assert nd(res, "M4") == (0, 20) and nd(res, "M6") == (0, 0)
-    assert nd(me.cell_diagnostics(rec.counts), "M2_post") == (0, 1)
+    assert nd(res, "M2_post") == (0, 1)  # the confirmed (accepted) K 4.2 is not CRITICAL
 
 
 def test_me03_critical_read_wrong_but_flagged():
@@ -124,8 +124,9 @@ def test_me03_critical_read_wrong_but_flagged():
     assert nd(res, "M3") == (19, 20)  # correctness is judged before review
     assert nd(res, "M5") == (1, 1) and rec.confirmed_headline == "critical"  # edited to K 6.7 -> CRITICAL_HIGH
     assert nd(res, "M7") == (1, 20)
+    assert nd(res, "M2_post") == (1, 1)  # edited to K 6.7; Table C > 6.5 -> CRITICAL_HIGH after confirmation
     diag = me.cell_diagnostics(rec.counts)
-    assert nd(diag, "M2_post") == (1, 1) and diag["review_actions"] == {"accepted": 19, "edited": 1}
+    assert diag["review_actions"] == {"accepted": 19, "edited": 1}
 
 
 # ======================================================================== ME-04
@@ -450,3 +451,114 @@ def test_oracle_clinical_and_gt_consistency_check():
 
 def test_twenty_rows_table_has_twenty_distinct_keys():
     assert len({k for k, *_ in TWENTY}) == 20
+
+
+# ======================================================================== P1 review MED-5: M2_post (S3 final state)
+
+
+class RangeOnlyScorer:
+    """A scorer with NO critical limits at all: it flags a confirmed row LOW/HIGH/NORMAL against its range only.
+    It stands in for an engine that lacks a Table C limit (the v0 engine has none for HCO3, pCO2 or pO2)."""
+
+    name, version = "range_only", "1"
+
+    def score(self, rows, sex=None, age=None):
+        flags = []
+        for r in rows:
+            v, lo, hi = r.value_num, r.ref_low, r.ref_high
+            flags.append("LOW" if v is not None and lo is not None and v < lo else
+                         "HIGH" if v is not None and hi is not None and v > hi else "NORMAL")
+        head = "abnormal" if any(f != "NORMAL" for f in flags) else "normal"
+        return cl.OracleScore(head, flags, head)
+
+
+HCO3_CRIT = gt_row("bicarbonate", 8, "mmol/L", 22, 29)
+
+
+def _hco3_report():
+    return report(twenty(replace={"chloride": HCO3_CRIT}))
+
+
+def test_med5_hco3_8_is_a_table_c_critical():
+    # Table C bicarbonate: critical below 10 mmol/L (low guard [10, 15]); 8 < 10 -> CRITICAL_LOW, critical
+    assert HCO3_CRIT["is_critical"] and HCO3_CRIT["flag"] == "CRITICAL_LOW"
+
+
+def test_med5_flagged_critical_whose_confirmed_value_the_scorer_leaves_low_does_not_count():
+    """S3 final state: the HCO3 8 row is read right and flagged for review, so PRD M2 (flagged CRITICAL *or*
+    needs_review) counts it. The clinician confirms 8 mmol/L; a scorer without an HCO3 limit scores it LOW (8 < 22),
+    so no critical alert is raised after confirmation: M2_post must not count it."""
+    gt = _hco3_report()
+    ext = perfect(gt["rows"])
+    ext[10] = flag(ext_row(gt["rows"][10], 10, flag="LOW"), "NR0-WARNING")  # engine: LOW, but flagged
+    res = me.cell_results(record(gt, extraction(ext), scorer=RangeOnlyScorer()).counts)
+    assert nd(res, "M2") == (1, 1)  # matched and needs_review: recalled before confirmation (PRD M2 as written)
+    assert nd(res, "M2_post") == (0, 1)  # confirmed 8 mmol/L scored LOW: no alert -> not handled
+    assert nd(res, "M5") == (0, 1)  # GT headline critical, confirmed headline abnormal
+    # the same confirmed row under Table C (the GT rules) ends up CRITICAL_LOW: handled
+    res_c = me.cell_results(record(gt, extraction(ext), scorer=ORACLE).counts)
+    assert nd(res_c, "M2") == (1, 1) and nd(res_c, "M2_post") == (1, 1) and nd(res_c, "M5") == (1, 1)
+
+
+def test_med5_unflagged_critical_shown_critical_and_accepted_counts_for_both():
+    # read right, flagged CRITICAL_LOW by the product, not needs_review: accepted as is; Table C keeps it critical
+    gt = _hco3_report()
+    ext = perfect(gt["rows"])
+    assert ext[10].flag == "CRITICAL_LOW" and not ext[10].needs_review
+    res = me.cell_results(record(gt, extraction(ext)).counts)
+    assert nd(res, "M2") == (1, 1) and nd(res, "M2_post") == (1, 1)
+
+
+def test_med5_m2_post_is_reported_for_every_cell_and_is_additive():
+    gt = _hco3_report()
+    ext = perfect(gt["rows"])
+    ext[10] = flag(ext_row(gt["rows"][10], 10, flag="LOW"), "NR0-WARNING")
+    a = record(gt, extraction(ext), scorer=RangeOnlyScorer()).counts  # 0/1
+    b = record(gt, extraction(ext), scorer=ORACLE).counts  # 1/1
+    assert nd(me.cell_results(me.add_counts(a, b)), "M2_post") == (1, 2)
+    assert "M2_post" in me.METRIC_IDS and "M2_post" not in me.cell_diagnostics(a)
+
+
+# ======================================================================== P1 review LOW-1: M4_post diagnostic
+
+
+class InrOverThreeScorer(RangeOnlyScorer):
+    """Flags INR > 3.0 CRITICAL_HIGH (the v0 engine's INR limit, Appendix A), otherwise range only."""
+
+    name = "inr_over_3"
+
+    def score(self, rows, sex=None, age=None):
+        base = super().score(rows, sex, age)
+        flags = ["CRITICAL_HIGH" if r.analyte_key == "inr" and (r.value_num or 0) > 3.0 else f
+                 for r, f in zip(rows, base.row_flags, strict=True)]
+        head = "critical" if "CRITICAL_HIGH" in flags else base.headline
+        return cl.OracleScore(head, flags, head)
+
+
+def test_low1_m4_post_counts_critical_flags_raised_after_confirmation_on_non_critical_gt():
+    # INR 3.2 on warfarin: Table C INR critical only above 5.0 (high guard [3.5, 5.0]) -> HIGH, not critical
+    inr = gt_row("inr", 3.2, "", 0.8, 1.2)
+    assert inr["flag"] == "HIGH" and not inr["is_critical"]
+    gt = report(twenty(replace={"chloride": inr}))
+    ext = perfect(gt["rows"])  # read right and shown HIGH before review: no pre-review false critical
+    res = me.cell_results(record(gt, extraction(ext), scorer=InrOverThreeScorer()).counts)
+    diag = me.cell_diagnostics(record(gt, extraction(ext), scorer=InrOverThreeScorer()).counts)
+    assert nd(res, "M4") == (0, 20)  # nothing CRITICAL before review
+    assert nd(diag, "M4_post") == (1, 20)  # the confirmed INR 3.2 is scored CRITICAL_HIGH: a false alert
+    assert nd(me.cell_diagnostics(record(gt, extraction(ext)).counts), "M4_post") == (0, 20)  # Table C: none
+
+
+# ======================================================================== P1 review LOW-4: CSV legibility
+
+
+def test_low4_csv_legibility_reads_comma_delimited_fields_one_by_one():
+    gt = report(twenty())
+    # comma-delimited split-range export: the general tokenizer glues "7.2,10" and "250,10" (digit grouping)
+    raw = "Analyte,Result,Unit,Ref Low,Ref High\nWBC Count,7.2,10^3/uL,4.0,11.0\nPlatelet Count,250,10^3/uL,150,450\n"
+    as_csv = record(gt, extraction(perfect(gt["rows"]), raw_text=raw), job(rendering="csv"))
+    as_pdf = record(gt, extraction(perfect(gt["rows"]), raw_text=raw), job(rendering="native"))
+    assert nd(me.cell_results(as_csv.counts), "legibility") == (2, 20)  # WBC 7.2 and platelets 250 are printed
+    assert nd(me.cell_results(as_pdf.counts), "legibility") == (0, 20)  # the glued tokens hide both
+    # a semicolon file with decimal commas keeps "12,2" whole
+    assert m.csv_tokens("Parameter;Value;Unit\nHaemoglobin;12,2;g/dL\n") == [
+        "parameter", "value", "unit", "hemoglobin", "12,2", "g", "dl"]

@@ -23,7 +23,8 @@ BANNER = ("P1 baseline — targets are expected to fail; recorded as measured; s
 SPLIT_ORDER = ("dev", "test", "heldout")
 RENDERING_ORDER = tg.RENDERINGS
 METRIC_NAMES = {
-    "M1": "silent-error rate", "M2": "critical recall", "M3": "row accuracy before review",
+    "M1": "silent-error rate", "M2": "critical recall",
+    "M2_post": "critical handling after confirmation (S3)", "M3": "row accuracy before review",
     "M4": "false-critical rate", "M5": "headline on confirmed", "M6": "normal → ready",
     "M7": "review burden",
 }
@@ -140,7 +141,7 @@ def _diag_section(split: str, rendering: str, d: Mapping[str, Any]) -> list[str]
         return f"{pct(r['value'])} ({r['num']}/{r['den']})"
 
     lines = [f"#### {split} / {rendering}", "",
-             f"- M2-post {rt('M2_post')}; M5-pre {rt('M5_pre')}; M5-oracle {rt('M5_oracle')}; "
+             f"- M4-post {rt('M4_post')}; M5-pre {rt('M5_pre')}; M5-oracle {rt('M5_oracle')}; "
              f"M5-oracle-clinical {rt('M5_oracle_clinical')}; R-NR {rt('R_NR')}",
              f"- Recall {rt('recall')}; precision {rt('precision')}",
              f"- Invented rows by decoy kind: {_kv(d['invented_by_decoy'])}",
@@ -194,7 +195,10 @@ def _runtime(rt: Mapping[str, Any]) -> list[str]:
 def render_report(m: Mapping[str, Any]) -> str:
     results, diag = m["results"], m.get("diagnostics", {})
     out = ["# Eval report", "", f"> {BANNER}", ""] + _header(m)
-    out += ["", "## Metrics (M1-M7 per split and rendering)", ""] + _TABLE_HEAD
+    out += ["", "## Metrics (M1-M7 and M2_post per split and rendering)", "",
+            "M2 is PRD section 3 as written (flagged CRITICAL or marked needs_review, before confirmation). M2_post "
+            "is the S3 final state: the confirmed row of a GT critical is scored CRITICAL (target 100%, ratcheted). "
+            "M4-post (diagnostic) counts critical flags on confirmed rows whose GT is not critical.", ""] + _TABLE_HEAD
     for split in _order(results, SPLIT_ORDER):
         if split != hygiene.HELDOUT:
             out += _metric_rows(split, results[split])
