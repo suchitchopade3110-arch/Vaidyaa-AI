@@ -929,3 +929,11 @@ def test_low7_nightly_aggregate_exits_nonzero_when_a_job_crashed(tmp_path):
     assert run.main([*agg, "--gate", "none"]) == 0  # exploration only
     (sh / "rot90.json").unlink()  # a shard job died before uploading its file
     assert run.main([*agg, "--gate", "report"]) == 2
+
+
+def test_med2_report_header_shows_the_judge_digest(corpus, tmp_path):
+    assert go(corpus, tmp_path, "--splits", "test", "--sample-n", "3", "--renderings", "native") == 0
+    m = json.loads((tmp_path / "metrics.json").read_text())
+    assert m["run"]["judge"]["digest"] == gate.judge_sources()["digest"]
+    assert "Judge digest" in (tmp_path / "report.md").read_text() and m["run"]["judge"]["digest"] in (
+        tmp_path / "report.md").read_text()

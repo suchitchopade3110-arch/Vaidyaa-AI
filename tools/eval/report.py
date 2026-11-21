@@ -127,7 +127,9 @@ def _header(m: Mapping[str, Any]) -> list[str]:
              f"- Sampling: `{json.dumps(run.get('samples'), sort_keys=True)}`",
              f"- Adapter: `{ad.get('name')}` version `{ad.get('version')}`",
              f"- Scorer: `{sc.get('name')}` version `{sc.get('version')}`",
-             f"- Gate mode: `{run.get('gate_mode')}`; git SHA: `{run.get('git_sha')}`"]
+             f"- Gate mode: `{run.get('gate_mode')}`; git SHA: `{run.get('git_sha')}`",
+             f"- Judge digest (matching, review simulator, metric definitions, targets, gate, job selection, "
+             f"adapters): `{(run.get('judge') or {}).get('digest')}`"]
     for split in _order(corpus, SPLIT_ORDER):
         c = corpus[split]
         lines.append(f"- Corpus {split}: fingerprint `{c.get('fingerprint')}`, seed {c.get('seed')}, "
