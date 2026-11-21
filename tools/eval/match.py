@@ -167,13 +167,20 @@ def _close_rel(a: float, b: float, rel: float) -> bool:
     return abs(a - b) <= rel * max(abs(a), abs(b)) + 1e-12
 
 
+# Plan 6.7: "mEq/L and mmol/L stay distinct". The GT side converts mEq/L 1:1 for the monovalent ions only to derive
+# flags and criticality (P1 review LOW-5); the comparators never treat the two units as equivalent.
+_NEVER_EQUIVALENT_UNITS = frozenset({"mEq/L"})
+
+
 def _explicit_canonical(key: str | None, value: float, unit: Any) -> float | None:
     """``value`` in the analyte's conventional unit, or None when it cannot be converted *without assuming a unit*.
 
     A missing unit is only taken as the conventional one when the analyte has no unit at all (INR, pH, ratios).
     Otherwise an empty unit is unknown, never assumed (S6), so a unit-less value is never canonical-equivalent to
-    a value with a unit."""
+    a value with a unit. mEq/L is never converted here (plan 6.7 keeps it distinct from mmol/L)."""
     if key is None or key not in CATALOGUE:
+        return None
+    if units.canon_unit(unit) in _NEVER_EQUIVALENT_UNITS:
         return None
     if units.canon_unit(unit) == "" and units.canon_unit(CATALOGUE[key].unit) != "":
         return None

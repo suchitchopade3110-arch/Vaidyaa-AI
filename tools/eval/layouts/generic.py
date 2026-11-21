@@ -46,12 +46,14 @@ _BASE = (
     ("Haematology", _CBC), ("Glycaemic Control", _DIAB), ("Lipid Profile", _LIPID), ("Liver Function", _LFT),
     ("Renal Function and Electrolytes", _KFT), ("Thyroid", tpl.THY), ("Iron Studies", tpl.IRON),
     ("Vitamins", tpl.VIT), ("Coagulation", tpl.COAG), ("Cardiac Markers", tpl.CARD), ("Special Chemistry", tpl.MISC),
+    ("Blood Gases", tpl.ABG),  # P1 review MED-4: pH, pCO2, pO2 and iCa in the generic families
 )
 _G04 = (
     ("Biochemistry", _DIAB + ("hdl", "ldl", "cholesterol", "triglycerides") + ("urea", "creatinine", "uric_acid")),
     ("Hormones and Vitamins", tpl.THY + tpl.VIT + ("ferritin",)),
     ("Haematology", ("hemoglobin", "wbc", "platelets", "esr")),
     ("Liver", ("bilirubin_total", "ast", "alt", "alp", "albumin")),
+    ("Cardiac Markers", ("hs_troponin_t",)),  # P1 review MED-4: a form-style single troponin test
 )
 _G06 = (("Complete Blood Count", _CBC), ("Kidney Profile", _KFT[:8]), ("Liver Profile", _LFT), ("Lipid Panel", _LIPID))
 _URINE = ("urine_colour", "urine_appearance", "specific_gravity", "urine_ph", "urine_protein", "urine_glucose",
@@ -71,6 +73,7 @@ _G09 = (
     ("PAIRED BLOOD GLUCOSE", ("glucose_random",)),
     ("BLOOD CHEMISTRY", ("urea", "creatinine", "sodium", "potassium", "calcium", "bilirubin_total")),
     ("HAEMATOLOGY", ("hemoglobin", "wbc", "platelets", "esr", "neutrophils_pct", "lymphocytes_pct")),
+    ("ARTERIAL BLOOD GAS", tpl.ABG),  # P1 review MED-4: hospital fluid reports with a blood gas
 )
 _G10 = (
     ("SEROLOGY AND IMMUNOLOGY", ("hiv_screen", "hbsag", "anti_hcv", "vdrl", "dengue_ns1", "dengue_igm", "ra_factor",
@@ -155,8 +158,14 @@ def _spec(fid: str, panels, **over) -> tpl.FamilySpec:
 SPECS: dict[str, tpl.FamilySpec] = {fid: _spec(fid, _BASE) for fid in CONFS}
 
 
+# generic labs on a high-sensitivity troponin T assay print it in place of troponin I (P1 review MED-4)
+_HS_TNT_FAMILIES = ("G01", "G03", "G07")
+
+
 def _panels_for(fid: str, extra: dict) -> tuple:
-    if fid in ("G01", "G02", "G03", "G05", "G07"):
+    if fid in _HS_TNT_FAMILIES:
+        return tuple((t, tpl.CARD_T if keys == tpl.CARD else keys) for t, keys in _BASE)
+    if fid in ("G02", "G05"):
         return _BASE
     return {"G04": _G04, "G06": _G06, "G09": _G09, "G10": _G10,
             "G08": (_G08_URINE, _G08_SPOT) if extra.get("urine_only") else (_G08_BLOOD, _G08_URINE, _G08_SPOT,
@@ -335,10 +344,12 @@ class _GGen(tpl._Gen):
 
     def run(self) -> list[PrintedRow]:
         rows: list[PrintedRow] = []
+        seen: set[str] = set()  # no GT key twice in one report (plan 3.2): the first panel that lists it prints it
         for title, keys in self.spec.panels:
             for key in keys:
-                if not self.eligible(key):
+                if key in seen or not self.eligible(key):
                     continue
+                seen.add(key)
                 if key in ("neutrophils_abs", "lymphocytes_abs") and not self.spec.abs_counts:
                     continue
                 a = CATALOGUE[key]
@@ -434,10 +445,18 @@ def _post(ctx: Ctx, rows: list[PrintedRow], rng: random.Random) -> list[PrintedR
     return rows
 
 
+G06_UNITLESS_P = 0.15
+
+
 def _post_g06(ctx: Ctx, rows: list[PrintedRow], rng: random.Random) -> list[PrintedRow]:
-    """Units in column headers or inside names; 15% of count rows have no unit, no range and no header unit."""
+    """Units in column headers or inside names; 15% of count rows have no unit, no range and no header unit. In a
+    report dealt the ``count_unitless`` coverage stratum (P1 review MED-4) the critical count is always unit-less,
+    so the corpus holds the S6 case "WBC 0.8, no unit" (CL-27); the random draw is made either way."""
+    forced = bool(ctx.extra.get("unitless_critical"))
     for r in rows:
-        if r.key in COUNT_KEYS and r.unit and r.value_type == "numeric" and rng.random() < 0.15:
+        draw = rng.random() if r.key in COUNT_KEYS and r.unit and r.value_type == "numeric" else 1.0
+        if draw < G06_UNITLESS_P or (forced and r.state == "critical" and r.key in COUNT_KEYS and r.unit
+                                     and r.value_type == "numeric"):
             r.unit = ""
             r.unit_placement = "none"
             r.printed_range = PrintedRange()
@@ -938,8 +957,19 @@ def _fit(ctx: Ctx, rows: list[PrintedRow], target: int, rng: random.Random) -> t
     return None
 
 
+def coverage_support(family: str) -> frozenset[str]:
+    """The critical-coverage strata (``scenarios.COVERAGE_KEYS``) a generic family can print (adults)."""
+    keys = {k for _, ks in _panels_for(family, {"urine_only": False}) for k in ks}
+    out = {k for k in sc.COVERAGE_KEYS if k in keys and k != "neutrophils_abs"}
+    if CONFS[family].abs_counts and "neutrophils_abs" in keys:
+        out.add("neutrophils_abs")
+    if family == "G06":
+        out.add("count_unitless")
+    return frozenset(out)
+
+
 def build_report(family: str, *, split: str, index: int, patient: Patient, scenario_class: str, target_pages: int,
-                 report_id: str | None = None) -> PrintedReport:
+                 report_id: str | None = None, coverage: str | None = None) -> PrintedReport:
     """Build the printed report (rows, decoys, pages) for one generic family.
 
     Fully determined by (family, split, index, patient, scenario_class, target_pages). The value draw is repeated
@@ -963,7 +993,8 @@ def build_report(family: str, *, split: str, index: int, patient: Patient, scena
         start_pad=lrng.uniform(3.0, 6.0) if target_pages == 1 else lrng.uniform(5.0, 8.0) if target_pages == 2
         else lrng.uniform(9.0, 12.0),
     )
-    base_extra: dict = {"cls": scenario_class, "neg_word": lrng.choice(("Nil", "Negative"))}
+    base_extra: dict = {"cls": scenario_class, "neg_word": lrng.choice(("Nil", "Negative")),
+                        "unitless_critical": coverage == "count_unitless"}
     page = conf.page
     if family == "G03":
         base_extra.update(star=lrng.random() < 0.5, method_col=lrng.random() < 0.5)
@@ -996,7 +1027,8 @@ def build_report(family: str, *, split: str, index: int, patient: Patient, scena
         vrng = random.Random(seed("values") + attempt)
         ctx = Ctx(family, conf, spec, lay, patient, page, dict(base_extra))
         cand = _GGen(ctx, vrng, sc.ScenarioSpec(scenario_class)).candidates()
-        plan = sc.plan_scenario(scenario_class, srng, patient, cand)
+        plan = sc.plan_scenario(scenario_class, srng, patient, cand,
+                                prefer_critical=sc.COVERAGE_PREFER[coverage] if coverage else ())
         gen = _GGen(ctx, vrng, plan)
         rows = _post(ctx, gen.run(), vrng)
         fit = _fit(ctx, rows, target_pages, vrng)

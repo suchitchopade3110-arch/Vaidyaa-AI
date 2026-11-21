@@ -32,3 +32,12 @@ FAMILIES.update({fid: FamilyEntry("generic", "shared", generic.build_report) for
 from tools.eval.layouts.heldout import families as _heldout  # noqa: E402
 
 FAMILIES.update({fid: FamilyEntry("generic", "heldout_only", _heldout.build_report) for fid in _heldout.SPECS})
+
+
+def coverage_support(family: str) -> frozenset[str]:
+    """The critical-coverage strata (``scenarios.COVERAGE_KEYS``) a shared family can print for an adult; heldout-only
+    families take no stratum (they are built exactly as designed in T08)."""
+    entry = FAMILIES[family]
+    if entry.scope != "shared":
+        return frozenset()
+    return templates.coverage_support(family) if entry.kind == "template" else generic.coverage_support(family)

@@ -208,15 +208,20 @@ _add("egfr", "eGFR", "mL/min/1.73m2", 0, (2.0, 150.0), [V(u=L(90)), V(u=L(60))],
      spell=("mL/min/1.73m2", "mL/min/1.73m²"))
 
 # ---------------------------------------------------------------- electrolytes, minerals
+# mEq/L is an explicit unit, not a spelling of mmol/L (MA-01 keeps the tokens distinct): for these monovalent ions
+# 1 mEq = 1 mmol, so the factor is exactly 1. Only families that print mEq/L (US-A, ``FamilySpec.meq_ions``) use it;
+# listing it as a spelling while it was not convertible silently dropped it (P1 review LOW-5).
+_MEQ = {"mEq/L": 1.0}
 _add("sodium", "Sodium", "mmol/L", 0, (90.0, 190.0), [V(u=R(135, 145)), V(u=R(133, 146))], panels=("ELEC", "KFT"),
-     spell=("mmol/L", "mEq/L"), aka={"generic": ["Sodium", "Sodium (Na+)", "Serum Sodium", "Na"]})
+     alt=_MEQ, aka={"generic": ["Sodium", "Sodium (Na+)", "Serum Sodium", "Na"]})
 _add("potassium", "Potassium", "mmol/L", 1, (1.0, 10.0), [V(u=R(3.5, 5.1)), V(u=R(3.5, 5.3))], panels=("ELEC", "KFT"),
-     spell=("mmol/L", "mEq/L"), aka={"generic": ["Potassium", "Potassium (K+)", "Serum Potassium", "K"]})
+     alt=_MEQ, aka={"generic": ["Potassium", "Potassium (K+)", "Serum Potassium", "K"]})
 _add("chloride", "Chloride", "mmol/L", 0, (60.0, 140.0), [V(u=R(98, 107)), V(u=R(95, 108))], panels=("ELEC", "KFT"),
-     spell=("mmol/L", "mEq/L"), aka={"generic": ["Chloride", "Chloride (Cl-)", "Serum Chloride"]})
-_add("bicarbonate", "Bicarbonate", "mmol/L", 0, (2.0, 60.0), [V(u=R(22, 29))], panels=("ELEC", "KFT"),
-     spell=("mmol/L", "mEq/L"), aka={"generic": ["Bicarbonate", "Total CO2", "HCO3"]},
+     alt=_MEQ, aka={"generic": ["Chloride", "Chloride (Cl-)", "Serum Chloride"]})
+_add("bicarbonate", "Bicarbonate", "mmol/L", 0, (2.0, 60.0), [V(u=R(22, 29))], panels=("ELEC", "KFT", "ABG"),
+     alt=_MEQ, aka={"generic": ["Bicarbonate", "Total CO2", "HCO3"]},
      ped={"2-5": V(u=R(20, 28)), "6-11": V(u=R(20, 28)), "12-17": V(u=R(20, 28))})
+MEQ_IONS = ("sodium", "potassium", "chloride", "bicarbonate")
 _add("calcium", "Calcium", "mg/dL", 1, (3.0, 20.0), [V(u=R(8.5, 10.5)), V(u=R(8.6, 10.2)), V(u=R(2.20, 2.60), unit="mmol/L")],
      si=("mmol/L", 0.2495, 2), panels=("KFT", "ELEC", "VIT"), aka={"generic": ["Calcium", "Calcium, Total", "Serum Calcium"]},
      ped={"2-5": V(u=R(8.8, 10.8)), "6-11": V(u=R(8.8, 10.8)), "12-17": V(u=R(8.8, 10.8))})

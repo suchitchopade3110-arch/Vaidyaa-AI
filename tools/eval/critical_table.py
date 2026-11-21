@@ -26,6 +26,23 @@ class CritEntry:
 
 _GLU = CritEntry((40, 55), (18, 39), (300, 500), (501, 750))
 
+# Derivation (re-verified for the P1 review, MED-4; never from engine limits). Kost 1990 reports the mean US
+# institutional limits; each guard band spans that mean plus the spread later surveys show (Dighe 2006, CAP
+# Q-Probes), so a value outside the guards is critical, or not, under every reasonable policy:
+# * blood_ph: Kost means 7.21 / 7.59; institutions use 7.20-7.25 low and 7.55-7.60 high -> guards [7.15, 7.25] and
+#   [7.55, 7.65]. pH 7.10 is critical (acidaemia), 7.30 is abnormal but not critical.
+# * pco2 (mmHg): Kost means 19 / 67; lists range 20-25 low and 60-70 high -> guards [15, 25] and [60, 70]. pCO2 82
+#   is a critical high (hypercapnia); 52 is HIGH, not critical.
+# * po2 (mmHg): Kost mean 43; lists use 40-50 -> guard [40, 50]; below 40 is critical under every list. There is no
+#   high critical.
+# * ionized_calcium (mmol/L): Kost means 0.78 / 1.58; lists use 0.75-0.90 low and 1.50-1.65 high -> those guards.
+# * hs_troponin_t (ng/L): not in Kost 1990 (the assay is newer). Lists that call it use a value between the 99th
+#   percentile URL (14 ng/L) and 100 ng/L (several none at all), so everything from the printed URL to 100 is
+#   guarded and only > 100 is critical; troponins appear as normal or critical, never as non-critical HIGH.
+# * counts (wbc, platelets, neutrophils_abs) are judged on the TRUE value and unit: a count printed with no unit,
+#   range or header unit is critical when its true value is (S6; the page flag stays UNKNOWN, AMB_UNITLESS_COUNT).
+# ``glucose_capillary`` shares the "any blood glucose" limits; the catalogue prints glucose under the fasting, PP,
+# random and unspecified keys only.
 CRITICAL: dict[str, CritEntry] = {
     "potassium": CritEntry((2.5, 3.0), (1.8, 2.4), (6.0, 6.5), (6.6, 8.5)),
     "sodium": CritEntry((118, 125), (105, 117), (155, 160), (161, 175)),

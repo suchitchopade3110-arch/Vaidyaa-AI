@@ -21,13 +21,13 @@ import pathlib
 import random
 import sys
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any
 
 from tools.eval import config as cfg
 from tools.eval import gt_schema, render
 from tools.eval import scenarios as sc
-from tools.eval.layouts import FAMILIES, base, csv_export
+from tools.eval.layouts import FAMILIES, base, coverage_support, csv_export
 from tools.eval.layouts.base import PrintedReport
 
 MANIFEST_SCHEMA = "vaidya-eval-manifest/1"
@@ -56,6 +56,7 @@ class ReportPlan:
     target_pages: int
     patient: sc.Patient
     rot90: int  # 0, +90 or -90
+    coverage: str | None = None  # critical-coverage stratum (scenarios.COVERAGE_PREFER), critical class only
 
     @property
     def is_csv(self) -> bool:
@@ -150,7 +151,39 @@ def plan_split(split: str) -> list[ReportPlan]:
         ReportPlan(rid, split, i, fam, cls, pg, patients[i], rot.get(rid, 0))
         for i, (rid, (fam, cls, pg)) in enumerate(zip(ids, slots, strict=True))
     ]
+    cov = deal_coverage(out)
+    out = [replace(p, coverage=cov.get(p.report_id)) for p in out]
     _PLAN_CACHE[split] = out
+    return out
+
+
+def _coverage_support(p: ReportPlan) -> frozenset[str]:
+    """Strata this report can carry: a critical-class report of a shared family that prints them. The blood-gas and
+    cardiac panels are adult-only (paediatric reports print paediatric panels only, plan 3.3)."""
+    if p.scenario_class != "critical":
+        return frozenset()
+    sup = coverage_support(p.family)
+    if p.patient.is_paediatric:
+        sup = sup & {"neutrophils_abs", "count_unitless"}
+    return sup
+
+
+def deal_coverage(plans: list[ReportPlan]) -> dict[str, str]:
+    """Deal the critical-coverage strata (P1 review MED-4) over one split's critical-class reports, balanced.
+
+    Round robin over the strata, scarcest first (fewest supporting reports, then ``COVERAGE_KEYS`` order): each round
+    gives every stratum the lowest-id free report that can print it, for at most ``COVERAGE_ROUNDS`` rounds. Report
+    ids are already a seeded shuffle, so this is a deterministic, unbiased pick. Returns {report_id: stratum}."""
+    support = {p.report_id: _coverage_support(p) for p in plans}
+    free = sorted(r for r, s in support.items() if s)
+    order = sorted(sc.COVERAGE_KEYS, key=lambda k: (sum(k in s for s in support.values()), sc.COVERAGE_KEYS.index(k)))
+    out: dict[str, str] = {}
+    for _ in range(sc.COVERAGE_ROUNDS):
+        for key in order:
+            pick = next((r for r in free if key in support[r]), None)
+            if pick is not None:
+                out[pick] = key
+                free.remove(pick)
     return out
 
 
@@ -161,10 +194,11 @@ def build_printed(p: ReportPlan) -> PrintedReport:
     produce the planned one (the actual page count is what GT and the manifest record)."""
     entry = FAMILIES[p.family]
     err: Exception | None = None
+    kw = {"coverage": p.coverage} if p.coverage else {}  # only shared families are ever dealt a stratum
     for tgt in PAGE_ORDER[p.target_pages]:
         try:
             return entry.builder(p.family, split=p.split, index=p.index, patient=p.patient,
-                                 scenario_class=p.scenario_class, target_pages=tgt, report_id=p.report_id)
+                                 scenario_class=p.scenario_class, target_pages=tgt, report_id=p.report_id, **kw)
         except RuntimeError as exc:  # pagination or class not reachable for this target
             err = exc
     raise RuntimeError("no page target feasible") from err
@@ -386,6 +420,21 @@ def verify_plan(splits: list[str]) -> list[str]:
 
 
 _WORD_TOL = 2.0
+# P1 review MED-4: every split must hold these criticals (Table C analytes the engine has known gaps for, and the S6
+# case of a critical count printed with no unit); verify fails otherwise and prints aggregate counts only for heldout
+REQUIRED_CRITICAL_STRATA = ("blood_ph", "pco2", "po2", "ionized_calcium", "hs_troponin_t", "count_unitless")
+
+
+def critical_strata(rows: list[dict[str, Any]]) -> dict[str, int]:
+    """Critical GT rows per analyte key, plus ``count_unitless`` for critical counts printed with no unit."""
+    out: dict[str, int] = {}
+    for r in rows:
+        if not r.get("is_critical"):
+            continue
+        out[r["analyte_key"]] = out.get(r["analyte_key"], 0) + 1
+        if "AMB_UNITLESS_COUNT" in (r.get("ambiguity") or []):
+            out["count_unitless"] = out.get("count_unitless", 0) + 1
+    return out
 
 
 def _words_in_bbox(page: Any, bbox: list[float]) -> str:
@@ -459,6 +508,7 @@ def verify(splits: list[str], *, root: pathlib.Path | str | None = None, renderi
             continue
         bad = 0
         n_amb = n_rows = n_crit = 0
+        strata: dict[str, int] = {}
         for ent in man["reports"]:
             try:
                 r_errs = verify_report(s, root, ent)
@@ -466,6 +516,8 @@ def verify(splits: list[str], *, root: pathlib.Path | str | None = None, renderi
             except Exception as exc:  # noqa: BLE001
                 r_errs, gt = [f"verify crashed: {exc!r}"], {"rows": []}
             n_rows += len(gt["rows"])
+            for k, v in critical_strata(gt["rows"]).items():
+                strata[k] = strata.get(k, 0) + v
             n_amb += sum(1 for r in gt["rows"] if r["expected_needs_review"])
             n_crit += sum(1 for r in gt["rows"] if r["is_critical"])
             if r_errs:
@@ -484,6 +536,16 @@ def verify(splits: list[str], *, root: pathlib.Path | str | None = None, renderi
         print(f"{s}: {len(man['reports'])} reports, {n_rows} rows, AMB {share:.2%}, critical rows {n_crit}, "
               f"{bad} report(s) failing, built {stats.built} skipped {stats.skipped}, {time.time() - t0:.1f}s",
               file=out)
+        have = [k for k in REQUIRED_CRITICAL_STRATA if strata.get(k)]
+        if held:  # aggregate only: how many strata are present, never which rows or reports
+            print(f"{s}: critical strata {len(have)}/{len(REQUIRED_CRITICAL_STRATA)} present", file=out)
+        else:
+            print(f"{s}: critical strata " + ", ".join(f"{k}={strata.get(k, 0)}" for k in REQUIRED_CRITICAL_STRATA),
+                  file=out)
+        if len(have) < len(REQUIRED_CRITICAL_STRATA):
+            print(f"FAIL {s}: {len(REQUIRED_CRITICAL_STRATA) - len(have)} required critical stratum(s) absent",
+                  file=out)
+            failures += 1
     if total_rows:
         share = amb_rows / total_rows
         print(f"corpus: {total_rows} rows, AMB share {share:.2%}, critical rows {crit_rows}", file=out)

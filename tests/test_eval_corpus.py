@@ -109,7 +109,7 @@ def test_gn05_different_seed_changes_gt(monkeypatch):
 
 # ---------------------------------------------------------------- GN-06 golden
 
-GOLDEN_IDS = ("D043", "D071", "D018")  # IN-A 2 pages + critical; G08 blood+urine+spot electrolytes; US-A flags+qualifiers
+GOLDEN_IDS = ("D043", "D071", "D203")  # IN-A 2 pages + critical; G08 blood+urine+spot electrolytes; US-A flags+qualifiers (+ mEq/L)
 
 
 def _golden_manifest() -> dict[str, str]:
@@ -139,8 +139,8 @@ def test_gn06_golden_samples_have_the_planned_properties():
     assert any("method_column" in r["features"] for r in gt["D043"]["rows"])
     titles = [s["title"] for s in gt["D071"]["sections"]]
     assert "URINE ROUTINE EXAMINATION" in titles and "URINE SPOT ELECTROLYTES" in titles
-    assert any(r["features"] and "flag_column" in r["features"] for r in gt["D018"]["rows"])
-    assert any(r["qualifier"] for r in gt["D018"]["rows"])
+    assert any(r["features"] and "flag_column" in r["features"] for r in gt["D203"]["rows"])
+    assert any(r["qualifier"] for r in gt["D203"]["rows"])
 
 
 def test_gn06_regenerated_bytes_match_golden(tmp_path):
@@ -307,3 +307,129 @@ def test_heldout_verify_prints_aggregates_only_and_writes_only_under_heldout(tmp
     assert not re.search(r"\bH\d{3}\b", text) and not re.search(r"\bHX-\d\b", text)
     assert not any(tok.lower() in text.lower() for tok in hx.CANARY_TOKENS)
     assert [p.name for p in tmp_path.iterdir()] == ["heldout"]
+
+
+# ---------------------------------------------------------------- P1 review MED-4: Table C coverage of the corpus
+
+# Table C by hand (plan 3.5, Kost 1990 means with guard bands), blood only: critical below LOW or above HIGH; a value
+# inside a guard is never emitted. hs-TnT guards from its printed URL (14 ng/L) to 100.
+HAND_TABLE_C = {  # key: (critical below, critical above, guards)
+    "blood_ph": (7.15, 7.65, ((7.15, 7.25), (7.55, 7.65))),
+    "pco2": (15, 70, ((15, 25), (60, 70))),
+    "po2": (40, None, ((40, 50),)),
+    "ionized_calcium": (0.75, 1.65, ((0.75, 0.90), (1.50, 1.65))),
+    "hs_troponin_t": (None, 100, ((14, 100),)),
+}
+MED4 = tuple(HAND_TABLE_C)
+
+
+@pytest.fixture(scope="module")
+def devtest_rows():
+    """Every dev and test GT row, built in memory (no files)."""
+    from tools.eval.layouts import base as lbase
+
+    out = {"dev": [], "test": []}
+    for split in out:
+        for p in gen.plan_split(split):
+            gt = lbase.build_gt(gen.build_printed(p)).to_dict()
+            out[split] += [dict(r, family=p.family) for r in gt["rows"]]
+    return out
+
+
+def _crit(rows, key):
+    return [r for r in rows if r["is_critical"] and r["analyte_key"] == key]
+
+
+def test_med4_every_table_c_analyte_is_critical_in_dev_and_test(devtest_rows):
+    """Floor: every Table C analyte the catalogue prints is critical at least twice in dev + test (blood glucose as one
+    group); glucose_capillary is a Table C alias with no catalogue analyte."""
+    from tools.eval import critical_table as ct
+    from tools.eval.catalogue import CATALOGUE
+
+    assert "glucose_capillary" not in CATALOGUE
+    rows = devtest_rows["dev"] + devtest_rows["test"]
+    groups: dict[str, int] = {}
+    for key in ct.CRITICAL:
+        if key in CATALOGUE:
+            g = "any blood glucose" if key.startswith("glucose_") else key
+            groups[g] = groups.get(g, 0) + len(_crit(rows, key))
+    low = {g: n for g, n in groups.items() if n < 2}
+    assert low == {}, low
+    assert len(groups) == 19  # 23 Table C keys - glucose_capillary, with the 4 printed glucose keys as one group
+
+
+@pytest.mark.parametrize("split", ["dev", "test"])
+def test_med4_blood_gas_ica_hs_tnt_and_unitless_count_criticals_in_each_split(devtest_rows, split):
+    rows = devtest_rows[split]
+    missing = [k for k in MED4 if not _crit(rows, k)]
+    assert missing == [], missing
+    unitless = [r for r in rows if r["is_critical"] and "AMB_UNITLESS_COUNT" in r["ambiguity"]]
+    assert unitless, "no critical count printed without a unit (S6, CL-27)"
+    for r in unitless:  # the page cannot tell 1,303 x10^3/uL from 1,303 /uL: UNKNOWN, review required
+        assert r["unit"] == "" and r["flag"] == "UNKNOWN" and r["flag_true"].startswith("CRITICAL_")
+        assert r["analyte_key"] in ("wbc", "platelets") and r["expected_needs_review"]
+
+
+def test_med4_blood_gas_ica_and_hs_tnt_values_follow_table_c_by_hand(devtest_rows):
+    """Every emitted value of the five analytes sits outside the guards and is critical exactly when Table C says so;
+    non-critical abnormal blood gases exist too (pH 7.30 acidaemia, pCO2 52 is HIGH), not only criticals."""
+    rows = devtest_rows["dev"] + devtest_rows["test"]
+    seen = 0
+    for r in rows:
+        if r["analyte_key"] not in HAND_TABLE_C:
+            continue
+        lo, hi, guards = HAND_TABLE_C[r["analyte_key"]]
+        v = r["canonical"]["value"]
+        assert not any(a <= v <= b for a, b in guards), (r["analyte_key"], v)
+        assert r["is_critical"] == ((lo is not None and v < lo) or (hi is not None and v > hi)), (r["analyte_key"], v)
+        seen += 1
+    assert seen >= 150
+    noncrit_abnormal = [r for r in rows if r["analyte_key"] in ("blood_ph", "pco2", "po2") and not r["is_critical"]
+                        and r["flag_true"] in ("HIGH", "LOW")]
+    assert noncrit_abnormal
+    ph = [r["value"] for r in rows if r["analyte_key"] == "blood_ph" and r["flag_true"] == "LOW"]
+    assert all(7.25 < v < 7.35 for v in ph)  # non-critical acidaemia: above the 7.25 guard edge, below 7.35
+
+
+def test_med4_heldout_carries_the_strata_aggregate_only():
+    """Heldout, aggregate only: the five analytes are each critical somewhere and a critical count is printed
+    unit-less. Only counts are compared; nothing per report is printed or kept."""
+    from tools.eval.layouts import base as lbase
+
+    present: set[str] = set()
+    unitless = 0
+    for p in gen.plan_split("heldout"):
+        for r in lbase.build_gt(gen.build_printed(p)).to_dict()["rows"]:
+            if r["is_critical"] and r["analyte_key"] in HAND_TABLE_C:
+                present.add(r["analyte_key"])
+            unitless += int(r["is_critical"] and "AMB_UNITLESS_COUNT" in r["ambiguity"])
+    n_present = len(present)
+    assert n_present == len(HAND_TABLE_C) and unitless >= 1, f"{n_present}/5 analytes, {unitless} unit-less"
+
+
+def test_med4_coverage_deal_is_balanced_and_never_touches_heldout_only_or_children():
+    from tools.eval import scenarios as sc
+    from tools.eval.layouts import FAMILIES
+
+    for split in ("dev", "test", "heldout"):
+        plans = gen.plan_split(split)
+        dealt = [p for p in plans if p.coverage]
+        assert all(p.scenario_class == "critical" and FAMILIES[p.family].scope == "shared" for p in dealt)
+        for p in dealt:
+            if p.patient.is_paediatric:  # blood gas and cardiac panels are adult-only
+                assert p.coverage in ("neutrophils_abs", "count_unitless")
+        per = {k: sum(p.coverage == k for p in dealt) for k in sc.COVERAGE_KEYS}
+        assert max(per.values()) <= sc.COVERAGE_ROUNDS
+        if split != "heldout":  # dev and test: every stratum is dealt at least once (supply allowing, plan 3.1)
+            assert min(per.values()) >= 1, per
+
+
+# ---------------------------------------------------------------- P1 review LOW-5: mEq/L is generated, not dropped
+
+def test_low5_us_a_prints_meq_per_litre_for_the_monovalent_ions_only(devtest_rows):
+    rows = devtest_rows["dev"] + devtest_rows["test"]
+    meq = [r for r in rows if r["unit"] == "mEq/L"]
+    assert meq and {r["family"] for r in meq} == {"US-A"}
+    assert {r["analyte_key"] for r in meq} <= {"sodium", "potassium", "chloride", "bicarbonate"}
+    for r in meq:  # 1 mEq = 1 mmol for a monovalent ion: the canonical value is the printed one
+        assert r["canonical"]["value"] == pytest.approx(r["value"]) and r["canonical"]["unit"] == "mmol/L"

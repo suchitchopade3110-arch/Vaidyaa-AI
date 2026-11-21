@@ -344,3 +344,12 @@ def test_page_long_unread_line_leaves_nearly_every_omission_silent():
     assert len(a.unmatched_gt) == 20
     assert len(a.unmatched_gt) - len(a.covered) >= 18
     assert a.unread_used == [0]
+
+
+def test_low5_meq_rows_match_as_printed_and_never_as_mmol():
+    """A row printed in mEq/L (US-A) is right when read as printed; reading it as mmol/L is a unit error even though
+    1 mEq = 1 mmol for the ion (plan 6.7 keeps the tokens distinct)."""
+    na = gt_row("sodium", 139, "mEq/L", 135, 145)
+    assert m.compare(na, ext_row(na)).correct
+    assert not m.unit_ok(na, ext_row(na, unit_raw="mmol/L"))
+    assert m.value_ok(na, ext_row(na, unit_raw="mmol/L")) and m.range_ok(na, ext_row(na, unit_raw="mmol/L"))

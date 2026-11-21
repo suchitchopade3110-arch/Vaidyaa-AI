@@ -165,8 +165,23 @@ def _zone(key: str, printed_upper: float | None) -> tuple[float, float]:
     return lo, hi
 
 
+# Analytes on a logarithmic scale, where "3-25% beyond the bound" is meaningless (pH 7.35 x 0.97 = 7.13 is already
+# critical): mild and severe are additive offsets beyond the printed bound, still clipped by the Table C guards.
+# pH 7.30-7.34 (mild) and 7.26-7.29 (severe) are non-critical acidaemia, 7.46-7.54 alkalaemia (P1 review MED-4).
+ADDITIVE_STATES: dict[str, dict[str, tuple[float, float]]] = {
+    "blood_ph": {"mild": (0.01, 0.05), "severe": (0.05, 0.10)},
+}
+
+
 def _intervals(key, state, direction, lo, hi, *, absent_hi=None, absent_lo=None, kind="two_sided"):
     """Candidate canonical interval for (state, direction) relative to printed bounds lo/hi (None = absent)."""
+    if key in ADDITIVE_STATES and absent_hi is None and absent_lo is None:
+        a, b = ADDITIVE_STATES[key][state]
+        if direction == "high" and hi is not None:
+            return (hi + a, hi + b)
+        if direction == "low" and lo is not None:
+            return (lo - b, lo - a)
+        return None
     if absent_hi is not None or absent_lo is not None:  # range-absent: clear margins around ALL variants
         H, Lo = absent_hi, absent_lo
         if state == "normal":
@@ -415,6 +430,27 @@ CLUSTERS: dict[str, tuple[tuple[str, str], ...]] = {
 }
 
 
+# Critical-coverage strata (P1 review MED-4). Before them pH, pCO2, pO2, ionised calcium, hs-troponin T and the
+# absolute neutrophil count were never critical in the corpus (troponin I only by chance), and no critical count was ever printed unit-less, so
+# the eval could not see the engine's missing pCO2/pO2 limits (M2) or the S6 case "WBC 0.8, no unit". A uniform
+# draw over a report's analytes rarely picks an analyte of one optional panel, so ``generate.plan_split`` deals these
+# strata over the critical-class reports of the shared families that can print them (balanced per split, at most
+# ``COVERAGE_ROUNDS`` per stratum and split) and the family builder makes the stratum the report's FIRST critical
+# target (``plan_scenario(prefer_critical=...)``). Values still come from Table C's emitted-critical ranges.
+COVERAGE_PREFER: dict[str, tuple[tuple[str, str | None], ...]] = {
+    "blood_ph": (("blood_ph", None),),
+    "pco2": (("pco2", None),),
+    "po2": (("po2", None),),
+    "ionized_calcium": (("ionized_calcium", None),),
+    "hs_troponin_t": (("hs_troponin_t", None),),
+    "troponin_i": (("troponin_i", None),),  # the other optional cardiac panel
+    "neutrophils_abs": (("wbc", "low"),),  # with printed absolute counts a critical low WBC gives a critical ANC
+    "count_unitless": (("wbc", None), ("platelets", None)),  # a critical count printed with no unit (S6, CL-27)
+}
+COVERAGE_KEYS = tuple(COVERAGE_PREFER)
+COVERAGE_ROUNDS = 2
+
+
 @dataclass(frozen=True)
 class Target:
     key: str
@@ -457,8 +493,12 @@ def _feasible(key: str, state: str, direction: str | None, patient: Patient) -> 
     )
 
 
-def plan_scenario(cls: str, rng: random.Random, patient: Patient, candidates: list[str] | None = None) -> ScenarioSpec:
-    """Choose clusters and per-analyte target states for a scenario class (section 3.3)."""
+def plan_scenario(cls: str, rng: random.Random, patient: Patient, candidates: list[str] | None = None, *,
+                  prefer_critical: tuple[tuple[str, str | None], ...] = ()) -> ScenarioSpec:
+    """Choose clusters and per-analyte target states for a scenario class (section 3.3).
+
+    ``prefer_critical`` ((key, direction) pairs, a coverage stratum from ``COVERAGE_PREFER``) is tried first for the
+    first critical slot. No extra random draw is made when it is empty, so other reports are unchanged."""
     if cls not in cfg.SCENARIO_SHARES:
         raise ValueError(cls)
     spec = ScenarioSpec(cls)
@@ -472,11 +512,16 @@ def plan_scenario(cls: str, rng: random.Random, patient: Patient, candidates: li
         "critical": ["critical"] * rng.randint(1, 3) + [rng.choice(["severe", "mild"]) for _ in range(rng.randint(0, 3))],
     }[cls]
     biased = [(k, d) for c in spec.clusters for (k, d) in CLUSTERS[c] if k in keys]
+    prefer = [(k, d) for k, d in prefer_critical if k in keys]
     used: set[str] = set()
     for state in slots:
         pool = [(k, d) for k, d in biased if k not in used]
         rng.shuffle(pool)
         pool += [(k, None) for k in rng.sample(keys, len(keys)) if k not in used]
+        if state == "critical" and prefer:  # the coverage stratum leads the first critical slot only
+            rng.shuffle(prefer)
+            pool = prefer + pool
+            prefer = []
         for k, d in pool:
             if k in used:
                 continue

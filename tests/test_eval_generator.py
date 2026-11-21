@@ -218,7 +218,7 @@ def test_t05_build_is_deterministic(tmp_path):
 
 # ---- hand-derived clinical expectations on the printed page
 
-_NUM = r"\d[\d,]*\.?\d*"
+_NUM = r"[-+]?\d[\d,]*\.?\d*"  # signed: base excess prints "-2.0 - 2.0"
 
 
 def _num(s):
@@ -745,7 +745,8 @@ def test_t06_ind_unlabelled_multivalue_rows_are_ambiguous_with_current_truth():
         for r in rep.rows:
             if r.unlabelled_multivalue:
                 found += 1
-                assert r.line_text.split(" | ")[1].split() == [p["value_text"] for p in r.previous] + [r.value_text]
+                current = ([r.qualifier] if r.qualifier else []) + [r.value_text]  # e.g. troponin I "< 0.01"
+                assert r.line_text.split(" | ")[1].split() == [p["value_text"] for p in r.previous] + current
                 g = next(x for x in lbase.build_gt(rep).rows if x.row_id.endswith(f"r{rep.rows.index(r) + 1:03d}"))
                 assert g.flag == "UNKNOWN" and g.expected_needs_review and "unlabelled_multivalue" in g.features
     assert found >= 1

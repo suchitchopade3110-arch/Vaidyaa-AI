@@ -21,7 +21,7 @@ from tools.eval import clinical
 from tools.eval import config as cfg
 from tools.eval import scenarios as sc
 from tools.eval import units
-from tools.eval.catalogue import CATALOGUE, COUNT_KEYS, Analyte, RefVariant, Rng, paediatric_band
+from tools.eval.catalogue import CATALOGUE, COUNT_KEYS, MEQ_IONS, Analyte, RefVariant, Rng, paediatric_band
 from tools.eval.clinical import OptionRange, PrintedRange
 from tools.eval.layouts import base
 from tools.eval.layouts.base import (
@@ -68,7 +68,10 @@ _m("alt ast alp ggt ldh ck ck_mb amylase lipase", "Enzymatic", "IFCC")
 _m("total_protein globulin", "Biuret", "Biuret")
 _m("albumin ag_ratio", "BCG", "BCG")
 _m("cholesterol triglycerides hdl ldl vldl non_hdl chol_hdl_ratio ldl_hdl_ratio", "Enzymatic", "CHOD-POD")
-_m("t3 t4 tsh free_t3 free_t4 ferritin vitamin_b12 folate vitamin_d psa procalcitonin troponin_i", "CLIA", "ECLIA")
+_m("t3 t4 tsh free_t3 free_t4 ferritin vitamin_b12 folate vitamin_d psa procalcitonin troponin_i hs_troponin_t", "CLIA",
+   "ECLIA")
+_m("blood_ph pco2 po2 base_excess", "Electrode", "Blood Gas Analyser")
+_m("ionized_calcium", "ISE", "ISE Direct")
 _m("iron tibc transferrin_saturation", "Ferrozine", "Ferene")
 _m("crp", "Turbidimetry", "Immunoturbidimetry")
 _m("pt inr aptt", "Clot-based", "Clotting")
@@ -99,6 +102,10 @@ VIT = ("vitamin_b12", "folate", "vitamin_d")
 MISC = ("crp", "ldh", "amylase", "lipase", "psa", "procalcitonin")
 COAG = ("pt", "inr", "aptt")
 CARD = ("ck", "ck_mb", "troponin_i")
+CARD_T = ("ck", "ck_mb", "hs_troponin_t")  # hospital labs on a high-sensitivity troponin T assay (P1 review MED-4)
+# arterial blood gas with ionised calcium, as a hospital blood-gas analyser prints it (P1 review MED-4); a family
+# whose chemistry panel already prints bicarbonate shows it once, in whichever panel comes first
+ABG = ("blood_ph", "pco2", "po2", "bicarbonate", "base_excess", "ionized_calcium")
 
 PANELS_IN = (
     ("COMPLETE BLOOD COUNT (CBC)", CBC), ("GLUCOSE AND HbA1c", DIAB), ("LIPID PROFILE", LIPID),
@@ -106,10 +113,15 @@ PANELS_IN = (
     ("THYROID PROFILE", THY), ("IRON STUDIES", IRON), ("VITAMINS", VIT), ("COAGULATION PROFILE", COAG),
     ("CARDIAC MARKERS", CARD), ("SPECIAL CHEMISTRY", MISC),
 )
+# P1 review MED-4: IN-B runs hs-troponin T (ECLIA); the cumulative and interpretive styles are hospital reports that
+# also print an arterial blood gas. IN-A and GEN-CSV keep PANELS_IN unchanged.
+PANELS_IN_T = tuple((t, CARD_T if keys == CARD else keys) for t, keys in PANELS_IN)
+PANELS_IN_ABG = PANELS_IN + (("ARTERIAL BLOOD GAS", ABG),)
 PANELS_US = (
     ("CBC With Differential", CBC_US), ("Comprehensive Metabolic Panel", KFT_US), ("Hepatic Function Panel", LFT),
     ("Lipid Panel", LIPID), ("Hemoglobin A1c", ("hba1c",)), ("Thyroid Panel", THY), ("Iron and TIBC", IRON),
     ("Vitamins", VIT), ("Prothrombin Time", COAG), ("Cardiac Markers", CARD), ("Special Chemistry", MISC),
+    ("Blood Gases, Arterial", ABG),
 )
 
 # T06 panel sets
@@ -118,13 +130,13 @@ KFT_E = ("urea", "creatinine", "uric_acid", "sodium", "potassium", "chloride", "
 PANELS_E = (  # consecutive pairs are printed side by side: (left, right) per block
     ("HAEMATOLOGY", CBC), ("BIOCHEMISTRY", DIAB + KFT_E),
     ("LIPID PROFILE", LIPID), ("LIVER FUNCTION TEST (LFT)", LFT),
-    ("THYROID AND IRON STUDIES", THY + IRON), ("COAGULATION AND CARDIAC", COAG + CARD),
-    ("SPECIAL CHEMISTRY", MISC), ("VITAMINS", VIT),
+    ("THYROID AND IRON STUDIES", THY + IRON), ("COAGULATION AND CARDIAC", COAG + CARD_T),
+    ("BLOOD GAS ANALYSIS", ABG), ("SPECIAL CHEMISTRY AND VITAMINS", MISC + VIT),
 )
 PANELS_UK = (
     ("FULL BLOOD COUNT", CBC), ("GLUCOSE AND HbA1c", DIAB), ("UREA AND ELECTROLYTES", KFT),
     ("LIVER FUNCTION TESTS", LFT), ("LIPID PROFILE", LIPID), ("THYROID FUNCTION TESTS", THY),
-    ("IRON STUDIES", IRON), ("VITAMINS", VIT), ("COAGULATION", COAG), ("CARDIAC MARKERS", CARD),
+    ("IRON STUDIES", IRON), ("VITAMINS", VIT), ("COAGULATION", COAG), ("CARDIAC MARKERS", CARD_T),
     ("CLINICAL CHEMISTRY", MISC),
 )
 
@@ -181,6 +193,7 @@ class FamilySpec:
     two_panel: bool = False  # IN-E: two half-width panels per visual line, CBC unit in the panel header
     unit_place: str = "cell"  # GT unit_placement for printed units: 'cell' | 'inline'
     csv: bool = False  # GEN-CSV: exported by ``csv_export``
+    meq_ions: bool = False  # US-A: Na, K, Cl and HCO3 printed in mEq/L (conventional US spelling)
 
     def col(self, key: str) -> Column:
         return next(c for c in self.columns if c.key == key)
@@ -198,14 +211,14 @@ SPECS: dict[str, FamilySpec] = {
         "IN-B", "IN", A4, FONT_REGULAR, FONT_BOLD, 8.5, 1, "in_b", "in", "indian",
         (Column("name", "Test Name", 40), Column("tech", "Technology", 205), Column("result", "Result", 292),
          Column("unit", "Unit", 352), Column("range", "Bio. Ref. Interval", 418)),
-        PANELS_IN, ("dash", "bracket", "paren"), ("sym",), False, 0.0, si_p=0.20, cumm_p=0.30,
+        PANELS_IN_T, ("dash", "bracket", "paren"), ("sym",), False, 0.0, si_p=0.20, cumm_p=0.30,
         method_mode="technology", flag_mode="glued", one_sided_unit=True, template_id="IN-B",
     ),
     "IN-C": FamilySpec(
         "IN-C", "IN", A4, FONT_SERIF, FONT_SERIF_BOLD, 9.5, 0, "in_c", "in", "indian",
         (Column("name", "Investigation", 40), Column("result", "Result", 300), Column("unit", "Units", 372),
          Column("range", "Reference Value", 448)),
-        PANELS_IN, ("dash", "paren", "to"), ("sym", "word"), True, 0.0, cumm_p=0.20,
+        PANELS_IN_ABG, ("dash", "paren", "to"), ("sym", "word"), True, 0.0, cumm_p=0.20,
         method_mode="under", interpretive=True, range_size_delta=-0.5, template_id="IN-C",
     ),
     "US-A": FamilySpec(
@@ -213,13 +226,13 @@ SPECS: dict[str, FamilySpec] = {
         (Column("name", "Test", 36), Column("result", "Current Result", 250, "r"), Column("flag", "Flag", 268),
          Column("range", "Reference Interval", 322), Column("unit", "Units", 440), Column("lab", "Lab", 520)),
         PANELS_US, ("tight", "tight", "dash"), ("sym",), True, 0.0, flag_mode="column", abs_counts=True,
-        sex_word=("Male", "Female"), template_id="US-A",
+        sex_word=("Male", "Female"), template_id="US-A", meq_ions=True,
     ),
     "IN-D": FamilySpec(
         "IN-D", "IN", A4_LANDSCAPE, FONT_REGULAR, FONT_BOLD, 8.5, 1, "in_d", "in", "indian",
         (Column("name", "Test", 40), Column("d1", "", 255), Column("d2", "", 335), Column("d3", "", 415),
          Column("unit", "Unit", 500), Column("range", "Bio. Ref. Interval", 570)),
-        PANELS_IN, ("dash", "dash", "endash", "to"), ("sym", "sym", "word"), True, 0.0, cumm_p=0.30,
+        PANELS_IN_ABG, ("dash", "dash", "endash", "to"), ("sym", "sym", "word"), True, 0.0, cumm_p=0.30,
         cumulative=True, template_id="IN-D",
     ),
     "IN-E": FamilySpec(
@@ -352,6 +365,8 @@ def _convertible(key: str, unit: str) -> bool:
 def _unit_raw(key: str, a: Analyte, spec: FamilySpec, lay: Lay) -> str:
     if lay.cumm and key in COUNT_KEYS and key != "rbc" and "/uL" in a.alt_units and not lay.si:
         return "/cumm"
+    if spec.meq_ions and key in MEQ_IONS and not lay.si:
+        return "mEq/L"
     if lay.si and a.si_unit:
         return a.si_unit
     cands = [s for s in a.unit_spellings if _convertible(key, s)] or [a.unit]
@@ -521,7 +536,9 @@ class _Gen:
         return True
 
     def candidates(self) -> list[str]:
-        return [k for _, keys in self.spec.panels for k in keys if k not in DERIVED and self.eligible(k)]
+        """Scenario candidates: every printable primary analyte, once (a key may sit in two panels)."""
+        return list(dict.fromkeys(k for _, keys in self.spec.panels for k in keys
+                                  if k not in DERIVED and self.eligible(k)))
 
     # -- row construction
     def _finish_row(self, key: str, title: str, unit: str, dp: Decimal, rb: RangeBundle, state: str,
@@ -730,10 +747,12 @@ class _Gen:
 
     def run(self) -> list[PrintedRow]:
         rows: list[PrintedRow] = []
+        seen: set[str] = set()  # no GT key twice in one report (plan 3.2): the first panel that lists it prints it
         for title, keys in self.spec.panels:
             for key in keys:
-                if not self.eligible(key):
+                if key in seen or not self.eligible(key):
                     continue
+                seen.add(key)
                 if key in ("neutrophils_abs", "lymphocytes_abs") and not self.spec.abs_counts:
                     continue
                 r = self.derived(key, title) if key in DERIVED else self.primary(key, title)
@@ -1212,13 +1231,29 @@ def setup(spec: FamilySpec, *, split: str, index: int, target_pages: int):
     return spec2, lay, seed
 
 
+def coverage_support(family: str) -> frozenset[str]:
+    """The critical-coverage strata (``scenarios.COVERAGE_KEYS``) a template family can print (adults)."""
+    spec = SPECS[family]
+    if spec.csv:
+        return frozenset()
+    keys = {k for _, ks in spec.panels for k in ks}
+    out = {k for k in sc.COVERAGE_KEYS if k in keys and k != "neutrophils_abs"}
+    if spec.abs_counts and "neutrophils_abs" in keys:
+        out.add("neutrophils_abs")
+    if spec.two_panel:  # IN-E prints every count of an AMB report unit-less
+        out.add("count_unitless")
+    return frozenset(out)
+
+
 def build_report(family: str, *, split: str, index: int, patient: Patient, scenario_class: str, target_pages: int,
-                 report_id: str | None = None) -> PrintedReport:
+                 report_id: str | None = None, coverage: str | None = None) -> PrintedReport:
     """Build the printed report (rows, decoys, pages) for one template family.
 
-    Fully determined by (family, split, index, patient, scenario_class, target_pages): per-purpose seeds come from
-    ``config.seed_for``. The value draw is repeated (attempt counter added to the seed) until pagination matches
-    ``target_pages`` and the GT headline matches the scenario class. GEN-CSV is delegated to ``csv_export``.
+    Fully determined by (family, split, index, patient, scenario_class, target_pages, coverage): per-purpose seeds
+    come from ``config.seed_for``. The value draw is repeated (attempt counter added to the seed) until pagination
+    matches ``target_pages`` and the GT headline matches the scenario class. GEN-CSV is delegated to ``csv_export``.
+    ``coverage`` is the critical-coverage stratum the corpus plan dealt to this report (``scenarios.COVERAGE_PREFER``):
+    it leads the first critical slot, and ``count_unitless`` prints this IN-E report's counts unit-less (AMB).
     """
     spec = SPECS[family]
     if spec.csv:
@@ -1228,6 +1263,9 @@ def build_report(family: str, *, split: str, index: int, patient: Patient, scena
                                        scenario_class=scenario_class, target_pages=target_pages, report_id=report_id)
     rid = report_id or f"{split[0].upper()}{index + 1:03d}"
     spec2, lay, seed = setup(spec, split=split, index=index, target_pages=target_pages)
+    prefer = sc.COVERAGE_PREFER[coverage] if coverage else ()
+    if coverage == "count_unitless" and spec.two_panel:
+        lay = replace(lay, amb_counts=True, hdr_unit_text="")
     ident = lay.ident
     tg_text = "4.5 mmol/L" if lay.si else "400 mg/dL"
     for attempt in range(MAX_ATTEMPTS):
@@ -1235,7 +1273,7 @@ def build_report(family: str, *, split: str, index: int, patient: Patient, scena
         vrng = random.Random(seed("values") + attempt)
         gen0 = _Gen(spec2, lay, patient, scenario_class, vrng, sc.ScenarioSpec(scenario_class))
         cand = gen0.candidates()
-        plan = sc.plan_scenario(scenario_class, srng, patient, cand)
+        plan = sc.plan_scenario(scenario_class, srng, patient, cand, prefer_critical=prefer)
         gen = _Gen(spec2, lay, patient, scenario_class, vrng, plan)
         rows = gen.run()
         fit = _fit(spec2, lay, patient, rows, gen.notes, target_pages, vrng, tg_text)

@@ -611,3 +611,34 @@ def test_unitless_count_true_flag_uses_the_true_unit():
                       input_age=40, true_sex="M", true_age=40)
     assert t.flag == "UNKNOWN" and t.ambiguity == ["AMB_UNITLESS_COUNT"]
     assert t.flag_true == "NORMAL"  # 7.2 x10^3/uL vs 4.0-11.0
+
+
+# ======================================================================== P1 review LOW-5 and MED-4 (clinical rules)
+
+
+def test_low5_meq_per_litre_is_an_explicit_unit_for_monovalent_ions():
+    from tools.eval import clinical as cl
+    from tools.eval.units import units_equivalent
+
+    assert not units_equivalent("mEq/L", "mmol/L")  # MA-01: distinct tokens
+    pr = cl.PrintedRange("two_sided", 135, 145)
+    na = cl.derive_row("sodium", value=139, unit="mEq/L", printed_range=pr, input_sex="male", input_age=40)
+    assert na.flag == "NORMAL" and not na.is_critical  # 139 inside 135-145
+    k = cl.derive_row("potassium", value=6.8, unit="mEq/L", printed_range=cl.PrintedRange("two_sided", 3.5, 5.1),
+                      input_sex="male", input_age=40)
+    assert k.flag == "CRITICAL_HIGH" and k.is_critical  # 6.8 mEq/L = 6.8 mmol/L > 6.5 (Table C)
+    hco3 = cl.derive_row("bicarbonate", value=8, unit="mEq/L", printed_range=cl.PrintedRange("two_sided", 22, 29),
+                         input_sex="male", input_age=40)
+    assert hco3.flag == "CRITICAL_LOW" and hco3.is_critical  # 8 < 10
+
+
+def test_med4_ph_non_critical_states_are_additive_and_outside_the_guards():
+    """pH is logarithmic: '3-25% beyond the bound' would already be critical (7.35 x 0.97 = 7.13). Mild is 0.01-0.05
+    beyond the printed bound and severe 0.05-0.10, never inside the Table C guards [7.15, 7.25] / [7.55, 7.65]."""
+    rng = random.Random(7)
+    pr = __import__("tools.eval.catalogue", fromlist=["R"]).R(7.35, 7.45)
+    want = {("mild", "low"): (7.30, 7.34), ("severe", "low"): (7.26, 7.30), ("mild", "high"): (7.46, 7.50),
+            ("severe", "high"): (7.50, 7.54)}
+    for (state, d), (lo, hi) in want.items():
+        vals = [float(sc.sample_value("blood_ph", state, rng, printed=pr, unit="", direction=d).value) for _ in range(300)]
+        assert min(vals) >= lo - 1e-9 and max(vals) <= hi + 1e-9, (state, d, min(vals), max(vals))
