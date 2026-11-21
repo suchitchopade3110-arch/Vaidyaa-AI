@@ -1,7 +1,7 @@
 {
   "corpus": {
     "test": {
-      "fingerprint": "4590f507bb5e35f58f020f13feebe03ccf0db5425cdb8e2088798012accb1eea",
+      "fingerprint": "c79cdd7cb3ad4b00ca810dd6d31f732ea6e98caee717d21d6cd6f2f0f742073b",
       "n": 80,
       "reports": 80,
       "seed": 20261119
@@ -10,12 +10,12 @@
   "diagnostics": {
     "test": {
       "csv": {
-        "M2_post": {
-          "ci_high": 1.0,
-          "ci_low": 0.5101091635454027,
-          "den": 4,
-          "num": 4,
-          "value": 1.0
+        "M4_post": {
+          "ci_high": 0.03562135437245191,
+          "ci_low": 0.0,
+          "den": 104,
+          "num": 0,
+          "value": 0.0
         },
         "M5_oracle": {
           "ci_high": 1.0,
@@ -142,12 +142,12 @@
         ]
       },
       "native": {
-        "M2_post": {
-          "ci_high": 0.841516620598654,
-          "ci_low": 0.5600751000260289,
-          "den": 36,
-          "num": 26,
-          "value": 0.7222222222222222
+        "M4_post": {
+          "ci_high": 0.0019037466020443573,
+          "ci_low": 0.0,
+          "den": 2014,
+          "num": 0,
+          "value": 0.0
         },
         "M5_oracle": {
           "ci_high": 0.9633159947665283,
@@ -164,159 +164,159 @@
           "value": 1.0
         },
         "M5_pre": {
-          "ci_high": 0.6955619723136058,
-          "ci_low": 0.4797855251743951,
+          "ci_high": 0.6713906818078296,
+          "ci_low": 0.4538575306835998,
           "den": 76,
-          "num": 45,
-          "value": 0.5921052631578947
+          "num": 43,
+          "value": 0.5657894736842105
         },
         "R_NR": {
-          "ci_high": 0.7026223424648965,
-          "ci_low": 0.45033103735230756,
-          "den": 55,
-          "num": 32,
-          "value": 0.5818181818181818
+          "ci_high": 0.7281647097298064,
+          "ci_low": 0.5052188643395578,
+          "den": 69,
+          "num": 43,
+          "value": 0.6231884057971014
         },
         "field_accuracy": {
           "flag": {
-            "ci_high": 0.9264337491052645,
-            "ci_low": 0.8997301645264435,
-            "den": 1698,
-            "num": 1552,
-            "value": 0.9140164899882215
+            "ci_high": 0.9334427052192366,
+            "ci_low": 0.9078122203972364,
+            "den": 1696,
+            "num": 1563,
+            "value": 0.9215801886792453
           },
           "name": {
-            "ci_high": 0.9760578784114262,
-            "ci_low": 0.9593994121303087,
-            "den": 1698,
-            "num": 1645,
-            "value": 0.9687868080094229
+            "ci_high": 0.9734526254337555,
+            "ci_low": 0.9560458238487811,
+            "den": 1696,
+            "num": 1638,
+            "value": 0.9658018867924528
           },
           "range": {
-            "ci_high": 0.8491775143369426,
-            "ci_low": 0.8136339327303169,
-            "den": 1698,
-            "num": 1413,
-            "value": 0.8321554770318021
+            "ci_high": 0.8574411619888331,
+            "ci_low": 0.8226222603976303,
+            "den": 1696,
+            "num": 1426,
+            "value": 0.8408018867924528
           },
           "unit": {
-            "ci_high": 0.9116165797669078,
-            "ci_low": 0.8828169986328571,
-            "den": 1698,
-            "num": 1525,
-            "value": 0.8981154299175501
+            "ci_high": 0.9263464563238956,
+            "ci_low": 0.8996129251904595,
+            "den": 1696,
+            "num": 1550,
+            "value": 0.9139150943396226
           },
           "value": {
-            "ci_high": 0.9846467515225816,
-            "ci_low": 0.9707888982392656,
-            "den": 1698,
-            "num": 1662,
-            "value": 0.9787985865724381
+            "ci_high": 0.9941847427344691,
+            "ci_low": 0.9847300798010631,
+            "den": 1696,
+            "num": 1680,
+            "value": 0.9905660377358491
           }
         },
         "headline_confusion": {
           "abnormal>abnormal": 31,
           "abnormal>unknown": 3,
-          "critical>critical": 14,
-          "critical>unknown": 4,
-          "normal>normal": 18,
+          "critical>critical": 13,
+          "critical>unknown": 5,
+          "normal>abnormal": 1,
+          "normal>normal": 17,
           "normal>unknown": 6
         },
         "invented_by_decoy": {
-          "end_of_report": 10,
+          "end_of_report": 8,
           "header_demographic": 2,
-          "header_id": 14,
+          "header_id": 11,
           "interpretive": 11,
-          "none": 253,
-          "page_x_of_y": 4,
+          "none": 258,
+          "page_x_of_y": 6,
           "phone": 4,
-          "tollfree": 5
+          "tollfree": 4
         },
         "match_rules": {
-          "K": 1583,
-          "N": 114,
+          "K": 1574,
+          "N": 121,
           "T": 1
         },
         "omitted_by_feature": {
           "age_labelled_range": 2,
           "csf": 4,
           "csf_report": 4,
-          "cumulative": 3,
-          "flag_column": 20,
-          "flag_first": 3,
-          "form_style": 44,
-          "glued_flag": 127,
-          "indian_grouping": 5,
+          "cumulative": 2,
+          "flag_column": 15,
+          "flag_first": 2,
+          "form_style": 48,
+          "glued_flag": 104,
+          "indian_grouping": 4,
           "interpretive_range": 2,
-          "interpretive_table": 10,
-          "method_line": 44,
-          "method_under_name": 81,
+          "interpretive_table": 9,
+          "method_line": 48,
+          "method_under_name": 107,
           "mixed_specimen": 8,
           "paediatric": 55,
-          "plain_table": 5,
-          "qualifier": 5,
+          "plain_table": 4,
+          "qualifier": 3,
           "qualitative_result": 1,
           "serology": 25,
           "serology_report": 25,
-          "sex_labelled_range": 55,
+          "sex_labelled_range": 52,
           "si": 29,
-          "technology_column": 115,
+          "technology_column": 104,
           "titre": 20,
-          "two_per_line": 12,
+          "two_per_line": 1,
           "unlabelled_multivalue": 1,
           "urine_only": 4,
-          "urine_section": 8,
-          "western_grouping": 1
+          "urine_section": 8
         },
         "per_family_M3": {
           "G01": {
-            "ci_high": 0.056346912501650026,
-            "ci_low": 0.0087727741610624,
-            "den": 178,
-            "num": 4,
-            "value": 0.02247191011235955
+            "ci_high": 0.14682042949210666,
+            "ci_low": 0.060142800099076195,
+            "den": 179,
+            "num": 17,
+            "value": 0.09497206703910614
           },
           "G02": {
-            "ci_high": 0.9565790031448905,
-            "ci_low": 0.8734917309593303,
-            "den": 160,
-            "num": 148,
-            "value": 0.925
+            "ci_high": 0.9545669305514668,
+            "ci_low": 0.867919680896573,
+            "den": 153,
+            "num": 141,
+            "value": 0.9215686274509803
           },
           "G03": {
-            "ci_high": 0.55482292465392,
-            "ci_low": 0.4032210768222182,
-            "den": 163,
-            "num": 78,
-            "value": 0.4785276073619632
+            "ci_high": 0.5104211556320989,
+            "ci_low": 0.3703098856042899,
+            "den": 189,
+            "num": 83,
+            "value": 0.43915343915343913
           },
           "G04": {
-            "ci_high": 0.0418270666648922,
-            "ci_low": 0.0,
-            "den": 88,
+            "ci_high": 0.038475587857675686,
+            "ci_low": 3.469446951953614e-18,
+            "den": 96,
             "num": 0,
             "value": 0.0
           },
           "G05": {
-            "ci_high": 0.895942730457987,
-            "ci_low": 0.7900615387883905,
-            "den": 174,
-            "num": 148,
-            "value": 0.8505747126436781
+            "ci_high": 0.9892752803482386,
+            "ci_low": 0.942821659593358,
+            "den": 200,
+            "num": 195,
+            "value": 0.975
           },
           "G06": {
-            "ci_high": 0.2830682437985087,
-            "ci_low": 0.12778072974537735,
-            "den": 98,
+            "ci_high": 0.28855166945987454,
+            "ci_low": 0.13052733153747123,
+            "den": 96,
             "num": 19,
-            "value": 0.19387755102040816
+            "value": 0.19791666666666666
           },
           "G07": {
-            "ci_high": 0.2657104356819069,
-            "ci_low": 0.0966129669185153,
-            "den": 73,
-            "num": 12,
-            "value": 0.1643835616438356
+            "ci_high": 0.23801880192993463,
+            "ci_low": 0.0679807727490011,
+            "den": 61,
+            "num": 8,
+            "value": 0.13114754098360656
           },
           "G08": {
             "ci_high": 0.799243206978225,
@@ -326,11 +326,11 @@
             "value": 0.717391304347826
           },
           "G09": {
-            "ci_high": 0.7026223424648965,
-            "ci_low": 0.45033103735230756,
-            "den": 55,
-            "num": 32,
-            "value": 0.5818181818181818
+            "ci_high": 0.6990943553744422,
+            "ci_low": 0.4807583890640794,
+            "den": 74,
+            "num": 44,
+            "value": 0.5945945945945946
           },
           "G10": {
             "ci_high": 0.7601444056822328,
@@ -340,86 +340,86 @@
             "value": 0.6814159292035398
           },
           "IN-A": {
-            "ci_high": 0.9820732831198906,
-            "ci_low": 0.9061591476629647,
-            "den": 120,
-            "num": 115,
-            "value": 0.9583333333333334
+            "ci_high": 0.9832013892021962,
+            "ci_low": 0.9118129792331631,
+            "den": 128,
+            "num": 123,
+            "value": 0.9609375
           },
           "IN-B": {
-            "ci_high": 0.016357668871522173,
+            "ci_high": 0.018133649768460082,
             "ci_low": 0.0,
-            "den": 231,
+            "den": 208,
             "num": 0,
             "value": 0.0
           },
           "IN-C": {
-            "ci_high": 0.043301609837167125,
-            "ci_low": 0.006695797203206469,
-            "den": 233,
+            "ci_high": 0.041054931794101635,
+            "ci_low": 0.0063409602911766935,
+            "den": 246,
             "num": 4,
-            "value": 0.017167381974248927
+            "value": 0.016260162601626018
           },
           "IN-D": {
-            "ci_high": 0.6639466536654248,
-            "ci_low": 0.44738236156130345,
-            "den": 77,
-            "num": 43,
-            "value": 0.5584415584415584
+            "ci_high": 0.7911296863307898,
+            "ci_low": 0.5720235708527267,
+            "den": 65,
+            "num": 45,
+            "value": 0.6923076923076923
           },
           "IN-E": {
-            "ci_high": 0.9439845666965373,
-            "ci_low": 0.8627904693526963,
-            "den": 192,
-            "num": 175,
-            "value": 0.9114583333333334
+            "ci_high": 0.9301951179621273,
+            "ci_low": 0.8384339392598656,
+            "den": 177,
+            "num": 158,
+            "value": 0.8926553672316384
           },
           "UK-A": {
-            "ci_high": 0.9986715123923707,
-            "ci_low": 0.9586407022607314,
-            "den": 133,
-            "num": 132,
-            "value": 0.9924812030075187
+            "ci_high": 0.9984633510941191,
+            "ci_low": 0.9523832736556862,
+            "den": 115,
+            "num": 114,
+            "value": 0.991304347826087
           },
           "US-A": {
-            "ci_high": 0.8923010713942467,
-            "ci_low": 0.770410668752392,
-            "den": 138,
-            "num": 116,
-            "value": 0.8405797101449275
+            "ci_high": 0.9076862034589233,
+            "ci_low": 0.7854668219109349,
+            "den": 126,
+            "num": 108,
+            "value": 0.8571428571428571
           }
         },
         "pre_review_confusion": {
-          "abnormal>abnormal": 31,
+          "abnormal>abnormal": 30,
           "abnormal>critical": 1,
-          "abnormal>unknown": 2,
-          "critical>abnormal": 5,
-          "critical>critical": 13,
-          "normal>abnormal": 2,
+          "abnormal>unknown": 3,
+          "critical>abnormal": 6,
+          "critical>critical": 12,
+          "normal>abnormal": 4,
           "normal>critical": 1,
           "normal>normal": 1,
-          "normal>unknown": 20
+          "normal>unknown": 18
         },
         "precision": {
-          "ci_high": 0.8636130366351016,
-          "ci_low": 0.8322025820326104,
-          "den": 2001,
-          "num": 1698,
-          "value": 0.848575712143928
+          "ci_high": 0.8630664237898786,
+          "ci_low": 0.8315993113023692,
+          "den": 2000,
+          "num": 1696,
+          "value": 0.848
         },
         "recall": {
-          "ci_high": 0.8579237838819157,
-          "ci_low": 0.8261319125008558,
-          "den": 2015,
-          "num": 1698,
-          "value": 0.8426799007444169
+          "ci_high": 0.8573773576378045,
+          "ci_low": 0.8255306052134281,
+          "den": 2014,
+          "num": 1696,
+          "value": 0.8421052631578947
         },
         "review_actions": {
-          "accepted": 1210,
-          "deleted": 292,
-          "edited": 488,
+          "accepted": 1249,
+          "deleted": 293,
+          "edited": 447,
           "kept_invented": 11,
-          "missing": 317
+          "missing": 318
         },
         "review_all_jobs": 0,
         "status": {
@@ -428,63 +428,51 @@
         "top_error_signatures": [
           [
             "range",
-            206
+            203
           ],
           [
             "unit",
-            119
+            99
           ],
           [
             "name",
-            40
+            45
           ],
           [
             "flag",
-            39
+            42
           ],
           [
             "range+flag",
-            37
+            35
           ],
           [
             "unit+flag",
-            20
-          ],
-          [
-            "value+flag",
-            20
+            25
           ],
           [
             "unit+range+flag",
-            16
-          ],
-          [
-            "unit+range",
-            9
-          ],
-          [
-            "value",
-            5
+            12
           ],
           [
             "name+range+flag",
-            4
+            7
           ],
           [
-            "name+value+unit+range+flag",
-            3
+            "value",
+            7
+          ],
+          [
+            "unit+range",
+            6
+          ],
+          [
+            "value+flag",
+            5
           ],
           [
             "name+unit+range+flag",
-            2
-          ],
-          [
-            "name+value+unit+range",
-            2
-          ],
-          [
-            "value+range+flag",
-            2
+            3
           ],
           [
             "name+flag",
@@ -495,26 +483,26 @@
             1
           ],
           [
+            "name+value+unit+range+flag",
+            1
+          ],
+          [
             "value+range",
             1
           ],
           [
-            "value+unit+range",
-            1
-          ],
-          [
-            "value+unit+range+flag",
+            "value+range+flag",
             1
           ]
         ]
       },
       "photo": {
-        "M2_post": {
-          "ci_high": 0.8067396863412435,
-          "ci_low": 0.31951131254954973,
-          "den": 12,
-          "num": 7,
-          "value": 0.5833333333333334
+        "M4_post": {
+          "ci_high": 0.007011989981487356,
+          "ci_low": 0.0,
+          "den": 544,
+          "num": 0,
+          "value": 0.0
         },
         "M5_oracle": {
           "ci_high": 0.9832191169128082,
@@ -531,123 +519,124 @@
           "value": 1.0
         },
         "M5_pre": {
-          "ci_high": 0.5039210557219438,
-          "ci_low": 0.19750227679220683,
+          "ci_high": 0.5631655918005977,
+          "ci_low": 0.2468310743447709,
           "den": 33,
-          "num": 11,
-          "value": 0.3333333333333333
+          "num": 13,
+          "value": 0.3939393939393939
         },
         "R_NR": {
-          "ci_high": 0.7085620428549398,
-          "ci_low": 0.23206067809538303,
-          "den": 13,
-          "num": 6,
-          "value": 0.46153846153846156
+          "ci_high": 0.7165599389846583,
+          "ci_low": 0.3236953458284443,
+          "den": 21,
+          "num": 11,
+          "value": 0.5238095238095238
         },
         "field_accuracy": {
           "flag": {
-            "ci_high": 0.7485378133611131,
-            "ci_low": 0.6522216589136776,
-            "den": 343,
-            "num": 241,
-            "value": 0.7026239067055393
+            "ci_high": 0.7917661959459792,
+            "ci_low": 0.7014118012970931,
+            "den": 351,
+            "num": 263,
+            "value": 0.7492877492877493
           },
           "name": {
-            "ci_high": 0.9596100950333079,
-            "ci_low": 0.9082215679502322,
-            "den": 343,
-            "num": 322,
-            "value": 0.9387755102040817
+            "ci_high": 0.9465979499146373,
+            "ci_low": 0.8903955654064624,
+            "den": 351,
+            "num": 324,
+            "value": 0.9230769230769231
           },
           "range": {
-            "ci_high": 0.6425545931789443,
-            "ci_low": 0.5390845920966805,
-            "den": 343,
-            "num": 203,
-            "value": 0.5918367346938775
+            "ci_high": 0.6371945268029051,
+            "ci_low": 0.5347132322361086,
+            "den": 351,
+            "num": 206,
+            "value": 0.5868945868945868
           },
           "unit": {
-            "ci_high": 0.7595143615869839,
-            "ci_low": 0.6643104040561403,
-            "den": 343,
-            "num": 245,
-            "value": 0.7142857142857143
+            "ci_high": 0.7355955923187484,
+            "ci_low": 0.6392196855859865,
+            "den": 351,
+            "num": 242,
+            "value": 0.6894586894586895
           },
           "value": {
-            "ci_high": 0.7264750676533626,
-            "ci_low": 0.6281538178847615,
-            "den": 343,
-            "num": 233,
-            "value": 0.6793002915451894
+            "ci_high": 0.7355955923187484,
+            "ci_low": 0.6392196855859865,
+            "den": 351,
+            "num": 242,
+            "value": 0.6894586894586895
           }
         },
         "headline_confusion": {
           "abnormal>abnormal": 13,
           "abnormal>normal": 2,
-          "critical>abnormal": 1,
+          "critical>abnormal": 2,
           "critical>critical": 4,
           "critical>unknown": 1,
           "normal>abnormal": 2,
           "normal>normal": 8,
-          "normal>unknown": 2
+          "normal>unknown": 1
         },
         "invented_by_decoy": {
           "header_demographic": 1,
-          "none": 45,
+          "none": 60,
           "phone": 3
         },
         "match_rules": {
           "K": 305,
-          "N": 33,
-          "T": 5
+          "N": 39,
+          "T": 7
         },
         "omitted_by_feature": {
           "age_labelled_range": 1,
-          "colon_line": 46,
+          "colon_line": 52,
           "csf": 1,
           "csf_report": 1,
-          "cumulative": 10,
-          "glued_flag": 9,
+          "cumulative": 6,
+          "glued_flag": 29,
           "header_unit": 8,
           "inline_unit": 4,
           "method_column": 33,
           "mixed_specimen": 9,
-          "paediatric": 61,
-          "plain_table": 9,
-          "qualifier": 1,
+          "paediatric": 67,
+          "plain_table": 12,
+          "qualifier": 3,
           "qualitative_result": 2,
+          "range_absent": 1,
           "serology": 6,
           "serology_report": 8,
-          "sex_labelled_range": 10,
+          "sex_labelled_range": 11,
           "si": 6,
-          "technology_column": 3,
+          "technology_column": 11,
           "titre": 4,
-          "two_per_line": 18,
-          "unlabelled_multivalue": 1,
+          "two_per_line": 38,
+          "unlabelled_multivalue": 2,
           "urine_only": 6,
           "urine_section": 7
         },
         "per_family_M3": {
           "G01": {
-            "ci_high": 0.39008713096683645,
-            "ci_low": 0.17132640003280553,
-            "den": 60,
+            "ci_high": 0.37881127347148014,
+            "ci_low": 0.1655487614162807,
+            "den": 62,
             "num": 16,
-            "value": 0.26666666666666666
+            "value": 0.25806451612903225
           },
           "G02": {
-            "ci_high": 0.26517026873919847,
-            "ci_low": 0.10736292546557002,
-            "den": 87,
-            "num": 15,
-            "value": 0.1724137931034483
+            "ci_high": 0.2031860295240371,
+            "ci_low": 0.06517357574553165,
+            "den": 85,
+            "num": 10,
+            "value": 0.11764705882352941
           },
           "G05": {
-            "ci_high": 0.35387991114111694,
-            "ci_low": 0.014865094404917095,
-            "den": 12,
+            "ci_high": 0.12321201573766646,
+            "ci_low": 0.004215404134432499,
+            "den": 42,
             "num": 1,
-            "value": 0.08333333333333333
+            "value": 0.023809523809523808
           },
           "G06": {
             "ci_high": 0.15744263820012558,
@@ -657,9 +646,9 @@
             "value": 0.03125
           },
           "G07": {
-            "ci_high": 0.1071791982550706,
+            "ci_high": 0.1843181350088518,
             "ci_low": 0.0,
-            "den": 32,
+            "den": 17,
             "num": 0,
             "value": 0.0
           },
@@ -671,11 +660,11 @@
             "value": 0.25
           },
           "G09": {
-            "ci_high": 0.882379225767352,
-            "ci_low": 0.2307242812760128,
-            "den": 5,
-            "num": 3,
-            "value": 0.6
+            "ci_high": 0.6461988254921511,
+            "ci_low": 0.15166471095367573,
+            "den": 11,
+            "num": 4,
+            "value": 0.36363636363636365
           },
           "G10": {
             "ci_high": 0.6293266813020123,
@@ -692,25 +681,25 @@
             "value": 0.21428571428571427
           },
           "IN-B": {
-            "ci_high": 0.5313311006653985,
-            "ci_low": 0.1327998961029523,
-            "den": 17,
+            "ci_high": 0.3012805649545216,
+            "ci_low": 0.06449441444782457,
+            "den": 34,
             "num": 5,
-            "value": 0.29411764705882354
+            "value": 0.14705882352941177
           },
           "IN-D": {
-            "ci_high": 0.16817922405261626,
+            "ci_high": 0.22809537235419838,
             "ci_low": 0.0,
-            "den": 19,
+            "den": 13,
             "num": 0,
             "value": 0.0
           },
           "IN-E": {
-            "ci_high": 0.6343919169097589,
-            "ci_low": 0.44264860323368227,
-            "den": 100,
-            "num": 54,
-            "value": 0.54
+            "ci_high": 0.5756665217326731,
+            "ci_low": 0.4003029997040413,
+            "den": 121,
+            "num": 59,
+            "value": 0.48760330578512395
           },
           "UK-A": {
             "ci_high": 0.2303782864425083,
@@ -721,99 +710,111 @@
           }
         },
         "pre_review_confusion": {
-          "abnormal>abnormal": 6,
+          "abnormal>abnormal": 7,
           "abnormal>critical": 3,
           "abnormal>normal": 1,
-          "abnormal>unknown": 5,
-          "critical>abnormal": 1,
+          "abnormal>unknown": 4,
+          "critical>abnormal": 2,
           "critical>critical": 4,
           "critical>unknown": 1,
           "normal>abnormal": 3,
           "normal>critical": 1,
-          "normal>normal": 1,
-          "normal>unknown": 7
+          "normal>normal": 2,
+          "normal>unknown": 5
         },
         "precision": {
-          "ci_high": 0.9041430756060809,
-          "ci_low": 0.8385785202467031,
-          "den": 392,
-          "num": 343,
-          "value": 0.875
+          "ci_high": 0.877344292153404,
+          "ci_low": 0.8078791831159451,
+          "den": 415,
+          "num": 351,
+          "value": 0.8457831325301205
         },
         "recall": {
-          "ci_high": 0.7171097369006393,
-          "ci_low": 0.6359411907668654,
-          "den": 506,
-          "num": 343,
-          "value": 0.6778656126482213
+          "ci_high": 0.6842792091017559,
+          "ci_low": 0.6041253967492092,
+          "den": 544,
+          "num": 351,
+          "value": 0.6452205882352942
         },
         "review_actions": {
-          "accepted": 193,
-          "deleted": 37,
-          "edited": 150,
-          "kept_invented": 12,
-          "missing": 163
+          "accepted": 198,
+          "deleted": 51,
+          "edited": 153,
+          "kept_invented": 13,
+          "missing": 193
         },
-        "review_all_jobs": 2,
+        "review_all_jobs": 1,
         "status": {
-          "empty": 2,
-          "ok": 31
+          "empty": 1,
+          "ok": 32
         },
         "top_error_signatures": [
           [
             "value+unit+range+flag",
-            37
+            32
           ],
           [
             "range",
-            29
+            25
           ],
           [
             "unit",
-            23
-          ],
-          [
-            "value+flag",
-            16
-          ],
-          [
-            "value+range",
-            16
+            25
           ],
           [
             "value+unit+range",
-            15
+            24
+          ],
+          [
+            "value+range",
+            20
+          ],
+          [
+            "name",
+            12
           ],
           [
             "value+range+flag",
-            13
+            12
           ],
           [
             "range+flag",
             10
           ],
           [
-            "name",
-            9
-          ],
-          [
-            "unit+range+flag",
+            "unit+flag",
             8
           ],
           [
-            "unit+flag",
-            5
-          ],
-          [
             "value",
-            5
+            8
           ],
           [
             "flag",
-            4
+            6
+          ],
+          [
+            "unit+range+flag",
+            6
+          ],
+          [
+            "value+flag",
+            5
+          ],
+          [
+            "name+unit+range+flag",
+            3
+          ],
+          [
+            "name+value+unit+range",
+            3
           ],
           [
             "name+value+unit+range+flag",
+            3
+          ],
+          [
+            "unit+range",
             3
           ],
           [
@@ -821,32 +822,20 @@
             2
           ],
           [
-            "name+unit+range+flag",
-            2
-          ],
-          [
-            "name+value+unit+range",
-            2
-          ],
-          [
             "name+unit",
-            1
+            2
           ],
           [
             "name+value+range",
-            1
-          ],
-          [
-            "name+value+range+flag",
             1
           ]
         ]
       },
       "rot90": {
-        "M2_post": {
-          "ci_high": 0.43448246478317476,
+        "M4_post": {
+          "ci_high": 0.025636822084673896,
           "ci_low": 0.0,
-          "den": 5,
+          "den": 146,
           "num": 0,
           "value": 0.0
         },
@@ -920,16 +909,18 @@
           "critical>unknown": 2
         },
         "invented_by_decoy": {
-          "none": 4,
+          "end_of_report": 1,
+          "none": 6,
           "phone": 2
         },
         "match_rules": {},
         "omitted_by_feature": {
-          "flag_column": 33,
-          "flag_first": 33,
+          "flag_column": 46,
+          "flag_first": 46,
           "paediatric": 28,
           "plain_table": 28,
-          "sex_labelled_range": 2
+          "sex_labelled_range": 2,
+          "western_grouping": 1
         },
         "per_family_M3": {
           "G01": {
@@ -940,9 +931,9 @@
             "value": 0.0
           },
           "G03": {
-            "ci_high": 0.09180986822558396,
+            "ci_high": 0.0664135880908964,
             "ci_low": 0.0,
-            "den": 38,
+            "den": 54,
             "num": 0,
             "value": 0.0
           },
@@ -954,9 +945,9 @@
             "value": 0.0
           },
           "IN-E": {
-            "ci_high": 0.07269781922049637,
-            "ci_low": 6.938893903907228e-18,
-            "den": 49,
+            "ci_high": 0.1071791982550706,
+            "ci_low": 0.0,
+            "den": 32,
             "num": 0,
             "value": 0.0
           }
@@ -966,22 +957,22 @@
           "critical>unknown": 2
         },
         "precision": {
-          "ci_high": 0.3903342879021653,
-          "ci_low": 2.7755575615628914e-17,
-          "den": 6,
+          "ci_high": 0.2991450484195441,
+          "ci_low": 0.0,
+          "den": 9,
           "num": 0,
           "value": 0.0
         },
         "recall": {
-          "ci_high": 0.0249702443680766,
-          "ci_low": 1.734723475976807e-18,
-          "den": 150,
+          "ci_high": 0.025636822084673896,
+          "ci_low": 0.0,
+          "den": 146,
           "num": 0,
           "value": 0.0
         },
         "review_actions": {
-          "deleted": 6,
-          "missing": 150
+          "deleted": 9,
+          "missing": 146
         },
         "review_all_jobs": 2,
         "status": {
@@ -991,12 +982,12 @@
         "top_error_signatures": []
       },
       "scan": {
-        "M2_post": {
-          "ci_high": 0.9851349055950829,
-          "ci_low": 0.646120088858883,
-          "den": 12,
-          "num": 11,
-          "value": 0.9166666666666666
+        "M4_post": {
+          "ci_high": 0.007011989981487356,
+          "ci_low": 0.0,
+          "den": 544,
+          "num": 0,
+          "value": 0.0
         },
         "M5_oracle": {
           "ci_high": 0.9721335187862319,
@@ -1013,58 +1004,59 @@
           "value": 1.0
         },
         "M5_pre": {
-          "ci_high": 0.818808175898918,
-          "ci_low": 0.43285427668523624,
+          "ci_high": 0.781193467627183,
+          "ci_low": 0.3865815007622531,
           "den": 20,
-          "num": 13,
-          "value": 0.65
+          "num": 12,
+          "value": 0.6
         },
         "R_NR": {
-          "ci_high": 0.7679393219046169,
-          "ci_low": 0.29143795714506004,
-          "den": 13,
-          "num": 7,
-          "value": 0.5384615384615384
+          "ci_high": 0.7924898863143551,
+          "ci_low": 0.4087865377511576,
+          "den": 21,
+          "num": 13,
+          "value": 0.6190476190476191
         },
         "field_accuracy": {
           "flag": {
-            "ci_high": 0.8214399125379301,
-            "ci_low": 0.7423235880141732,
-            "den": 413,
-            "num": 324,
-            "value": 0.784503631961259
+            "ci_high": 0.8576481027285316,
+            "ci_low": 0.7867261311700191,
+            "den": 440,
+            "num": 363,
+            "value": 0.825
           },
           "name": {
-            "ci_high": 0.9546844898038724,
-            "ci_low": 0.9065542195501919,
-            "den": 413,
-            "num": 386,
-            "value": 0.9346246973365617
+            "ci_high": 0.9325285010525913,
+            "ci_low": 0.8785719332253049,
+            "den": 440,
+            "num": 400,
+            "value": 0.9090909090909091
           },
           "range": {
-            "ci_high": 0.8124642616716973,
-            "ci_low": 0.7321072899254408,
-            "den": 413,
-            "num": 320,
-            "value": 0.774818401937046
+            "ci_high": 0.8220970779078285,
+            "ci_low": 0.745673226086699,
+            "den": 440,
+            "num": 346,
+            "value": 0.7863636363636364
           },
           "unit": {
-            "ci_high": 0.8459534833621616,
-            "ci_low": 0.7705878768160963,
-            "den": 413,
-            "num": 335,
-            "value": 0.8111380145278451
+            "ci_high": 0.8305107922596052,
+            "ci_low": 0.7552839658299865,
+            "den": 440,
+            "num": 350,
+            "value": 0.7954545454545454
           },
           "value": {
-            "ci_high": 0.8940852037653868,
-            "ci_low": 0.8280118756651798,
-            "den": 413,
-            "num": 357,
-            "value": 0.864406779661017
+            "ci_high": 0.9325285010525913,
+            "ci_low": 0.8785719332253049,
+            "den": 440,
+            "num": 400,
+            "value": 0.9090909090909091
           }
         },
         "headline_confusion": {
-          "abnormal>abnormal": 9,
+          "abnormal>abnormal": 8,
+          "abnormal>normal": 1,
           "critical>critical": 5,
           "normal>abnormal": 2,
           "normal>normal": 3,
@@ -1072,55 +1064,57 @@
         },
         "invented_by_decoy": {
           "header_demographic": 2,
-          "none": 23
+          "none": 31
         },
         "match_rules": {
-          "K": 369,
-          "N": 40,
-          "T": 4
+          "K": 381,
+          "N": 46,
+          "T": 13
         },
         "omitted_by_feature": {
-          "colon_line": 43,
-          "csf": 2,
-          "csf_report": 2,
+          "colon_line": 42,
+          "csf": 1,
+          "csf_report": 1,
           "cumulative": 4,
-          "flag_column": 1,
-          "glued_flag": 3,
+          "glued_flag": 11,
           "method_column": 5,
           "mixed_specimen": 8,
-          "paediatric": 51,
-          "plain_table": 2,
+          "paediatric": 50,
+          "plain_table": 3,
+          "qualifier": 1,
           "qualitative_result": 2,
           "serology": 6,
           "serology_report": 8,
           "sex_labelled_range": 1,
-          "si": 4,
+          "si": 6,
+          "technology_column": 2,
           "titre": 4,
-          "two_per_line": 14,
+          "two_per_line": 24,
+          "unlabelled_multivalue": 2,
           "urine_only": 4,
           "urine_section": 6
         },
         "per_family_M3": {
           "G01": {
-            "ci_high": 0.5929581806433883,
-            "ci_low": 0.34019852912223775,
-            "den": 56,
-            "num": 26,
-            "value": 0.4642857142857143
+            "ci_high": 0.6338371758159258,
+            "ci_low": 0.3825989849761273,
+            "den": 57,
+            "num": 29,
+            "value": 0.5087719298245614
           },
           "G02": {
-            "ci_high": 0.3241528623046228,
-            "ci_low": 0.14544607404671892,
+            "ci_high": 0.2694613751477123,
+            "ci_low": 0.10584403877720129,
             "den": 81,
-            "num": 18,
-            "value": 0.2222222222222222
+            "num": 14,
+            "value": 0.1728395061728395
           },
           "G05": {
-            "ci_high": 0.7634069094874361,
-            "ci_low": 0.236593090512564,
-            "den": 10,
-            "num": 5,
-            "value": 0.5
+            "ci_high": 0.6029370287800753,
+            "ci_low": 0.3014640099805125,
+            "den": 38,
+            "num": 17,
+            "value": 0.4473684210526316
           },
           "G06": {
             "ci_high": 0.15744263820012558,
@@ -1130,9 +1124,9 @@
             "value": 0.03125
           },
           "G07": {
-            "ci_high": 0.11696979849974075,
+            "ci_high": 0.20388330103584862,
             "ci_low": 0.0,
-            "den": 29,
+            "den": 15,
             "num": 0,
             "value": 0.0
           },
@@ -1144,11 +1138,11 @@
             "value": 0.45614035087719296
           },
           "G09": {
-            "ci_high": 0.8123836935173494,
-            "ci_low": 0.1876163064826506,
-            "den": 6,
-            "num": 3,
-            "value": 0.5
+            "ci_high": 0.6461988254921511,
+            "ci_low": 0.15166471095367573,
+            "den": 11,
+            "num": 4,
+            "value": 0.36363636363636365
           },
           "G10": {
             "ci_high": 0.5577076558789761,
@@ -1165,25 +1159,25 @@
             "value": 0.5535714285714286
           },
           "IN-B": {
-            "ci_high": 0.7690134759450765,
-            "ci_low": 0.331785563988119,
-            "den": 16,
-            "num": 9,
-            "value": 0.5625
+            "ci_high": 0.44678571314553067,
+            "ci_low": 0.1317037456190719,
+            "den": 27,
+            "num": 7,
+            "value": 0.25925925925925924
           },
           "IN-D": {
-            "ci_high": 0.16817922405261626,
+            "ci_high": 0.22809537235419838,
             "ci_low": 0.0,
-            "den": 19,
+            "den": 13,
             "num": 0,
             "value": 0.0
           },
           "IN-E": {
-            "ci_high": 0.6057800106955886,
-            "ci_low": 0.4134801193402717,
-            "den": 100,
-            "num": 51,
-            "value": 0.51
+            "ci_high": 0.5756665217326731,
+            "ci_low": 0.4003029997040413,
+            "den": 121,
+            "num": 59,
+            "value": 0.48760330578512395
           },
           "UK-A": {
             "ci_high": 0.7500027423604485,
@@ -1200,29 +1194,29 @@
           "critical>unknown": 1,
           "normal>abnormal": 1,
           "normal>critical": 1,
-          "normal>normal": 2,
-          "normal>unknown": 2
+          "normal>normal": 1,
+          "normal>unknown": 3
         },
         "precision": {
-          "ci_high": 0.9610430686258841,
-          "ci_low": 0.9170999671942476,
-          "den": 438,
-          "num": 413,
-          "value": 0.9429223744292238
+          "ci_high": 0.949893411948425,
+          "ci_low": 0.9036397539943533,
+          "den": 473,
+          "num": 440,
+          "value": 0.9302325581395349
         },
         "recall": {
-          "ci_high": 0.8475272654053674,
-          "ci_low": 0.7801188282257523,
-          "den": 506,
-          "num": 413,
-          "value": 0.8162055335968379
+          "ci_high": 0.8396571441839594,
+          "ci_low": 0.7736589796510044,
+          "den": 544,
+          "num": 440,
+          "value": 0.8088235294117647
         },
         "review_actions": {
-          "accepted": 236,
-          "deleted": 18,
-          "edited": 177,
-          "kept_invented": 7,
-          "missing": 93
+          "accepted": 257,
+          "deleted": 25,
+          "edited": 183,
+          "kept_invented": 8,
+          "missing": 104
         },
         "review_all_jobs": 0,
         "status": {
@@ -1230,79 +1224,83 @@
         },
         "top_error_signatures": [
           [
-            "range",
-            43
-          ],
-          [
             "unit",
-            43
+            46
           ],
           [
-            "value+flag",
-            28
-          ],
-          [
-            "range+flag",
-            18
+            "range",
+            41
           ],
           [
             "name",
-            14
+            21
           ],
           [
-            "value+range+flag",
-            11
-          ],
-          [
-            "unit+flag",
-            10
+            "range+flag",
+            19
           ],
           [
             "value",
-            6
+            13
           ],
           [
-            "name+unit",
-            5
+            "value+flag",
+            12
+          ],
+          [
+            "unit+flag",
+            11
           ],
           [
             "unit+range+flag",
-            5
+            10
           ],
           [
-            "value+unit+flag",
-            5
+            "name+unit",
+            8
+          ],
+          [
+            "value+range+flag",
+            7
+          ],
+          [
+            "flag",
+            6
+          ],
+          [
+            "unit+range",
+            6
           ],
           [
             "name+unit+range+flag",
             4
           ],
           [
-            "flag",
-            3
-          ],
-          [
             "name+range+flag",
             3
           ],
           [
-            "unit+range",
+            "value+unit+flag",
             3
           ],
           [
             "value+range",
-            3
+            2
+          ],
+          [
+            "name+flag",
+            1
+          ],
+          [
+            "name+value",
+            1
+          ],
+          [
+            "name+value+unit+range",
+            1
           ],
           [
             "name+value+unit+range+flag",
-            1
-          ],
-          [
-            "value+unit+range",
-            1
-          ],
-          [
-            "value+unit+range+flag",
             1
           ]
         ]
@@ -1322,6 +1320,15 @@
           "value": 0.0
         },
         "M2": {
+          "ci_high": 1.0,
+          "ci_low": 0.5101091635454027,
+          "den": 4,
+          "num": 4,
+          "pass": true,
+          "target": "= 100%",
+          "value": 1.0
+        },
+        "M2_post": {
           "ci_high": 1.0,
           "ci_low": 0.5101091635454027,
           "den": 4,
@@ -1394,94 +1401,103 @@
       },
       "native": {
         "M1": {
-          "ci_high": 0.22263072321654895,
-          "ci_low": 0.18742696368288572,
-          "den": 2015,
-          "num": 412,
+          "ci_high": 0.22529646244148,
+          "ci_low": 0.18992023119824802,
+          "den": 2014,
+          "num": 417,
           "pass": false,
           "target": "<= 0.5%",
-          "value": 0.2044665012406948
+          "value": 0.2070506454816286
         },
         "M2": {
-          "ci_high": 0.8624952233700517,
-          "ci_low": 0.5892954623327166,
-          "den": 36,
-          "num": 27,
+          "ci_high": 0.8036673347185581,
+          "ci_low": 0.514636672419722,
+          "den": 37,
+          "num": 25,
           "pass": false,
           "target": "= 100%",
-          "value": 0.75
+          "value": 0.6756756756756757
+        },
+        "M2_post": {
+          "ci_high": 0.7593600082420173,
+          "ci_low": 0.46100430439217654,
+          "den": 37,
+          "num": 23,
+          "pass": false,
+          "target": "= 100%",
+          "value": 0.6216216216216216
         },
         "M3": {
-          "ci_high": 0.5246438694601516,
-          "ci_low": 0.4839699831024425,
+          "ci_high": 0.5388435030977029,
+          "ci_low": 0.498196062921452,
           "den": 2318,
-          "num": 1169,
+          "num": 1202,
           "pass": false,
           "target": ">= 92%",
-          "value": 0.5043140638481449
+          "value": 0.5185504745470233
         },
         "M4": {
-          "ci_high": 0.005093238811237933,
-          "ci_low": 0.0007722335709328351,
-          "den": 2015,
-          "num": 4,
+          "ci_high": 0.004370505359071831,
+          "ci_low": 0.0005067156820925533,
+          "den": 2014,
+          "num": 3,
           "pass": true,
           "target": "<= 0.5%",
-          "value": 0.0019851116625310174
+          "value": 0.0014895729890764648
         },
         "M5": {
-          "ci_high": 0.8972198094472776,
-          "ci_low": 0.729021253009869,
+          "ci_high": 0.8765801272024571,
+          "ci_low": 0.6995616502581179,
           "den": 76,
-          "num": 63,
+          "num": 61,
           "pass": false,
           "target": ">= 98%",
-          "value": 0.8289473684210527
+          "value": 0.8026315789473685
         },
         "M6": {
-          "ci_high": 0.28328737570298945,
-          "ci_low": 0.01111934476464252,
-          "den": 16,
+          "ci_high": 0.2981652987378003,
+          "ci_low": 0.011866895493268553,
+          "den": 15,
           "num": 1,
           "pass": false,
           "target": ">= 90%",
-          "value": 0.0625
+          "value": 0.06666666666666667
         },
         "M7": {
-          "ci_high": 0.4113657237163217,
-          "ci_low": 0.36866675812420785,
-          "den": 2001,
-          "num": 780,
+          "ci_high": 0.3913898365241148,
+          "ci_low": 0.3491085957690108,
+          "den": 2000,
+          "num": 740,
           "pass": false,
           "target": "<= 15%",
-          "value": 0.38980509745127434
+          "value": 0.37
         },
         "components": {
           "M1": {
             "invented": 11,
-            "omitted": 317,
-            "wrong": 84
+            "omitted": 318,
+            "wrong": 88
           }
         },
         "crashes": {},
         "jobs": 76,
         "legibility": {
           "ci_high": 1.0,
-          "ci_low": 0.9980971963876065,
-          "den": 2015,
-          "num": 2015,
+          "ci_low": 0.9980962533979556,
+          "den": 2014,
+          "num": 2014,
           "value": 1.0
         }
       },
       "photo": {
         "M1": {
-          "ci_high": 0.5020631662843514,
-          "ci_low": 0.41555828392656424,
-          "den": 506,
-          "num": 232,
+          "ci_high": 0.538216997794263,
+          "ci_low": 0.4544816197791303,
+          "den": 544,
+          "num": 270,
           "pass": false,
           "target": "<= 1.5%",
-          "value": 0.45849802371541504
+          "value": 0.4963235294117647
         },
         "M2": {
           "ci_high": 0.8067396863412435,
@@ -1492,23 +1508,32 @@
           "target": "= 100%",
           "value": 0.5833333333333334
         },
+        "M2_post": {
+          "ci_high": 0.7462184023662939,
+          "ci_low": 0.2537815976337061,
+          "den": 12,
+          "num": 6,
+          "pass": false,
+          "target": "= 100%",
+          "value": 0.5
+        },
         "M3": {
-          "ci_high": 0.2881291408137036,
-          "ci_low": 0.21620255178379172,
-          "den": 555,
-          "num": 139,
+          "ci_high": 0.26535858875975865,
+          "ci_low": 0.19855482333197821,
+          "den": 608,
+          "num": 140,
           "pass": false,
           "target": ">= 70%",
-          "value": 0.25045045045045045
+          "value": 0.23026315789473684
         },
         "M4": {
-          "ci_high": 0.028277136675176888,
-          "ci_low": 0.00671699436697671,
-          "den": 506,
+          "ci_high": 0.026320059993548167,
+          "ci_low": 0.006246768481062676,
+          "den": 544,
           "num": 7,
           "pass": false,
           "target": "<= 0.5%",
-          "value": 0.01383399209486166
+          "value": 0.012867647058823529
         },
         "M5": {
           "ci_high": 0.8716828662282499,
@@ -1520,49 +1545,49 @@
           "value": 0.7575757575757576
         },
         "M6": {
-          "ci_high": 0.4041500267952385,
-          "ci_low": 0.017876213095072896,
-          "den": 10,
-          "num": 1,
-          "pass": null,
-          "target": "info",
-          "value": 0.1
+          "ci_high": 0.5474110308930111,
+          "ci_low": 0.06322510711784671,
+          "den": 9,
+          "num": 2,
+          "pass": false,
+          "target": ">= 90%",
+          "value": 0.2222222222222222
         },
         "M7": {
-          "ci_high": 0.5264679827856549,
-          "ci_low": 0.4280592664478482,
-          "den": 392,
-          "num": 187,
+          "ci_high": 0.5395211796251096,
+          "ci_low": 0.44376605268539415,
+          "den": 415,
+          "num": 204,
           "pass": null,
           "target": "info",
-          "value": 0.4770408163265306
+          "value": 0.491566265060241
         },
         "components": {
           "M1": {
-            "invented": 12,
-            "omitted": 158,
-            "wrong": 62
+            "invented": 13,
+            "omitted": 191,
+            "wrong": 66
           }
         },
         "crashes": {},
         "jobs": 33,
         "legibility": {
-          "ci_high": 0.9598022596855229,
-          "ci_low": 0.9189022713980446,
-          "den": 506,
-          "num": 477,
-          "value": 0.9426877470355731
+          "ci_high": 0.9486875639306956,
+          "ci_low": 0.9055741799822895,
+          "den": 544,
+          "num": 506,
+          "value": 0.9301470588235294
         }
       },
       "rot90": {
         "M1": {
-          "ci_high": 0.4866533494866793,
-          "ci_low": 0.33134109612869495,
-          "den": 150,
-          "num": 61,
+          "ci_high": 0.5867239149712449,
+          "ci_low": 0.42662352582211577,
+          "den": 146,
+          "num": 74,
           "pass": false,
           "target": "<= 1.5%",
-          "value": 0.4066666666666667
+          "value": 0.5068493150684932
         },
         "M2": {
           "ci_high": 0.43448246478317476,
@@ -1573,19 +1598,28 @@
           "target": "= 100%",
           "value": 0.0
         },
-        "M3": {
-          "ci_high": 0.024032931437414938,
+        "M2_post": {
+          "ci_high": 0.43448246478317476,
           "ci_low": 0.0,
-          "den": 156,
+          "den": 5,
+          "num": 0,
+          "pass": false,
+          "target": "= 100%",
+          "value": 0.0
+        },
+        "M3": {
+          "ci_high": 0.024184232814371848,
+          "ci_low": 0.0,
+          "den": 155,
           "num": 0,
           "pass": false,
           "target": ">= 80%",
           "value": 0.0
         },
         "M4": {
-          "ci_high": 0.0249702443680766,
-          "ci_low": 1.734723475976807e-18,
-          "den": 150,
+          "ci_high": 0.025636822084673896,
+          "ci_low": 0.0,
+          "den": 146,
           "num": 0,
           "pass": true,
           "target": "<= 0.5%",
@@ -1606,14 +1640,14 @@
           "den": 0,
           "num": 0,
           "pass": null,
-          "target": "info",
+          "target": ">= 90%",
           "value": null
         },
         "M7": {
           "ci_high": 1.0,
-          "ci_low": 0.6096657120978346,
-          "den": 6,
-          "num": 6,
+          "ci_low": 0.7008549515804559,
+          "den": 9,
+          "num": 9,
           "pass": null,
           "target": "info",
           "value": 1.0
@@ -1621,29 +1655,29 @@
         "components": {
           "M1": {
             "invented": 0,
-            "omitted": 61,
+            "omitted": 74,
             "wrong": 0
           }
         },
         "crashes": {},
         "jobs": 4,
         "legibility": {
-          "ci_high": 0.7615299568333848,
-          "ci_low": 0.6154815486776256,
-          "den": 150,
-          "num": 104,
-          "value": 0.6933333333333334
+          "ci_high": 0.8222819808700167,
+          "ci_low": 0.6849207692776874,
+          "den": 146,
+          "num": 111,
+          "value": 0.7602739726027398
         }
       },
       "scan": {
         "M1": {
-          "ci_high": 0.3233651718491037,
-          "ci_low": 0.24512813877950163,
-          "den": 506,
-          "num": 143,
+          "ci_high": 0.3318485001201193,
+          "ci_low": 0.25562339277660157,
+          "den": 544,
+          "num": 159,
           "pass": false,
           "target": "<= 1.5%",
-          "value": 0.2826086956521739
+          "value": 0.2922794117647059
         },
         "M2": {
           "ci_high": 0.9851349055950829,
@@ -1654,66 +1688,75 @@
           "target": "= 100%",
           "value": 0.9166666666666666
         },
+        "M2_post": {
+          "ci_high": 0.9530348578161463,
+          "ci_low": 0.5519691377470266,
+          "den": 12,
+          "num": 10,
+          "pass": false,
+          "target": "= 100%",
+          "value": 0.8333333333333334
+        },
         "M3": {
-          "ci_high": 0.43005671431632897,
-          "ci_low": 0.3474474450239161,
-          "den": 531,
-          "num": 206,
+          "ci_high": 0.4285939098285533,
+          "ci_low": 0.3493145055557172,
+          "den": 577,
+          "num": 224,
           "pass": false,
           "target": ">= 80%",
-          "value": 0.3879472693032015
+          "value": 0.3882149046793761
         },
         "M4": {
-          "ci_high": 0.017284627066157562,
-          "ci_low": 0.002018351635218041,
-          "den": 506,
+          "ci_high": 0.016086830399358085,
+          "ci_low": 0.0018772332220393356,
+          "den": 544,
           "num": 3,
           "pass": false,
           "target": "<= 0.5%",
-          "value": 0.005928853754940711
+          "value": 0.0055147058823529415
         },
         "M5": {
-          "ci_high": 0.9476312541037835,
-          "ci_low": 0.6395811352592431,
+          "ci_high": 0.919342337420202,
+          "ci_low": 0.5839825677481064,
           "den": 20,
-          "num": 17,
+          "num": 16,
           "pass": false,
           "target": ">= 98%",
-          "value": 0.85
+          "value": 0.8
         },
         "M6": {
           "ci_high": 0.6993581574175981,
           "ci_low": 0.04558726080970055,
           "den": 4,
           "num": 1,
-          "pass": null,
-          "target": "info",
+          "pass": false,
+          "target": ">= 90%",
           "value": 0.25
         },
         "M7": {
-          "ci_high": 0.49202487349002266,
-          "ci_low": 0.3993388746559404,
-          "den": 438,
-          "num": 195,
+          "ci_high": 0.48478505327305904,
+          "ci_low": 0.3956783608332349,
+          "den": 473,
+          "num": 208,
           "pass": null,
           "target": "info",
-          "value": 0.4452054794520548
+          "value": 0.4397463002114165
         },
         "components": {
           "M1": {
-            "invented": 7,
-            "omitted": 93,
-            "wrong": 43
+            "invented": 8,
+            "omitted": 104,
+            "wrong": 47
           }
         },
         "crashes": {},
         "jobs": 20,
         "legibility": {
-          "ci_high": 0.9531878449953445,
-          "ci_low": 0.9098255337474451,
-          "den": 506,
-          "num": 473,
-          "value": 0.9347826086956522
+          "ci_high": 0.9564825086680401,
+          "ci_low": 0.9160326913114619,
+          "den": 544,
+          "num": 511,
+          "value": 0.9393382352941176
         }
       }
     }
@@ -1724,7 +1767,22 @@
       "version": "1"
     },
     "gate_mode": "baseline",
-    "git_sha": "4477ff907649afb0940e0c35403ccf8af563d681",
+    "git_sha": "7f92c5485b309be9594ac51aa3de8482271acadb",
+    "judge": {
+      "digest": "d0870d9f23d96c777e5814bfe9bf9f50e586d66dc8e21685ada01c90994213aa",
+      "modules": {
+        "tools/eval/adapters/__init__.py": "62ef1458b40d0eccddda4b2058f3a3cb40ca875c279e435edc8a7f51fc499123",
+        "tools/eval/adapters/base.py": "1ab028b4b572e7378f7a89750f1fa836eb01c5864679cf47b140705e2703c4f8",
+        "tools/eval/adapters/pipeline_v0.py": "11d38107a7fe42f99a880154e72ec2325ebff38b5110d94fa9bf362a242e660c",
+        "tools/eval/gate.py": "25fec54651f8159c7acd578d86e36ec97deda9181fd2602425ec7db62b3d2fff",
+        "tools/eval/match.py": "77a2fcc2921dc4b08ad48a1d5497002c3cfdc64b5e2ff714f2d864bc46a19186",
+        "tools/eval/metrics.py": "0c83177e341e2a9418aa8cf78e125d89354ef5833bc89f0b500f9bff116ac7af",
+        "tools/eval/ocr_cache.py": "db60ac14a63b0848e606276219c96b2e483e6acf1b2e01186d47f1783e87aeb2",
+        "tools/eval/review_sim.py": "6aedd2d9dcfa6be8d8446312246d72a65f81283c38c8b5df92dc5196cdd5b07b",
+        "tools/eval/run.py": "5204ffa1178e8131346a871da3ebda0d8b070951ec0cb40108d6a1161a99ef72",
+        "tools/eval/targets.py": "d9d4dcb7171397275d0b61eb3e05ef056e29aa5aba1e551c846d4a31ad4bddcd"
+      }
+    },
     "profile": "ci",
     "renderings": [
       "native",
@@ -1747,6 +1805,7 @@
       "name": "engine_floor_v0",
       "version": "1"
     },
+    "shard": null,
     "splits": [
       "test"
     ]
