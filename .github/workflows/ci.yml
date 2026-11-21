@@ -9,6 +9,10 @@ on:
     # other jobs once per label event, which is an accepted cost.
     types: [opened, synchronize, reopened, labeled]
 
+# Least privilege for the default GITHUB_TOKEN: every job here only reads the repository (P1 review LOW-7).
+permissions:
+  contents: read
+
 env:
   # Ephemeral, CI-only values. Never used outside a throwaway workflow run.
   SECRET_KEY: ci-only-secret-not-for-real-use
@@ -268,9 +272,10 @@ jobs:
         if: always()
         with:
           name: eval-gate
+          # `make eval` writes eval/runs/ci/; eval/metrics.json and eval/report.md hold the phase-end full run only
           path: |
-            eval/metrics.json
-            eval/report.md
+            eval/runs/ci/metrics.json
+            eval/runs/ci/report.md
           if-no-files-found: warn
 
       - name: Save eval corpus cache

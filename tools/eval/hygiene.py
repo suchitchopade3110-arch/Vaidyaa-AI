@@ -4,6 +4,11 @@ Judge-side module: imports nothing from ``app`` or ``tools.eval.adapters`` (GN-1
 
 * ``guard_per_report_output(split)`` is the one choke point for anything per-report (failure dumps, job records
   on disk, debug JSON, shard job records); it raises ``HygieneError`` for heldout.
+* ``check_cli`` refuses, before any work, ``--dump-failures`` and every narrowing of a heldout run (``--sample``,
+  ``--sample-n``, ``--shard`` and any sampling fraction below 1 or first-N limit from the profile). Heldout is
+  measured only as whole split x rendering cells: differencing ``--sample-n k`` against ``k+1`` (or one ``--shard
+  k/80``) would otherwise give a single heldout report's own counts (P1 review MED-3).
+* ``check_heldout_complete`` is the backstop: a heldout cell whose job count is not the full cell size is refused.
 * ``redact_heldout(cell)`` keeps only a whitelist of aggregate keys and raises on any other key.
 * ``quiet()`` silences loggers, stdout and stderr (Python level and file-descriptor level) during a heldout job.
 * ``crash_class(exc)`` is the only thing ever recorded about an exception in heldout: its class name.
@@ -19,7 +24,7 @@ import sys
 from typing import Any, Iterator, Mapping
 
 HELDOUT = "heldout"
-METRIC_KEYS = ("M1", "M2", "M3", "M4", "M5", "M6", "M7")
+METRIC_KEYS = ("M1", "M2", "M2_post", "M3", "M4", "M5", "M6", "M7")
 RATE_KEYS = frozenset({"num", "den", "value", "ci_low", "ci_high", "target", "pass"})
 COMPONENT_KEYS = frozenset({"wrong", "invented", "omitted"})
 CELL_KEYS = frozenset(METRIC_KEYS) | {"components", "legibility", "jobs", "crashes"}
@@ -40,10 +45,25 @@ def guard_per_report_output(split: str) -> None:
         raise HygieneError("per-report output is refused for the heldout split (aggregate metrics only)")
 
 
-def check_cli(splits: list[str], dump_failures: str | None) -> None:
-    """The CLI rejects ``--dump-failures`` with heldout before doing any work."""
-    if dump_failures and any(is_heldout(s) for s in splits):
+def check_cli(splits: list[str], dump_failures: str | None, *, narrowing: list[str] | tuple[str, ...] = ()) -> None:
+    """The CLI rejects ``--dump-failures`` and any narrowing of a heldout run before doing any work (exit 3).
+
+    ``narrowing`` names what would shrink a heldout cell below the whole cell (``--sample-n``, ``--shard``, a
+    fraction below 1, ...); whole split x rendering cells (``--renderings``) are not narrowing."""
+    if not any(is_heldout(s) for s in splits):
+        return
+    if dump_failures:
         raise HygieneError("--dump-failures is refused when the heldout split is selected")
+    if narrowing:
+        raise HygieneError(f"heldout is measured only as whole cells (aggregate only); refused: "
+                           f"{', '.join(sorted(set(narrowing)))}")
+
+
+def check_heldout_complete(split: str, rendering: str, jobs: int, planned: int) -> None:
+    """A heldout cell must hold every job of the cell (backstop for ``check_cli``); the counts are aggregate."""
+    if is_heldout(split) and int(jobs) != int(planned):
+        raise HygieneError(f"heldout {rendering} cell holds {int(jobs)} of {int(planned)} jobs; heldout is "
+                           "reported only for whole cells")
 
 
 def crash_class(exc: BaseException) -> str:
@@ -59,7 +79,7 @@ def _check_keys(where: str, got: Any, allowed: frozenset[str] | set[str]) -> Non
 
 
 def redact_heldout(cell: Mapping[str, Any]) -> dict[str, Any]:
-    """Whitelist one heldout rendering cell: M1-M7 ``{num, den, value, ci_low, ci_high, target, pass}``, the M1
+    """Whitelist one heldout rendering cell: M1-M7 and M2_post ``{num, den, value, ci_low, ci_high, target, pass}``, the M1
     component counts, legibility, the job count and the crash counts by class name. Any other key raises."""
     _check_keys("cell", cell, CELL_KEYS)
     out: dict[str, Any] = {}
@@ -133,6 +153,7 @@ def quiet() -> Iterator[None]:
 
 
 __all__ = [
-    "CELL_KEYS", "HELDOUT", "HygieneError", "check_cli", "crash_class", "guard_per_report_output", "is_heldout",
+    "CELL_KEYS", "HELDOUT", "HygieneError", "check_cli", "check_heldout_complete", "crash_class",
+    "guard_per_report_output", "is_heldout",
     "quiet", "redact_heldout", "redact_heldout_results", "scan_for_leaks",
 ]

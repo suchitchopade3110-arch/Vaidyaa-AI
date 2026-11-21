@@ -92,16 +92,20 @@ def det(path: pathlib.Path) -> dict:
 # ---------------------------------------------------------------- gate fixtures
 
 def cell(m1=(0, 1000), m2=(100, 100), m3=(950, 1000), m4=(0, 1000), m5=(99, 100), m6=(9, 10), m7=(10, 100),
-         crashes=None):
-    c = {"M1": me.rate(*m1), "M2": me.rate(*m2), "M3": me.rate(*m3), "M4": me.rate(*m4), "M5": me.rate(*m5),
-         "M6": me.rate(*m6), "M7": me.rate(*m7), "components": {"M1": {"wrong": 0, "invented": 0, "omitted": 0}},
-         "legibility": me.rate(1, 1), "jobs": 1, "crashes": crashes or {}}
+         crashes=None, m2p=None, jobs=1):
+    c = {"M1": me.rate(*m1), "M2": me.rate(*m2), "M2_post": me.rate(*(m2p or (100, 100))), "M3": me.rate(*m3),
+         "M4": me.rate(*m4), "M5": me.rate(*m5), "M6": me.rate(*m6), "M7": me.rate(*m7),
+         "components": {"M1": {"wrong": 0, "invented": 0, "omitted": 0}},
+         "legibility": me.rate(1, 1), "jobs": jobs, "crashes": crashes or {}}
     return c
 
 
-def doc(cells, fp="f" * 64, profile="ci", adapter=("a", "1"), scorer=("s", "1")):
+JUDGE = {"digest": "j" * 64, "modules": {"tools/eval/metrics.py": "m" * 64}}
+
+
+def doc(cells, fp="f" * 64, profile="ci", adapter=("a", "1"), scorer=("s", "1"), judge=None, shard=None):
     return {"run": {"profile": profile, "samples": {"first": None}, "adapter": dict(zip(("name", "version"), adapter)),
-                    "scorer": dict(zip(("name", "version"), scorer))},
+                    "scorer": dict(zip(("name", "version"), scorer)), "judge": judge or JUDGE, "shard": shard},
             "corpus": {"test": {"fingerprint": fp}}, "results": {"test": cells}}
 
 
@@ -242,7 +246,7 @@ def _all_keys(obj):
             yield from _all_keys(v)
 
 
-WHITELIST = {"M1", "M2", "M3", "M4", "M5", "M6", "M7", "num", "den", "value", "ci_low", "ci_high", "target", "pass",
+WHITELIST = {"M1", "M2", "M2_post", "M3", "M4", "M5", "M6", "M7", "num", "den", "value", "ci_low", "ci_high", "target", "pass",
              "components", "wrong", "invented", "omitted", "legibility", "jobs", "crashes", "RuntimeError"}
 
 
@@ -262,8 +266,7 @@ def test_ha06_heldout_run_is_aggregate_only_and_quiet(corpus, tmp_path, capfd):
     names = sorted(n for n in names if len(n) >= 6)
     assert names
     adapter = FakeAdapter(raise_on=names[0], chatter=f"reading {names[-1]}")
-    code = go(corpus, out, "--splits", "heldout", "--sample-n", "4", "--renderings", "native", "--gate", "report",
-              adapter=adapter)
+    code = go(corpus, out, "--splits", "heldout", "--renderings", "native", "--gate", "report", adapter=adapter)
     captured = capfd.readouterr()
     assert code == 0
     metrics = json.loads((out / "metrics.json").read_text())
@@ -271,7 +274,8 @@ def test_ha06_heldout_run_is_aggregate_only_and_quiet(corpus, tmp_path, capfd):
     cell_ = metrics["results"]["heldout"]["native"]
     assert set(_all_keys(cell_)) <= WHITELIST
     assert cell_["crashes"] == {"RuntimeError": 1}  # the class name only
-    assert cell_["jobs"] == 4
+    n_native = sum(1 for e in json.loads((corpus / "heldout/manifest.json").read_text())["reports"] if not e["is_csv"])
+    assert cell_["jobs"] == n_native  # the whole cell: heldout is never narrowed (P1 review MED-3)
     texts = [(out / "metrics.json").read_text(), (out / "report.md").read_text(), captured.out, captured.err]
     for text in texts:
         assert not re.search(r"H\d{3}", text)
@@ -323,12 +327,12 @@ def test_ha06_no_heldout_corpus_file_is_tracked_by_git():
 
 def test_ha06_shard_files_for_heldout_hold_only_redacted_cells(corpus, tmp_path):
     shard = tmp_path / "s.json"
-    assert go(corpus, tmp_path / "o", "--splits", "heldout", "--sample-n", "3", "--renderings", "native",
-              "--shard-out", str(shard)) == 0
+    assert go(corpus, tmp_path / "o", "--splits", "heldout", "--renderings", "csv", "--shard-out", str(shard)) == 0
     text = shard.read_text()
     d = json.loads(text)
-    cellh = d["cells"]["heldout"]["native"]
+    cellh = d["cells"]["heldout"]["csv"]
     assert set(cellh) == {"redacted"} and set(_all_keys(cellh["redacted"])) <= WHITELIST
+    assert d["shard"] is None and d["planned"] == {"heldout": {"csv": cellh["redacted"]["jobs"]}}  # aggregate only
     assert not re.search(r"H\d{3}", text) and "counts" not in cellh
     assert not (tmp_path / "o").exists()
 
@@ -459,12 +463,12 @@ def test_ha09_cell_split_across_shards_merges_to_the_same_counts(corpus, tmp_pat
 
 
 def test_ha09_heldout_shards_merge_redacted_cells(corpus, tmp_path):
-    args = ("--splits", "heldout", "--sample-n", "6", "--renderings", "native")
+    """Heldout shards are whole split x rendering cells (the nightly matrix); --shard k/n is refused for heldout."""
     single = tmp_path / "single"
-    assert go(corpus, single, *args, "--gate", "none") == 0
-    for k in (1, 2):
-        assert go(corpus, tmp_path / "x", *args, "--shard", f"{k}/2", "--shard-out",
-                  str(tmp_path / "sh" / f"h{k}.json")) == 0
+    assert go(corpus, single, "--splits", "heldout", "--renderings", "native,csv", "--gate", "none") == 0
+    for r in ("native", "csv"):
+        assert go(corpus, tmp_path / "x", "--splits", "heldout", "--renderings", r, "--shard-out",
+                  str(tmp_path / "sh" / f"heldout-{r}.json")) == 0
     assert run.main(["aggregate", "--in", str(tmp_path / "sh"), "--out", str(tmp_path / "agg"), "--gate", "none"]) == 0
     assert det(tmp_path / "agg/metrics.json") == det(single / "metrics.json")
 
@@ -563,8 +567,8 @@ def test_ha11_report_md_content(corpus, tmp_path):
 
 def test_ha11_report_heldout_section_is_a_fixed_template(corpus, tmp_path):
     out = tmp_path / "o"
-    assert go(corpus, out, "--profile", "full", "--splits", "test,heldout", "--sample-n", "3", "--renderings",
-              "native", "--gate", "none") == 0
+    assert go(corpus, out, "--profile", "full", "--splits", "test,heldout", "--renderings", "csv", "--gate",
+              "none") == 0
     text = (out / "report.md").read_text()
     assert "## Heldout (aggregate only)" in text
     held = text.split("## Heldout (aggregate only)")[1].split("## Gate")[0]
@@ -599,3 +603,329 @@ def test_committed_gate_json_equals_builtin_defaults():
     raw = json.loads(path.read_text(encoding="utf-8"))
     assert raw == {"mode": "ratchet", "profile": "ci", "split": "test", "baseline": "eval/baseline.json",
                    "tolerance": {"native": 0, "csv": 0, "scan": 1, "photo": 1, "rot90": 1}}
+
+
+# ---------------------------------------------------------------- P1 review MED-1: subset runs are never ratcheted
+
+def _tiny_jobs(n_jobs=20):
+    """The reviewer's repro: 20 three-row jobs; the odd-indexed ones (shard 2 of 2 under ``run.apply_shard``) hold a
+    critical K 6.7 (Table C: K > 6.5). Returns (jobs, gts) with job ids in sorted order."""
+    from tests.test_eval_matching import gt_row
+    from tools.eval.adapters.base import EvalJob
+
+    jobs, gts = [], []
+    for i in range(n_jobs):
+        k = gt_row("potassium", 6.7 if i % 2 else 4.2, "mmol/L", 3.5, 5.1)
+        rows = [dict(gt_row("hemoglobin", 14.2, "g/dL", 13.0, 17.0), row_id="r1"), dict(k, row_id="r2"),
+                dict(gt_row("sodium", 140, "mmol/L", 135, 145), row_id="r3")]
+        h = "critical" if i % 2 else "normal"
+        gts.append({"report_id": f"T{i + 1:03d}", "family": "G01", "rows": rows, "decoys": [],
+                    "expected": {"headline": h, "per_page_headline": {"1": h}}})
+        jobs.append(EvalJob(f"T{i + 1:03d}:native", f"T{i + 1:03d}", "test", "native", ("x.pdf",), (), "male", 40))
+    return jobs, gts
+
+
+def _metrics_doc(jobs, gts, regress_shard2: bool, judge=None):
+    from tests.test_eval_matching import ext_row
+    from tools.eval.clinical import ClinicalRulesScorer
+
+    recs = []
+    for i, (j, g) in enumerate(zip(jobs, gts, strict=True)):
+        ext = [ext_row(r, n) for n, r in enumerate(g["rows"])]
+        if regress_shard2 and i % 2:  # reads the previous-column K, shows it NORMAL, flags nothing
+            ext[1] = ext_row(g["rows"][1], 1, value_num=4.2, value_raw="4.2", flag="NORMAL")
+        recs.append(me.job_record(j, g, ExtractionResult(j.job_id, "ok", ext, pre_review_headline="normal"),
+                                  ClinicalRulesScorer()))
+    cells = {r: tg.annotate(me.cell_results(c), r) for r, c in me.aggregate(recs)["test"].items()}
+    return doc(cells, judge=judge)
+
+
+def test_med1_reviewer_repro_full_run_fails_and_a_shard_is_refused_not_passed():
+    jobs, gts = _tiny_jobs()
+    base = _metrics_doc(jobs, gts, regress_shard2=False)
+    assert base["results"]["test"]["native"]["M2"]["num"] == 10  # 10 criticals, all shown CRITICAL_HIGH
+    full = _metrics_doc(jobs, gts, regress_shard2=True)
+    assert (full["results"]["test"]["native"]["M1"]["num"], full["results"]["test"]["native"]["M2"]["num"]) == (10, 0)
+    assert gate.exit_code(evaluate("ratchet", full, base)) == 1  # the regression is caught on the whole run
+    k1 = [i for i, (j, _) in enumerate(run.apply_shard([(j, None) for j in jobs], (1, 2)))]
+    shard1 = _metrics_doc([jobs[i * 2] for i in k1], [gts[i * 2] for i in k1], regress_shard2=True)
+    cur = shard1["results"]["test"]["native"]
+    assert cur["jobs"] == 10 and (cur["M1"]["num"], cur["M2"]["den"]) == (0, 0)  # looks clean on its half
+    with pytest.raises(gate.GateConfigError, match="different set of test jobs"):
+        evaluate("ratchet", shard1, base)  # before the fix this passed (exit 0)
+    with pytest.raises(gate.GateConfigError):
+        evaluate("targets", shard1, base)
+
+
+def test_med1_equal_job_count_but_different_gt_denominator_is_refused():
+    base = doc({"native": cell(m1=(5, 1000), m2=(10, 10), jobs=40)})
+    with pytest.raises(gate.GateConfigError, match="M1 denominator"):
+        evaluate("ratchet", doc({"native": cell(m1=(0, 900), m2=(10, 10), jobs=40)}), base)
+    with pytest.raises(gate.GateConfigError, match="M2 denominator"):
+        evaluate("ratchet", doc({"native": cell(m1=(5, 1000), m2=(9, 9), jobs=40)}), base)
+    with pytest.raises(gate.GateConfigError, match="shard"):
+        evaluate("ratchet", doc({"native": cell(m1=(5, 1000), m2=(10, 10), jobs=40)}, shard=[1, 2]), base)
+
+
+def test_med1_cli_shard_with_ratchet_exits_2_before_any_work(corpus, tmp_path):
+    out = tmp_path / "o"
+    args = ("--splits", "test", "--sample-n", "8", "--renderings", "native")
+    assert go(corpus, out, *args, "--update-baseline") == 0
+    adapter = FakeAdapter()
+    for mode in ("ratchet", "targets"):
+        assert go(corpus, tmp_path / "x", *args, "--shard", "1/2", "--gate", mode, adapter=adapter) == 2
+    assert adapter.calls == 0 and not (tmp_path / "x").exists()
+    assert go(corpus, out, *args, "--shard", "1/2", "--update-baseline") == 2  # a baseline is a whole run
+    assert go(corpus, out, *args, "--gate", "ratchet") == 0  # the whole run still passes against itself
+
+
+def test_med1_aggregate_with_a_missing_or_duplicated_shard_file_exits_2(corpus, tmp_path):
+    out = tmp_path / "o"
+    args = ("--splits", "test", "--sample-n", "9", "--renderings", "native")
+    assert go(corpus, out, *args, "--update-baseline") == 0
+    sh = tmp_path / "sh"
+    for k in (1, 2, 3):
+        assert go(corpus, tmp_path / "x", *args, "--shard", f"{k}/3", "--shard-out", str(sh / f"s{k}.json")) == 0
+    complete = ["aggregate", "--in", str(sh), "--out", str(tmp_path / "agg"), "--baseline", str(out / "baseline.json")]
+    assert run.main([*complete, "--gate", "ratchet"]) == 0  # all three parts: the whole cell, gated
+    (sh / "s2.json").unlink()  # one shard file lost (an artifact upload failed)
+    for mode in ("ratchet", "targets", "report", "none"):
+        assert run.main([*complete[:-2], "--gate", mode, "--baseline", str(out / "baseline.json")]) == 2, mode
+    shutil.copy(sh / "s1.json", sh / "s2.json")  # part 1 twice, part 2 missing: the job count would even match 6
+    assert run.main([*complete, "--gate", "none"]) == 2
+
+
+def test_med1_shard_files_record_the_full_cell_size_and_partition(corpus, tmp_path):
+    f = tmp_path / "s.json"
+    assert go(corpus, tmp_path / "x", "--splits", "test", "--sample-n", "9", "--renderings", "native", "--shard",
+              "2/3", "--shard-out", str(f)) == 0
+    d = json.loads(f.read_text())
+    n_native = sum(1 for e in sorted(json.loads((corpus / "test/manifest.json").read_text())["reports"],
+                                     key=lambda e: e["id"])[:9] if not e["is_csv"])
+    assert d["shard"] == [2, 3] and d["planned"] == {"test": {"native": n_native}}  # hand count of the first 9
+    assert d["cells"]["test"]["native"]["counts"]["jobs"] == len(range(1, n_native, 3))  # jobs 2, 5, 8, ...
+
+
+# ---------------------------------------------------------------- P1 review MED-2: definition changes stop the ratchet
+
+def test_med2_judge_digest_covers_the_judge_and_adapter_modules():
+    paths = set(gate.judge_paths())
+    for rel in ("tools/eval/match.py", "tools/eval/metrics.py", "tools/eval/review_sim.py", "tools/eval/targets.py",
+                "tools/eval/gate.py", "tools/eval/run.py", "tools/eval/ocr_cache.py",
+                "tools/eval/adapters/__init__.py", "tools/eval/adapters/base.py",
+                "tools/eval/adapters/pipeline_v0.py"):
+        assert rel in paths, rel
+    js = gate.judge_sources()
+    assert set(js["modules"]) == paths and re.fullmatch(r"[0-9a-f]{64}", js["digest"])
+
+
+def _imports(path: pathlib.Path) -> set[str]:
+    import ast
+
+    out: set[str] = set()
+    for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+        if isinstance(node, ast.ImportFrom) and node.module and node.module.startswith("tools.eval"):
+            out.add(node.module)
+            out |= {f"{node.module}.{a.name}" for a in node.names}
+        elif isinstance(node, ast.Import):
+            out |= {a.name for a in node.names if a.name.startswith("tools.eval")}
+    return out
+
+
+def test_med2_every_module_a_gated_count_depends_on_is_fingerprinted():
+    """Transitive tools.eval imports of the judge and adapter modules: each is in the judge digest or the split
+    fingerprint, except the two that only format or redact counts (report.py, hygiene.py)."""
+    covered = set(gate.judge_paths()) | set(gen._COMMON_MODULES)
+    presentation_only = {"tools/eval/report.py", "tools/eval/hygiene.py", "tools/eval/__init__.py"}
+    todo, seen = list(gate.judge_paths()), set()
+    while todo:
+        rel = todo.pop()
+        if rel in seen:
+            continue
+        seen.add(rel)
+        for mod in _imports(ROOT / rel):
+            for cand in (mod.replace(".", "/") + ".py", mod.replace(".", "/") + "/__init__.py"):
+                if (ROOT / cand).exists():
+                    todo.append(cand)
+    missing = sorted(p for p in seen - covered - presentation_only if "/heldout/" not in p)
+    assert missing == [], missing
+
+
+def test_med2_flipping_a_metric_definition_makes_the_ratchet_refuse(tmp_path, monkeypatch):
+    """The reviewer's repro: counting every row as needs_review lowers M1 and raises M2, which the ratchet alone
+    reads as an improvement. With the judge digest the edited definition stops the gate (exit 2) instead."""
+    jobs, gts = _tiny_jobs()
+    root = tmp_path / "repo"
+    for rel in gate.judge_paths():
+        (root / rel).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy(ROOT / rel, root / rel)
+    before = gate.judge_sources(root)
+    base = _metrics_doc(jobs, gts, regress_shard2=True, judge=before)
+    src = (root / "tools/eval/metrics.py").read_text()
+    flipped = src.replace('    return bool(field(r, "needs_review"))', "    return True", 1)
+    assert flipped != src
+    (root / "tools/eval/metrics.py").write_text(flipped)
+    after = gate.judge_sources(root)
+    assert after["digest"] != before["digest"]
+    monkeypatch.setattr(me, "_flagged", lambda r: True)  # what the flipped source does
+    cur = _metrics_doc(jobs, gts, regress_shard2=True, judge=after)
+    c, b = cur["results"]["test"]["native"], base["results"]["test"]["native"]
+    assert (b["M1"]["num"], b["M2"]["num"]) == (10, 0) and (c["M1"]["num"], c["M2"]["num"]) == (0, 10)
+    assert evaluate("ratchet", dict(cur, run=dict(cur["run"], judge=before)), base)["passed"]  # unseen without it
+    with pytest.raises(gate.GateConfigError, match=r"judge/adapter definitions \(tools/eval/metrics.py\)"):
+        evaluate("ratchet", cur, base)
+
+
+def test_med2_cli_baseline_from_other_judge_sources_exits_2(corpus, tmp_path, monkeypatch):
+    out = tmp_path / "o"
+    args = ("--splits", "test", "--sample-n", "4", "--renderings", "native")
+    assert go(corpus, out, *args, "--update-baseline") == 0
+    assert json.loads((out / "baseline.json").read_text())["run"]["judge"] == gate.judge_sources()
+    assert go(corpus, out, *args, "--gate", "ratchet") == 0
+    real = gate.judge_sources
+
+    def edited(root=None):
+        js = real(root)
+        mods = dict(js["modules"], **{"tools/eval/adapters/pipeline_v0.py": "0" * 64})  # an NR0 rule changed
+        return {"digest": "1" * 64, "modules": mods}
+
+    monkeypatch.setattr(gate, "judge_sources", edited)
+    assert go(corpus, out, *args, "--gate", "ratchet") == 2
+    b = json.loads((out / "baseline.json").read_text())
+    b["run"].pop("judge")  # a baseline recorded before the digest existed is never reused either
+    (out / "baseline.json").write_text(json.dumps(b))
+    monkeypatch.setattr(gate, "judge_sources", real)
+    assert go(corpus, out, *args, "--gate", "ratchet") == 2
+
+
+# ---------------------------------------------------------------- P1 review MED-3: heldout is never narrowed
+
+@pytest.mark.parametrize("extra", [
+    ("--sample-n", "1"), ("--sample", "1"), ("--sample", "scan=0.5"), ("--sample", "native=1.0"),
+    ("--shard", "1/80", "--shard-out", "SHARD"), ("--shard", "3/3"),
+])
+def test_med3_heldout_narrowing_flags_exit_3_before_any_work(corpus, tmp_path, extra):
+    adapter = FakeAdapter()
+    extra = tuple(str(tmp_path / "s.json") if x == "SHARD" else x for x in extra)
+    assert go(corpus, tmp_path / "o", "--profile", "heldout", "--renderings", "native", *extra,
+              adapter=adapter) == 3
+    assert adapter.calls == 0 and not (tmp_path / "o").exists() and not (tmp_path / "s.json").exists()
+
+
+@pytest.mark.parametrize("profile_args", [
+    ("--profile", "full", "--sample-n", "3"),  # full includes heldout
+    ("--profile", "ci", "--splits", "heldout"),  # ci samples scan and photo at 25%
+    ("--profile", "smoke", "--splits", "heldout"),  # smoke takes the first 6 reports
+    ("--profile", "dev", "--splits", "test,heldout", "--renderings", "photo"),  # 25% of photo pages
+])
+def test_med3_profiles_that_would_narrow_heldout_exit_3(corpus, tmp_path, profile_args):
+    adapter = FakeAdapter()
+    assert go(corpus, tmp_path / "o", *profile_args, adapter=adapter) == 3
+    assert adapter.calls == 0
+
+
+def test_med3_whole_heldout_cells_are_allowed_and_complete(corpus, tmp_path):
+    assert go(corpus, tmp_path / "o", "--profile", "heldout", "--renderings", "csv", "--gate", "none") == 0
+    cell_ = json.loads((tmp_path / "o/metrics.json").read_text())["results"]["heldout"]["csv"]
+    n_csv = sum(1 for e in json.loads((corpus / "heldout/manifest.json").read_text())["reports"] if e["is_csv"])
+    assert cell_["jobs"] == n_csv  # every heldout csv report, aggregate only
+
+
+def test_med3_backstop_refuses_a_partial_heldout_cell():
+    with pytest.raises(hygiene.HygieneError):
+        hygiene.check_heldout_complete("heldout", "native", 1, 77)
+    hygiene.check_heldout_complete("heldout", "native", 77, 77)
+    hygiene.check_heldout_complete("test", "native", 1, 76)  # dev and test may be sampled
+
+
+def test_med3_aggregate_of_a_heldout_cell_missing_jobs_exits_3(corpus, tmp_path):
+    sh = tmp_path / "sh"
+    assert go(corpus, tmp_path / "x", "--splits", "heldout", "--renderings", "csv", "--shard-out",
+              str(sh / "h.json")) == 0
+    d = json.loads((sh / "h.json").read_text())
+    d["planned"]["heldout"]["csv"] += 1  # the file claims a bigger cell than it holds
+    (sh / "h.json").write_text(json.dumps(d))
+    assert run.main(["aggregate", "--in", str(sh), "--out", str(tmp_path / "agg"), "--gate", "none"]) == 3
+
+
+# ---------------------------------------------------------------- P1 review MED-6: make eval never clobbers eval/
+
+def test_med6_non_full_runs_default_to_eval_runs_profile(corpus, tmp_path, monkeypatch):
+    fake_eval = tmp_path / "eval"
+    fake_eval.mkdir()
+    for name in run.PHASE_END_FILES:
+        (fake_eval / name).write_text("phase-end record\n")
+    monkeypatch.setattr(cfg, "EVAL_DIR", fake_eval)
+    from tools.eval.clinical import ClinicalRulesScorer
+
+    code = run.main(["--profile", "ci", "--corpus-dir", str(corpus), "--splits", "test", "--sample-n", "4",
+                     "--renderings", "native", "--baseline", str(tmp_path / "b.json")], adapter=FakeAdapter(),
+                    scorer=ClinicalRulesScorer())
+    assert code == 0
+    assert all((fake_eval / n).read_text() == "phase-end record\n" for n in run.PHASE_END_FILES)
+    assert (fake_eval / "runs" / "ci" / "metrics.json").exists() and (fake_eval / "runs/ci/report.md").exists()
+    # an explicit --out eval/ with a partial run is refused (exit 2) and leaves the record intact
+    assert go(corpus, fake_eval, "--splits", "test", "--sample-n", "4", "--renderings", "native") == 2
+    assert all((fake_eval / n).read_text() == "phase-end record\n" for n in run.PHASE_END_FILES)
+
+
+def test_med6_only_a_complete_full_profile_run_is_phase_end():
+    def resolved(*a):
+        return run.resolve(run.run_parser().parse_args(list(a)))
+
+    assert run.is_phase_end(resolved("--profile", "full"))
+    for partial in (("--profile", "ci"), ("--profile", "full", "--sample-n", "3"),
+                    ("--profile", "full", "--splits", "dev,test"), ("--profile", "full", "--renderings", "native"),
+                    ("--profile", "full", "--shard", "1/2"), ("--profile", "full", "--sample", "photo=0.5"),
+                    ("--profile", "heldout")):
+        assert not run.is_phase_end(resolved(*partial)), partial
+    assert run.default_out("full") == cfg.EVAL_DIR and run.default_out("ci") == cfg.EVAL_DIR / "runs" / "ci"
+
+
+def test_med6_ci_uploads_the_ci_run_and_runs_dir_is_ignored():
+    ci = (ROOT / ".github/workflows/ci.yml").read_text()
+    gate_job = ci.split("eval-gate:")[1].split("eval-full-on-label:")[0]
+    assert "eval/runs/ci/metrics.json" in gate_job and "eval/runs/ci/report.md" in gate_job
+    res = subprocess.run(["git", "check-ignore", "-q", "eval/runs/ci/metrics.json"], cwd=ROOT, check=False)
+    assert res.returncode == 0
+
+
+# ---------------------------------------------------------------- P1 review LOW-7: CI token and nightly aggregate
+
+def test_low7_ci_workflow_token_is_read_only():
+    ci = (ROOT / ".github/workflows/ci.yml").read_text()
+    top = ci.split("\njobs:")[0]
+    assert re.search(r"^permissions:\n  contents: read$", top, re.M)
+
+
+def _shard_file(path: pathlib.Path, cells: dict, planned: dict, profile="ci") -> None:
+    d = {"schema": run.SHARD_SCHEMA, "shard": None, "planned": planned,
+         "run": {"profile": profile, "splits": sorted(planned), "renderings": sorted({r for v in planned.values()
+                                                                                     for r in v}),
+                 "samples": {"first": None, "fractions": {}}},
+         "corpus": {}, "ident": ["a", "1", "s", "1"], "cells": cells,
+         "runtime": {"seconds": {}, "hits": 0, "misses": 0, "wall": 0.0}}
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(d))
+
+
+def test_low7_nightly_aggregate_exits_nonzero_when_a_job_crashed(tmp_path):
+    from tests.test_eval_matching import gt_row
+    from tools.eval.adapters.base import EvalJob
+    from tools.eval.clinical import ClinicalRulesScorer
+
+    g = {"report_id": "T001", "family": "G01", "rows": [dict(gt_row("sodium", 140, "mmol/L", 135, 145), row_id="r")],
+         "decoys": [], "expected": {"headline": "normal"}}
+    j = EvalJob("T001:native", "T001", "test", "native", ("x.pdf",), (), "male", 40)
+    crashed = me.crash_record(j, g, "RuntimeError", ClinicalRulesScorer()).counts
+    sh = tmp_path / "sh"
+    _shard_file(sh / "native.json", {"test": {"native": {"counts": crashed}}}, {"test": {"native": 1}})
+    for r in ("csv", "scan", "photo", "rot90"):  # every other cell of the ci profile is present and empty
+        _shard_file(sh / f"{r}.json", {}, {"test": {r: 0}})
+    agg = ["aggregate", "--in", str(sh), "--out", str(tmp_path / "agg")]
+    assert run.main([*agg, "--gate", "report"]) == 1  # one crashed job: the nightly is not green
+    m = json.loads((tmp_path / "agg/metrics.json").read_text())
+    assert m["gate"]["passed"] is False and m["gate"]["failures"][0]["kind"] == "crashes"
+    assert run.main([*agg, "--gate", "none"]) == 0  # exploration only
+    (sh / "rot90.json").unlink()  # a shard job died before uploading its file
+    assert run.main([*agg, "--gate", "report"]) == 2

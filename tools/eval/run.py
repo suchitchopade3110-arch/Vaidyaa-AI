@@ -8,13 +8,21 @@ registry (``tools.eval.adapters``); this is the one module that may do so.
 Profiles: ``ci`` (test), ``dev``, ``full``, ``heldout``, ``smoke`` (``config.PROFILES``). ``--splits``,
 ``--renderings``, ``--sample`` (``N`` = first N reports by id, or ``scan=0.5,photo=0.5`` fractions),
 ``--sample-n N``, ``--shard k/n`` and ``--jobs N`` override them. A run that overrides anything and does not name
-a gate defaults to ``--gate none``, so a partial run is never compared with the full baseline by accident.
+a gate defaults to ``--gate none``. A partial run is never compared with the full baseline (P1 review MED-1):
+``--shard`` refuses ``--gate ratchet|targets``, the gate refuses a run whose jobs or GT denominators differ from the
+baseline's, and ``aggregate`` checks that every cell holds all its planned jobs (each shard file records the full
+cell size and its shard) before any gate.
+
+Outputs (plan 9, P1 review MED-6): ``eval/report.md`` and ``eval/metrics.json`` hold the phase-end full run only.
+Only a complete ``full``-profile run (every split, every rendering, no sampling, no shard) may write there; every
+other run writes to ``eval/runs/<profile>/`` by default, so ``make eval`` can never clobber the phase-end record.
 
 Exit codes: 0 pass; 1 gate failed; 2 harness or config error (``HarnessConfigError``, missing baseline, corpus
 or file, fingerprint mismatch, import failure); 3 hygiene violation (heldout).
 
 Heldout hygiene (plan 6.11): heldout jobs run inside ``hygiene.quiet()``, record exceptions by class name only,
-never leave the worker as anything but additive counts, and reach disk only as whitelisted, redacted cells.
+never leave the worker as anything but additive counts, and reach disk only as whitelisted, redacted cells. A
+heldout run is never narrowed below whole split x rendering cells (P1 review MED-3, ``hygiene.check_cli``).
 """
 
 from __future__ import annotations
@@ -44,6 +52,7 @@ SPLIT_ORDER = ("dev", "test", "heldout")
 IMAGE_RENDERINGS = ("scan", "photo", "rot90")
 PROFILE_GATE = {"ci": "config", "dev": "none", "full": "report", "heldout": "report", "smoke": "none"}
 DEFAULT_GATE_FILE = cfg.EVAL_DIR / "gate.json"
+PHASE_END_FILES = ("metrics.json", "report.md")
 
 
 _STATE: dict[str, bool] = {"heldout": False}
@@ -135,12 +144,37 @@ def resolve(args: argparse.Namespace) -> dict[str, Any]:
     if first is None:
         first = profile.get("first")
     overridden = bool(args.splits or args.renderings or args.sample or args.sample_n is not None or args.shard)
+    rends = [r for r in tg.RENDERINGS if r in renderings]
+    narrowing = [flag for flag, on in (("--sample", bool(args.sample)), ("--sample-n", args.sample_n is not None),
+                                       ("--shard", bool(args.shard))) if on]
+    narrowing += [f"{r} sampled at {fractions[r]:g}" for r in rends if fractions[r] < 1.0]
+    if first:
+        narrowing.append(f"first {first} reports")
     return {
-        "profile": args.profile, "splits": [s for s in SPLIT_ORDER if s in splits],
-        "renderings": [r for r in tg.RENDERINGS if r in renderings],
+        "profile": args.profile, "splits": [s for s in SPLIT_ORDER if s in splits], "renderings": rends,
         "samples": {"fractions": {r: fractions[r] for r in tg.RENDERINGS}, "first": first},
-        "shard": parse_shard(args.shard), "overridden": overridden,
+        "shard": parse_shard(args.shard), "overridden": overridden, "narrowing": narrowing,
     }
+
+
+def is_phase_end(run: Mapping[str, Any]) -> bool:
+    """A complete full-profile run: every split, every rendering, no sampling and no shard (plan 9)."""
+    smp = run.get("samples") or {}
+    return (run.get("profile") == "full" and list(run.get("splits") or []) == list(SPLIT_ORDER)
+            and list(run.get("renderings") or []) == list(tg.RENDERINGS) and not smp.get("first")
+            and all(float(v) >= 1.0 for v in (smp.get("fractions") or {}).values()) and not run.get("shard"))
+
+
+def default_out(profile: str) -> pathlib.Path:
+    """``eval/`` for the phase-end full run, ``eval/runs/<profile>/`` for everything else."""
+    return cfg.EVAL_DIR if profile == "full" else cfg.EVAL_DIR / "runs" / profile
+
+
+def check_out_dir(out_dir: pathlib.Path, run: Mapping[str, Any]) -> None:
+    """Only a complete full-profile run may write eval/report.md and eval/metrics.json (P1 review MED-6)."""
+    if out_dir.resolve() == cfg.EVAL_DIR.resolve() and not is_phase_end(run):
+        raise HarnessError(f"{out_dir}: eval/{' and eval/'.join(PHASE_END_FILES)} hold the phase-end full run "
+                           "(plan 9); this run is partial, so write it elsewhere (default eval/runs/<profile>/)")
 
 
 # ---------------------------------------------------------------- jobs
@@ -189,6 +223,15 @@ def build_jobs(split: str, manifest: Mapping[str, Any], root: pathlib.Path, run:
                 jobs.append((EvalJob(f"{e['id']}:{rendering}", e["id"], split, rendering, (path,), (), sex, age), gtp))
     jobs.sort(key=lambda t: t[0].job_id)
     return jobs
+
+
+def planned_counts(run: Mapping[str, Any], split: str, jobs: Sequence[tuple[EvalJob, pathlib.Path]]
+                   ) -> dict[str, int]:
+    """Jobs per rendering of one split before sharding: the full size of every selected cell (0 when empty)."""
+    out = dict.fromkeys(run["renderings"], 0)
+    for job, _ in jobs:
+        out[job.rendering] = out.get(job.rendering, 0) + 1
+    return out
 
 
 def _demographics(gt_path: pathlib.Path) -> tuple[str | None, int | None]:
@@ -459,7 +502,8 @@ def build_metrics(run: Mapping[str, Any], cells: Mapping[tuple[str, str], Mappin
     return {
         "schema": report.METRICS_SCHEMA,
         "run": {"profile": run["profile"], "splits": list(run["splits"]), "renderings": list(run["renderings"]),
-                "samples": run["samples"], "adapter": adapter, "scorer": scorer, "gate_mode": gate_mode,
+                "samples": run["samples"], "shard": list(run["shard"]) if run.get("shard") else None,
+                "adapter": adapter, "scorer": scorer, "judge": gate.judge_sources(), "gate_mode": gate_mode,
                 "git_sha": git_sha()},
         "corpus": dict(sorted(corpus.items())),
         "results": results,
@@ -518,7 +562,9 @@ def summary_lines(metrics: Mapping[str, Any]) -> list[str]:
 # ---------------------------------------------------------------- shards and aggregate
 
 def shard_doc(run: Mapping[str, Any], corpus: Mapping[str, Any], out: _Outcome, ident: Sequence[str] | None,
-              wall: float) -> dict[str, Any]:
+              wall: float, planned: Mapping[str, Mapping[str, int]] | None = None) -> dict[str, Any]:
+    """One shard file. ``planned`` holds the full size of every selected cell and ``shard`` the partition, so the
+    aggregate can prove each cell complete (P1 review MED-1); both are aggregate counts, safe for heldout."""
     cells: dict[str, dict[str, Any]] = {}
     for (split, rendering), counts in sorted(out.cells.items()):
         if hygiene.is_heldout(split):  # never counts, never job records: the redacted cell only
@@ -527,6 +573,8 @@ def shard_doc(run: Mapping[str, Any], corpus: Mapping[str, Any], out: _Outcome, 
             cells.setdefault(split, {})[rendering] = {"counts": counts}
     # wall times sorted, not in job order: position i of a heldout shard's list must not identify job H(i+1)
     return {"schema": SHARD_SCHEMA, "run": {k: run[k] for k in ("profile", "splits", "renderings", "samples")},
+            "shard": list(run["shard"]) if run.get("shard") else None,
+            "planned": {s: dict(sorted(v.items())) for s, v in sorted((planned or {}).items())},
             "corpus": dict(sorted(corpus.items())), "ident": list(ident) if ident else None, "cells": cells,
             "runtime": {"seconds": {r: sorted(s) for r, s in sorted(out.seconds.items())}, "hits": out.hits,
                         "misses": out.misses, "wall": wall}}
@@ -573,6 +621,7 @@ def aggregate_shards(in_dir: pathlib.Path) -> dict[str, Any]:
                 raise HarnessError(f"shards disagree on run.{key}")
         if s["ident"] != first["ident"]:
             raise HarnessError("shards were produced by different adapters or scorers")
+    planned = check_shard_coverage(shards)
     cells: dict[tuple[str, str], Any] = {}
     redacted: dict[tuple[str, str], Any] = {}
     corpus: dict[str, Any] = {}
@@ -600,10 +649,48 @@ def aggregate_shards(in_dir: pathlib.Path) -> dict[str, Any]:
         "splits": [x for x in SPLIT_ORDER if any(x in s["run"]["splits"] for s in shards)],
         "renderings": [r for r in tg.RENDERINGS if any(r in s["run"]["renderings"] for s in shards)],
     }
+    for key, n in sorted(planned.items()):  # every present cell holds exactly its planned jobs
+        got = int(cells[key]["jobs"]) if key in cells else int(redacted[key]["jobs"]) if key in redacted else 0
+        if got != n:
+            hygiene.check_heldout_complete(key[0], key[1], got, n)
+            raise HarnessError(f"aggregate: cell {key[0]}/{key[1]} holds {got} of its {n} planned jobs")
     out = _Outcome()
     out.seconds, out.hits, out.misses = seconds, hits, misses
     return {"run": run, "cells": cells, "redacted": redacted, "corpus": corpus, "ident": first["ident"],
-            "outcome": out, "wall": wall}
+            "outcome": out, "wall": wall, "planned": planned}
+
+
+def check_shard_coverage(shards: Sequence[Mapping[str, Any]]) -> dict[tuple[str, str], int]:
+    """``{(split, rendering): planned jobs}`` once every cell is proven complete (P1 review MED-1, LOW-7).
+
+    Each cell must come either from exactly one unsharded file or from all n parts of one ``--shard k/n``
+    partition (no part missing, none twice), and every file must agree on the cell's planned size."""
+    planned: dict[tuple[str, str], int] = {}
+    parts: dict[tuple[str, str], list[tuple[int, int] | None]] = {}
+    for s in shards:
+        if "planned" not in s:
+            raise HarnessError("a shard file has no planned cell sizes; regenerate it with this harness version")
+        shard = tuple(s["shard"]) if s.get("shard") else None
+        for split, by_r in s["planned"].items():
+            for rendering, n in by_r.items():
+                key = (split, rendering)
+                if planned.setdefault(key, int(n)) != int(n):
+                    raise HarnessError(f"aggregate: shard files disagree on the size of cell {split}/{rendering}")
+                parts.setdefault(key, []).append(shard)
+    for (split, rendering), got in sorted(parts.items()):
+        if got == [None]:
+            continue
+        ns = {p[1] for p in got if p is not None}
+        ks = sorted(p[0] for p in got if p is not None)
+        if None in got or len(ns) != 1 or ks != list(range(1, next(iter(ns)) + 1)):
+            raise HarnessError(f"aggregate: cell {split}/{rendering} is not covered exactly once by its shard files "
+                               "(a shard file is missing or duplicated)")
+    return planned
+
+
+def expected_cells(profile: str) -> set[tuple[str, str]]:
+    """Every (split, rendering) cell a profile measures."""
+    return {(s, r) for s in cfg.PROFILES[profile]["splits"] for r in tg.RENDERINGS}
 
 
 # ---------------------------------------------------------------- CLI
@@ -612,7 +699,8 @@ def _add_common(ap: argparse.ArgumentParser) -> None:
     ap.add_argument("--gate", choices=gate.MODES, default=None, help="gate mode (default: per profile)")
     ap.add_argument("--gate-config", default=str(DEFAULT_GATE_FILE))
     ap.add_argument("--baseline", default=None, help="baseline file (default: gate config)")
-    ap.add_argument("--out", default=str(cfg.EVAL_DIR), help="directory for metrics.json and report.md")
+    ap.add_argument("--out", default=None, help="directory for metrics.json and report.md (default: eval/ for "
+                    "the phase-end full run, eval/runs/<profile>/ otherwise)")
 
 
 def run_parser() -> argparse.ArgumentParser:
@@ -651,7 +739,8 @@ def _baseline_path(args: argparse.Namespace, gate_cfg: Mapping[str, Any]) -> pat
 
 
 def _finish(metrics: dict[str, Any], mode: str, args: argparse.Namespace, gate_cfg: Mapping[str, Any],
-            *, update_baseline: bool = False) -> int:
+            out_dir: pathlib.Path, *, update_baseline: bool = False, extra_failures: Sequence[Mapping[str, Any]] = ()
+            ) -> int:
     base_path = _baseline_path(args, gate_cfg)
     if update_baseline:
         metrics["gate"] = {"mode": "none", "passed": True, "failures": []}
@@ -661,7 +750,9 @@ def _finish(metrics: dict[str, Any], mode: str, args: argparse.Namespace, gate_c
         print(f"baseline recorded: {base_path}")
     else:
         apply_gate(metrics, mode, gate_cfg, base_path)
-    out_dir = pathlib.Path(args.out)
+    if extra_failures:
+        g = metrics["gate"]
+        metrics["gate"] = dict(g, passed=False, failures=list(g["failures"]) + [dict(f) for f in extra_failures])
     write_outputs(metrics, out_dir)
     for line in summary_lines(metrics):
         print(line)
@@ -670,6 +761,8 @@ def _finish(metrics: dict[str, Any], mode: str, args: argparse.Namespace, gate_c
     for f in g["failures"]:
         print(f"  {f['kind']} {f['split']}/{f['rendering']} {f['metric']}: current {f['current']} "
               f"({f.get('target') or 'baseline ' + str(f.get('baseline'))})")
+    if update_baseline:
+        print("baseline recorded; add a DECISIONS line naming what changed and why")
     print(f"wrote {out_dir / 'metrics.json'} and {out_dir / 'report.md'}")
     return gate.exit_code(g)
 
@@ -681,11 +774,19 @@ def run_main(argv: Sequence[str], *, adapter: Any = None, scorer: Any = None, or
     dump = args.dump_failures
     if dump is None and run["profile"] == "dev" and "heldout" not in run["splits"]:
         dump = str(cfg.EVAL_DIR / "failures" / "dev")
-    hygiene.check_cli(run["splits"], args.dump_failures)  # before any work
+    hygiene.check_cli(run["splits"], args.dump_failures, narrowing=run["narrowing"])  # before any work
     gate_cfg = gate.load_config(args.gate_config)
     mode = resolve_gate_mode(args, run, gate_cfg)
+    out_dir = pathlib.Path(args.out) if args.out else default_out(run["profile"])
+    if not args.shard_out:
+        check_out_dir(out_dir, run)
     if args.update_baseline and args.shard_out:
         raise HarnessError("--update-baseline cannot be combined with --shard-out")
+    if args.update_baseline and run["shard"]:
+        raise HarnessError("--update-baseline cannot be combined with --shard (a baseline is a whole run)")
+    if mode in ("ratchet", "targets") and run["shard"] and not args.shard_out:
+        raise HarnessError(f"--shard runs a subset of each cell; the {mode} gate compares whole runs only. "
+                           "Write --shard-out files and gate their aggregate, or pass --gate none")
     if mode in ("ratchet", "targets") and not args.update_baseline and not args.shard_out:
         if gate_cfg["split"] not in run["splits"]:
             raise HarnessError(f"the {mode} gate needs the {gate_cfg['split']!r} split; pass --gate none or "
@@ -694,10 +795,13 @@ def run_main(argv: Sequence[str], *, adapter: Any = None, scorer: Any = None, or
     root = pathlib.Path(args.corpus_dir)
     t0 = time.perf_counter()
     manifests: dict[str, Mapping[str, Any]] = {}
+    planned: dict[str, dict[str, int]] = {}
     tasks: list[tuple[EvalJob, pathlib.Path]] = []
     for split in run["splits"]:
         manifests[split] = prepare_corpus(split, run, root, materialize=not args.no_materialize)
-        jobs = apply_shard(build_jobs(split, manifests[split], root, run), run["shard"])
+        all_jobs = build_jobs(split, manifests[split], root, run)
+        planned[split] = planned_counts(run, split, all_jobs)
+        jobs = apply_shard(all_jobs, run["shard"])
         check_files(split, jobs)
         tasks += jobs
     out = execute(tasks, args, adapter=adapter, scorer=scorer, oracle=oracle, keep_records=bool(dump))
@@ -708,8 +812,13 @@ def run_main(argv: Sequence[str], *, adapter: Any = None, scorer: Any = None, or
                 dump_failure(d, rec)
     corpus = {s: corpus_doc(s, m) for s, m in manifests.items()}
     wall = time.perf_counter() - t0
+    if not run["shard"]:
+        for split in run["splits"]:
+            for rendering, n in planned[split].items():
+                got = int((out.cells.get((split, rendering)) or {}).get("jobs", 0))
+                hygiene.check_heldout_complete(split, rendering, got, n)
     if args.shard_out:
-        report.atomic_write_text(args.shard_out, json.dumps(shard_doc(run, corpus, out, out.ident, wall),
+        report.atomic_write_text(args.shard_out, json.dumps(shard_doc(run, corpus, out, out.ident, wall, planned),
                                                             sort_keys=True, indent=2) + "\n")
         print(f"wrote shard {args.shard_out}")
         return gate.EXIT_OK
@@ -717,7 +826,7 @@ def run_main(argv: Sequence[str], *, adapter: Any = None, scorer: Any = None, or
     redacted = {k: hygiene.redact_heldout(me.cell_results(v)) for k, v in out.cells.items()
                 if hygiene.is_heldout(k[0])}
     metrics = build_metrics(run, counts, redacted, corpus, out.ident, mode, runtime_doc(out, wall))
-    return _finish(metrics, mode, args, gate_cfg, update_baseline=args.update_baseline)
+    return _finish(metrics, mode, args, gate_cfg, out_dir, update_baseline=args.update_baseline)
 
 
 def aggregate_main(argv: Sequence[str]) -> int:
@@ -725,10 +834,18 @@ def aggregate_main(argv: Sequence[str]) -> int:
     gate_cfg = gate.load_config(args.gate_config)
     merged = aggregate_shards(pathlib.Path(args.in_dir))
     mode = args.gate or "report"
-    run = dict(merged["run"], overridden=True)
+    run = dict(merged["run"], overridden=True, shard=None)
+    missing = sorted(expected_cells(run["profile"]) - set(merged["planned"]))
+    out_dir = pathlib.Path(args.out) if args.out else cfg.EVAL_DIR / "runs" / "aggregate"
+    # the reported aggregate (the nightly) must hold every cell of its profile (P1 review LOW-7), and so must anything
+    # written over the phase-end record; ratchet and targets already refuse any cell the baseline has and the run lacks
+    if missing and (mode == "report" or out_dir.resolve() == cfg.EVAL_DIR.resolve()):
+        raise HarnessError(f"aggregate: no shard file for cell(s) {', '.join(f'{s}/{r}' for s, r in missing)}")
+    check_out_dir(out_dir, run)
     metrics = build_metrics(run, merged["cells"], merged["redacted"], merged["corpus"], merged["ident"], mode,
                             runtime_doc(merged["outcome"], merged["wall"]))
-    return _finish(metrics, mode, args, gate_cfg)
+    crashed = gate.crash_failures(metrics) if mode != "none" else []  # a nightly with a crashed job is not green
+    return _finish(metrics, mode, args, gate_cfg, out_dir, extra_failures=crashed)
 
 
 def main(argv: Sequence[str] | None = None, *, adapter: Any = None, scorer: Any = None, oracle: Any = None) -> int:
