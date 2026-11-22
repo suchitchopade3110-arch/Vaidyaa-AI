@@ -54,3 +54,57 @@ One line per decision: date · decision · reason.
   - MED-6 · Only a complete `full`-profile run (every split and rendering, no sampling, no shard) may write `eval/report.md` and `eval/metrics.json`; every other run defaults to `eval/runs/<profile>/` (git-ignored; CI uploads `eval/runs/ci/`), and an explicit `--out eval` on a partial run exits 2. The committed `eval/baseline.json` is the CI-profile run; the committed report and metrics are the phase-end full run. · Plan §9: `make eval` must never clobber the phase-end record.
 - 2026-11-21 · **P1 review LOWs:** fixed — LOW-1 `M4_post` diagnostic (scorer CRITICAL flags on confirmed rows whose GT is not critical; gating on max(M4, M4_post) is deferred to P2, when the real confirmed-rows scorer replaces the v0 engine floor); LOW-2 M6 target 90% on every rendering (PRD M6 names no rendering; supersedes the native/csv-only line of the P1 design decisions); LOW-4 legibility compares plain decimal tokens in normal form ("37.0" == "37", "4.20" == "4.2") and reads decimal-comma GT values as numbers — re-measuring showed the real cause: for CSV jobs the text the pipeline saw is its structured text (decimal points, trailing zeros dropped), not the delimited file, so field gluing was not it; test CSV legibility 54/104 → 104/104, no gated count moved (baseline re-recorded for the judge digest only); delimited raw text is also tokenised field by field, and `covers()` keeps the general tokenizer (structured imports have no unread lines); LOW-5 mEq/L is generated (US-A, Na/K/Cl/HCO3, explicit 1:1 factor on the GT side only; the comparators still never equate mEq/L with mmol/L, plan 6.7); LOW-6 heldout-structure tests moved to `tests/heldout/` behind the DO-NOT-READ notice; LOW-7 `ci.yml` `permissions: contents: read`, and the reported aggregate exits 2 on a missing cell and 1 on any crashed job. **Deferred:** LOW-3 (tolerance of 1 count on image renderings for M2/M2_post) — CI runs on a cold, different-CPU OCR cache where one-count OCR differences are real; zero tolerance would make the blocking gate flaky; revisit at the P2 re-baseline (targets mode already requires 100% from P3). · Cheap LOWs fixed, the rest logged.
 - 2026-11-21 · **T16 carry-over LOWs still deferred:** L5 (range-absent normals not inside every variant; 0 affected dev/test rows) and L6 (variant-unit bounds; no flag effect) — both shift sampling streams in every family for no measured effect, next corpus change; L7 (printed flags on hidden-sex rows) — kept by design, printed flags can be lab errors and GT stays UNKNOWN + review, P3 must not trust printed flags to resolve sex; L8 (quantitative urine glucose and numeric urobilinogen) — corpus addition outside the review MEDs; L9 (a `ValueError` from `job_record` aborts the run) — fail-loud is the conservative choice for GT inconsistency, narrowing is a harness change for P2; L11 (heldout OCR text in the Actions cache) — not per-report results and regenerable from committed code; L12–L14 — documentation (P2's `confirmed_v1` must carry printed sex options; latent range_result words; Table C "not listed" policies are a declared limitation). · Out of scope for the MED fixes; none weakens a safety assertion.
+
+## P2 plan decisions (2026-11-22, from plans/P2.md §15)
+
+
+1. P2 job states are `queued → extracting → awaiting_review → scoring → completed | failed | low_quality`; the
+   database (`async_jobs.status`) is the source of truth for report jobs; every transition is a row-locked CAS; report
+   tasks never write status from `on_success`.
+2. All report types and all file kinds (PDF, image, CSV) go through review; structured imports are never auto-confirmed
+   in P2 (F2's "may" is not taken; the review screen needs one click).
+3. Review tables add, beyond FR-1.2: `report_extractions` (job metadata, revision, confirmation stamp), and
+   `extracted_rows.kind`, `review_codes`, `prelim_flag`, `parsed_payload`, `version`; origin adds `legacy_urine`.
+4. `prelim_flag` is computed and stored for review triggers and the eval but never returned before confirm; the review
+   screen shows extracted data, the printed flag and review reasons only (S1).
+5. Sign-off de-duplication keeps the earliest row and archives the others in `sign_off_duplicates_archive`; downgrade
+   restores them and refuses to drop non-empty review tables unless `VAIDYA_ALLOW_LOSSY_DOWNGRADE=1`.
+6. New review endpoints are owner-only with no admin bypass (404), per FR-1.4.
+7. Confirm requires the revision the clinician saw; rows use optimistic versions.
+8. Accepting a row requires a value, a unit when the analyte needs one (S6), and a specimen when the report is mixed;
+   manual rows must state their specimen.
+9. Reopen is allowed only before sign-off (or after a scoring failure); signed reports are immutable.
+10. Legacy (pre-P2) completed report jobs are not results under S1: result, PDF, sign-off and QR answer 409/403, and
+    history/trends exclude them; nothing is deleted.
+11. `POST /api/text` is unregistered (it scored unconfirmed free text); the module goes with FR-9.5 in P6.
+12. Scoring uses confirmed rows only: model text, RAG query, entities and urine patterns are rebuilt from confirmed
+    rows; raw-text NER medications/dates are no longer part of lab results.
+13. The extracted row set equals the pre-P2 product's (engine rows, legacy urine rows under today's branch rule) plus
+    unread lines; P2 changes flags and metadata, not rows.
+14. S5 floor: a row with specimen urine/CSF/fluid/other is never scored against a blood analyte's registry range or
+    critical limits (FR-2.3 completes specimen-specific analytes in P3).
+15. needs_review triggers are the 19 codes of plan §6.6, including NR-MARKED (markedly abnormal with no registry
+    critical limit in that direction) as a safety net for the engine's known missing limits; every qualitative row
+    needs review until P3 adds keys.
+16. Confidence: native 1.0 (0.85 when reassembled), OCR minimum token confidence, column 0.85, CSV and manual 1.0.
+17. Provenance bboxes are in displayed-page points (PDF) or pixels of the EXIF-transposed image; native boxes are
+    transformed by `page.rotation_matrix`.
+18. Page images: lazily rendered, disk-cached, `Cache-Control: private`, EXIF stripped.
+19. `run_report_pipeline` survives only as a test/eval composition; a static test forbids production callers.
+20. The two legacy RAG integration tests are re-targeted at the live claim task and the authenticated HTTP flow;
+    nothing dead is resurrected; `tasks_rag.py` goes with FR-9.5 (P6).
+21. Playwright (Python, pinned in `requirements-e2e.txt`) drives the system Chrome; React/ReactDOM/Babel are served to
+    the test browser from integrity-pinned npm tarballs; the UI shell is unchanged.
+22. Eval: `ExtractedRowsAdapter`/`confirmed_v1` call the product functions directly; `pre_review_headline` is the
+    as-shown confirmation headline computed in the adapter only.
+23. Judge tightenings: unread-line coverage needs the same page and vertical overlap when geometry exists (T16 F2);
+    `M4_post` ratcheted with the M4 target (LOW-1); zero ratchet tolerance for M2/M2_post on every rendering (LOW-3).
+24. Re-baselines: #1 judge-only with v0; #2 adapter switch, accepted only if no test rendering's M1 rises or M2 falls
+    and `ext_rows` is unchanged.
+25. T16 L9 stays fail-loud (a `ValueError` in `job_record` aborts the run): conservative; unchanged.
+26. When no row of kind `row` was extracted, the review screen tells the clinician to check the whole report
+    (`review_all`), whether or not unread lines exist; this keeps P1's review_all meaning.
+27. Report tasks return status-only payloads to the Celery result backend; results live only in the database (privacy
+    and S1).
+28. P2 patient demographics are read-only on the Review screen (set at upload); a sex-dependent range without sex stays
+    "not assessed" unless the clinician enters the range.
