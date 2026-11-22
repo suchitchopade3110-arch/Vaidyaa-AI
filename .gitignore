@@ -71,3 +71,4 @@ eval/.cache/
 eval/failures/
 eval/shards/
 eval/runs/
+tests/e2e_ui/.vendor/

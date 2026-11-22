@@ -100,7 +100,7 @@ jobs:
         # so a new test file can't be silently left out of CI. Floor set just
         # under the measured 40%; raise it as coverage grows.
         run: |
-          pytest tests/ --ignore=tests/test_e2e.py \
+          pytest tests/ --ignore=tests/test_e2e.py --ignore=tests/e2e_ui \
             -m "not integration" \
             --cov=app --cov-report=term-missing --cov-report=xml \
             --cov-fail-under=38

@@ -1,0 +1,1 @@
+# Test-only dependencies for tests/e2e_ui (P2 AC-1.8). Placeholder: the playwright pin is added in P2 T19.
