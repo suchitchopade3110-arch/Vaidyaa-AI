@@ -11,6 +11,9 @@ needs_review before confirmation; after confirmation nothing is needs_review any
 from scoring the confirmed rows (F1 step 4, FR-1.4). M2_post is the share of GT criticals whose confirmed row the
 scorer flags CRITICAL; its target is the same 100% (P1 review MED-5, DECISIONS 2026-11-21).
 
+``M4_post`` (the scorer's CRITICAL flags on confirmed non-critical or invented rows, over GT rows) is the
+false-alert half of S3 after review; it is ratcheted and carries the M4 target, 0.5% (P2 plan 9.4, P1 review LOW-1).
+
 M6 has no rendering restriction in PRD section 3 (only M7 says "native-text"), so its 90% target applies to every
 rendering (P1 review LOW-2; the stricter reading replaces the earlier native/csv-only gating).
 """
@@ -22,7 +25,7 @@ from types import MappingProxyType
 from typing import Any, Mapping
 
 RENDERINGS = ("native", "csv", "scan", "photo", "rot90")
-METRICS = ("M1", "M2", "M2_post", "M3", "M4", "M5", "M6", "M7")
+METRICS = ("M1", "M2", "M2_post", "M3", "M4", "M4_post", "M5", "M6", "M7")
 
 LE, GE, EQ = "<=", ">=", "=="
 
@@ -42,17 +45,18 @@ _M2_POST = dict.fromkeys(RENDERINGS, _t(EQ, Fraction(1)))  # S3 final state: a c
 _M3 = {"native": _t(GE, _pct(92, 100)), "csv": _t(GE, _pct(92, 100)), "scan": _t(GE, _pct(80, 100)),
        "rot90": _t(GE, _pct(80, 100)), "photo": _t(GE, _pct(70, 100))}
 _M4 = dict.fromkeys(RENDERINGS, _t(LE, _pct(5)))
+_M4_POST = dict(_M4)  # P1 review LOW-1: the false-alert rate after confirmation has the M4 target
 _M5 = dict.fromkeys(RENDERINGS, _t(GE, _pct(98, 100)))
 _M6 = dict.fromkeys(RENDERINGS, _t(GE, _pct(90, 100)))  # PRD M6 has no rendering restriction
 _M7 = {"native": _t(LE, _pct(15, 100)), "csv": _t(LE, _pct(15, 100)), "scan": None, "rot90": None, "photo": None}
 
 TARGETS: Mapping[str, Mapping[str, Mapping[str, Any] | None]] = MappingProxyType({
     m: MappingProxyType(d) for m, d in (("M1", _M1), ("M2", _M2), ("M2_post", _M2_POST), ("M3", _M3), ("M4", _M4),
-                                        ("M5", _M5), ("M6", _M6), ("M7", _M7))
+                                        ("M4_post", _M4_POST), ("M5", _M5), ("M6", _M6), ("M7", _M7))
 })
 
-RATCHETED = ("M1", "M2", "M2_post", "M3", "M4", "M5")  # M6 and M7 are target-only (plan 6.9)
-LOWER_IS_BETTER = frozenset({"M1", "M4", "M7"})
+RATCHETED = ("M1", "M2", "M2_post", "M3", "M4", "M4_post", "M5")  # M6 and M7 are target-only (plan 6.9)
+LOWER_IS_BETTER = frozenset({"M1", "M4", "M4_post", "M7"})
 
 
 def target_for(metric: str, rendering: str) -> Mapping[str, Any] | None:

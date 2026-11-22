@@ -519,7 +519,7 @@ def test_med5_m2_post_is_reported_for_every_cell_and_is_additive():
     assert "M2_post" in me.METRIC_IDS and "M2_post" not in me.cell_diagnostics(a)
 
 
-# ======================================================================== P1 review LOW-1: M4_post diagnostic
+# ======================================================================== P1 review LOW-1: M4_post (gated since P2)
 
 
 class InrOverThreeScorer(RangeOnlyScorer):
@@ -542,10 +542,10 @@ def test_low1_m4_post_counts_critical_flags_raised_after_confirmation_on_non_cri
     gt = report(twenty(replace={"chloride": inr}))
     ext = perfect(gt["rows"])  # read right and shown HIGH before review: no pre-review false critical
     res = me.cell_results(record(gt, extraction(ext), scorer=InrOverThreeScorer()).counts)
-    diag = me.cell_diagnostics(record(gt, extraction(ext), scorer=InrOverThreeScorer()).counts)
     assert nd(res, "M4") == (0, 20)  # nothing CRITICAL before review
-    assert nd(diag, "M4_post") == (1, 20)  # the confirmed INR 3.2 is scored CRITICAL_HIGH: a false alert
-    assert nd(me.cell_diagnostics(record(gt, extraction(ext)).counts), "M4_post") == (0, 20)  # Table C: none
+    assert nd(res, "M4_post") == (1, 20)  # the confirmed INR 3.2 is scored CRITICAL_HIGH: a false alert
+    assert nd(me.cell_results(record(gt, extraction(ext)).counts), "M4_post") == (0, 20)  # Table C: none
+    assert "M4_post" in me.METRIC_IDS and "M4_post" not in me.cell_diagnostics(record(gt, extraction(ext)).counts)
 
 
 # ======================================================================== P1 review LOW-4: CSV legibility
@@ -583,3 +583,96 @@ def test_low4_csv_legibility_reads_the_pipelines_structured_text_numerically():
     misread = record(kgt, extraction(perfect(kgt["rows"]), raw_text="Potassium 42 mmol/L"), job())
     assert nd(me.cell_results(seen.counts), "legibility") == (1, 1)
     assert nd(me.cell_results(misread.counts), "legibility") == (0, 1)
+
+
+# ======================================================================== EV-04 end to end and EV-07 (P-BOX)
+# GT rows get explicit bboxes: row i is the printed line at y = 100 + 20 i .. 112 + 20 i on page 1 (native: the
+# GT space is the input space, so the mapping is the identity).
+
+
+def geo_gt():
+    rows = twenty()
+    return report([dict(g, bbox=[50.0, 100.0 + 20 * i, 300.0, 112.0 + 20 * i]) for i, g in enumerate(rows)])
+
+
+def geo_unread(text, page, bbox):
+    u = unread(text)
+    u.source_page, u.source_bbox = page, bbox
+    return u
+
+
+def _k_omitted(gt):
+    return [e for e in perfect(gt["rows"]) if e.analyte_key != "potassium"]  # potassium is GT row 9 (y 280..292)
+
+
+def _k_line_text():
+    k = twenty()[9]
+    return f"{k['name']} {k['value_text']} {k['unit']}"
+
+
+def test_ev04_omission_covered_by_an_unread_line_on_its_own_line_only():
+    gt = geo_gt()
+    assert gt["rows"][9]["analyte_key"] == "potassium"
+    text = _k_line_text()
+    right = geo_unread(text, 1, [50, 282, 300, 294])  # y 282..294 overlaps 280..292
+    res = me.cell_results(record(gt, extraction(_k_omitted(gt) + [right])).counts)
+    assert nd(res, "M1") == (0, 20)  # covered by an unread line: not silent
+    wrong_page = geo_unread(text, 2, [50, 282, 300, 294])
+    res = me.cell_results(record(gt, extraction(_k_omitted(gt) + [wrong_page])).counts)
+    assert nd(res, "M1") == (1, 20)  # a page-2 line cannot be the printed potassium line: silent omission
+    wrong_band = geo_unread(text, 1, [50, 100, 300, 112])  # the first printed line, not potassium's
+    res = me.cell_results(record(gt, extraction(_k_omitted(gt) + [wrong_band])).counts)
+    assert nd(res, "M1") == (1, 20)
+
+
+def test_ev04_unread_line_wrongly_placed_does_not_rescue_a_missed_critical():
+    k = dict(K_CRIT, row_id="X001-r010", bbox=[50.0, 280.0, 300.0, 292.0])  # GT K 6.7, printed on line 10
+    gt = report(twenty(replace={"potassium": k}))
+    ext = [e for e in perfect(gt["rows"]) if e.analyte_key != "potassium"]
+    text = f"{k['name']} {k['value_text']} {k['unit']}"
+    ok = me.cell_results(record(gt, extraction(ext + [geo_unread(text, 1, [50, 283, 300, 291])])).counts)
+    bad = me.cell_results(record(gt, extraction(ext + [geo_unread(text, 1, [50, 600, 300, 612])])).counts)
+    assert nd(ok, "M2") == (1, 1) and nd(bad, "M2") == (0, 1)  # S3: the critical is only recalled if the line is its own
+
+
+def test_ev07_p_box_counts_matched_pairs_whose_box_overlaps_the_gt_line():
+    gt = geo_gt()
+    ext = perfect(gt["rows"])
+    # row 0: right page, overlapping band (y 102..114 vs 100..112)           -> in den, in num
+    ext[0].source_bbox = [50, 102, 300, 114]
+    # row 1: page 2 although the GT row is on page 1                          -> in den only
+    ext[1].source_page, ext[1].source_bbox = 2, [50, 120, 300, 132]
+    # row 2: right page, band 500..512 vs GT 140..152                         -> in den only
+    ext[2].source_bbox = [50, 500, 300, 512]
+    # row 3: no box at all (a row the product could not locate)               -> not counted
+    ext[3].source_bbox = None
+    # rows 4..19 carry no bbox either
+    rec = record(gt, extraction(ext))
+    diag = me.cell_diagnostics(rec.counts)
+    assert nd(diag, "P_BOX") == (1, 3)
+    # additive across jobs: a second job with all four right adds (4, 4)
+    ext2 = perfect(gt["rows"])
+    for i in range(4):
+        ext2[i].source_bbox = [50, 101 + 20 * i, 300, 111 + 20 * i]
+    both = me.add_counts(rec.counts, record(gt, extraction(ext2)).counts)
+    assert nd(me.cell_diagnostics(both), "P_BOX") == (5, 7)
+
+
+def test_ev07_p_box_is_empty_without_geometry():
+    gt = geo_gt()
+    diag = me.cell_diagnostics(record(gt, extraction(perfect(gt["rows"]))).counts)
+    assert nd(diag, "P_BOX") == (0, 0)
+
+
+def test_ev07_scan_pairs_are_compared_in_page_points_via_the_render_meta():
+    # scan: H = scale 2, no translation, dpi 150: GT row 0 (y 100..112) maps to px y 200..224, then x 0.48 =
+    # 96..107.52 pt, row 1 (y 120..132) to 115.2..126.72, row 2 (y 140..152) to 134.4..145.92.
+    gt = geo_gt()
+    meta = {1: {"homography": [[2, 0, 0], [0, 2, 0], [0, 0, 1]], "dpi": 150}}
+    ext = perfect(gt["rows"])
+    ext[0].source_bbox = [24, 98, 144, 110]  # overlaps 98..107.52
+    ext[1].source_bbox = [24, 108, 144, 120]  # overlaps 115.2..120
+    ext[2].source_bbox = [24, 100, 144, 112]  # far above 134.4..145.92: no
+    j = job(gt["report_id"], rendering="scan")
+    rec = record(gt, extraction(ext), j=j, render_meta=meta)
+    assert nd(me.cell_diagnostics(rec.counts), "P_BOX") == (2, 3)

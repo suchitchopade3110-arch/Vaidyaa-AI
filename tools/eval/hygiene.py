@@ -24,7 +24,7 @@ import sys
 from typing import Any, Iterator, Mapping
 
 HELDOUT = "heldout"
-METRIC_KEYS = ("M1", "M2", "M2_post", "M3", "M4", "M5", "M6", "M7")
+METRIC_KEYS = ("M1", "M2", "M2_post", "M3", "M4", "M4_post", "M5", "M6", "M7")
 RATE_KEYS = frozenset({"num", "den", "value", "ci_low", "ci_high", "target", "pass"})
 COMPONENT_KEYS = frozenset({"wrong", "invented", "omitted"})
 CELL_KEYS = frozenset(METRIC_KEYS) | {"components", "legibility", "jobs", "crashes"}
@@ -79,7 +79,7 @@ def _check_keys(where: str, got: Any, allowed: frozenset[str] | set[str]) -> Non
 
 
 def redact_heldout(cell: Mapping[str, Any]) -> dict[str, Any]:
-    """Whitelist one heldout rendering cell: M1-M7 and M2_post ``{num, den, value, ci_low, ci_high, target, pass}``, the M1
+    """Whitelist one heldout rendering cell: M1-M7, M2_post and M4_post ``{num, den, value, ci_low, ci_high, target, pass}``, the M1
     component counts, legibility, the job count and the crash counts by class name. Any other key raises."""
     _check_keys("cell", cell, CELL_KEYS)
     out: dict[str, Any] = {}

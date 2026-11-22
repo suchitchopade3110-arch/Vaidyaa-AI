@@ -10,13 +10,6 @@
   "diagnostics": {
     "test": {
       "csv": {
-        "M4_post": {
-          "ci_high": 0.03562135437245191,
-          "ci_low": 0.0,
-          "den": 104,
-          "num": 0,
-          "value": 0.0
-        },
         "M5_oracle": {
           "ci_high": 1.0,
           "ci_low": 0.5101091635454027,
@@ -37,6 +30,13 @@
           "den": 4,
           "num": 4,
           "value": 1.0
+        },
+        "P_BOX": {
+          "ci_high": null,
+          "ci_low": null,
+          "den": 0,
+          "num": 0,
+          "value": null
         },
         "R_NR": {
           "ci_high": 1.0,
@@ -142,13 +142,6 @@
         ]
       },
       "native": {
-        "M4_post": {
-          "ci_high": 0.0019037466020443573,
-          "ci_low": 0.0,
-          "den": 2014,
-          "num": 0,
-          "value": 0.0
-        },
         "M5_oracle": {
           "ci_high": 0.9633159947665283,
           "ci_low": 0.8382725651786193,
@@ -169,6 +162,13 @@
           "den": 76,
           "num": 43,
           "value": 0.5657894736842105
+        },
+        "P_BOX": {
+          "ci_high": null,
+          "ci_low": null,
+          "den": 0,
+          "num": 0,
+          "value": null
         },
         "R_NR": {
           "ci_high": 0.7281647097298064,
@@ -497,13 +497,6 @@
         ]
       },
       "photo": {
-        "M4_post": {
-          "ci_high": 0.007011989981487356,
-          "ci_low": 0.0,
-          "den": 544,
-          "num": 0,
-          "value": 0.0
-        },
         "M5_oracle": {
           "ci_high": 0.9832191169128082,
           "ci_low": 0.8039375519135219,
@@ -524,6 +517,13 @@
           "den": 33,
           "num": 13,
           "value": 0.3939393939393939
+        },
+        "P_BOX": {
+          "ci_high": null,
+          "ci_low": null,
+          "den": 0,
+          "num": 0,
+          "value": null
         },
         "R_NR": {
           "ci_high": 0.7165599389846583,
@@ -832,13 +832,6 @@
         ]
       },
       "rot90": {
-        "M4_post": {
-          "ci_high": 0.025636822084673896,
-          "ci_low": 0.0,
-          "den": 146,
-          "num": 0,
-          "value": 0.0
-        },
         "M5_oracle": {
           "ci_high": 1.0,
           "ci_low": 0.5101091635454027,
@@ -859,6 +852,13 @@
           "den": 4,
           "num": 0,
           "value": 0.0
+        },
+        "P_BOX": {
+          "ci_high": null,
+          "ci_low": null,
+          "den": 0,
+          "num": 0,
+          "value": null
         },
         "R_NR": {
           "ci_high": 0.4898908364545973,
@@ -982,13 +982,6 @@
         "top_error_signatures": []
       },
       "scan": {
-        "M4_post": {
-          "ci_high": 0.007011989981487356,
-          "ci_low": 0.0,
-          "den": 544,
-          "num": 0,
-          "value": 0.0
-        },
         "M5_oracle": {
           "ci_high": 0.9721335187862319,
           "ci_low": 0.6989663547715128,
@@ -1009,6 +1002,13 @@
           "den": 20,
           "num": 12,
           "value": 0.6
+        },
+        "P_BOX": {
+          "ci_high": null,
+          "ci_low": null,
+          "den": 0,
+          "num": 0,
+          "value": null
         },
         "R_NR": {
           "ci_high": 0.7924898863143551,
@@ -1355,6 +1355,15 @@
           "target": "<= 0.5%",
           "value": 0.0
         },
+        "M4_post": {
+          "ci_high": 0.03562135437245191,
+          "ci_low": 0.0,
+          "den": 104,
+          "num": 0,
+          "pass": true,
+          "target": "<= 0.5%",
+          "value": 0.0
+        },
         "M5": {
           "ci_high": 1.0,
           "ci_low": 0.5101091635454027,
@@ -1444,6 +1453,15 @@
           "pass": true,
           "target": "<= 0.5%",
           "value": 0.0014895729890764648
+        },
+        "M4_post": {
+          "ci_high": 0.0019037466020443573,
+          "ci_low": 0.0,
+          "den": 2014,
+          "num": 0,
+          "pass": true,
+          "target": "<= 0.5%",
+          "value": 0.0
         },
         "M5": {
           "ci_high": 0.8765801272024571,
@@ -1535,6 +1553,15 @@
           "target": "<= 0.5%",
           "value": 0.012867647058823529
         },
+        "M4_post": {
+          "ci_high": 0.007011989981487356,
+          "ci_low": 0.0,
+          "den": 544,
+          "num": 0,
+          "pass": true,
+          "target": "<= 0.5%",
+          "value": 0.0
+        },
         "M5": {
           "ci_high": 0.8716828662282499,
           "ci_low": 0.5897538017044264,
@@ -1617,6 +1644,15 @@
           "value": 0.0
         },
         "M4": {
+          "ci_high": 0.025636822084673896,
+          "ci_low": 0.0,
+          "den": 146,
+          "num": 0,
+          "pass": true,
+          "target": "<= 0.5%",
+          "value": 0.0
+        },
+        "M4_post": {
           "ci_high": 0.025636822084673896,
           "ci_low": 0.0,
           "den": 146,
@@ -1715,6 +1751,15 @@
           "target": "<= 0.5%",
           "value": 0.0055147058823529415
         },
+        "M4_post": {
+          "ci_high": 0.007011989981487356,
+          "ci_low": 0.0,
+          "den": 544,
+          "num": 0,
+          "pass": true,
+          "target": "<= 0.5%",
+          "value": 0.0
+        },
         "M5": {
           "ci_high": 0.919342337420202,
           "ci_low": 0.5839825677481064,
@@ -1767,20 +1812,22 @@
       "version": "1"
     },
     "gate_mode": "baseline",
-    "git_sha": "b40a3a5a9218d81202cd218a1462d6ee79f78ea0",
+    "git_sha": "0075886c35b050fffdbc858559ca44d111725519",
     "judge": {
-      "digest": "f94923b006105f93503e0da66d557e79ecd359cc4606045bb6027ab0b88f6bf0",
+      "digest": "cbd39a5aa83c33da333acf8e7aa91b7194cecb55fa0561ee388b5500deb32997",
       "modules": {
         "tools/eval/adapters/__init__.py": "62ef1458b40d0eccddda4b2058f3a3cb40ca875c279e435edc8a7f51fc499123",
         "tools/eval/adapters/base.py": "1ab028b4b572e7378f7a89750f1fa836eb01c5864679cf47b140705e2703c4f8",
+        "tools/eval/adapters/extracted_rows.py": "96aaf40ce66db8f3ede280940012ff83fec872f25ccf230051632f8a89cbbaa6",
         "tools/eval/adapters/pipeline_v0.py": "11d38107a7fe42f99a880154e72ec2325ebff38b5110d94fa9bf362a242e660c",
-        "tools/eval/gate.py": "25fec54651f8159c7acd578d86e36ec97deda9181fd2602425ec7db62b3d2fff",
-        "tools/eval/match.py": "7f47f438cbe7cd6184dbec2d16dbc12c8cb3eb6ac1ec4d63ea95e96ff0960d6d",
-        "tools/eval/metrics.py": "1c9ab4fdf2ea0e617bc5ecf609f9019e8444bff4f48f89b79a9463fa515747a7",
+        "tools/eval/gate.py": "13e910467a499c740100347ffbfee2943639f94fe78ce5549107139c1279b68c",
+        "tools/eval/geometry.py": "5910aff986cb4c348bcaf02115b4b9b02ee160cbe36372f9f15e6334d36f484e",
+        "tools/eval/match.py": "a7d6242b1f53a29154c05f695066bec5a3ac6692afe93425e66b1be141183f95",
+        "tools/eval/metrics.py": "d52713c1579133bdf522ace12952483a6582ad3e812b655d61bbd88df73f6f56",
         "tools/eval/ocr_cache.py": "db60ac14a63b0848e606276219c96b2e483e6acf1b2e01186d47f1783e87aeb2",
         "tools/eval/review_sim.py": "6aedd2d9dcfa6be8d8446312246d72a65f81283c38c8b5df92dc5196cdd5b07b",
-        "tools/eval/run.py": "5204ffa1178e8131346a871da3ebda0d8b070951ec0cb40108d6a1161a99ef72",
-        "tools/eval/targets.py": "d9d4dcb7171397275d0b61eb3e05ef056e29aa5aba1e551c846d4a31ad4bddcd"
+        "tools/eval/run.py": "2d2b0b2c057c7f2a1e925b8480c64795b43f889f76d98e1262b4e987c8834bfa",
+        "tools/eval/targets.py": "37e056b3f55a48917bad20fc1f81150d163d0440e0567b6d0d0cdf2c7ae64dd6"
       }
     },
     "profile": "ci",

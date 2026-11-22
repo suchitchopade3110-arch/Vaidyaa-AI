@@ -92,9 +92,9 @@ def det(path: pathlib.Path) -> dict:
 # ---------------------------------------------------------------- gate fixtures
 
 def cell(m1=(0, 1000), m2=(100, 100), m3=(950, 1000), m4=(0, 1000), m5=(99, 100), m6=(9, 10), m7=(10, 100),
-         crashes=None, m2p=None, jobs=1):
+         crashes=None, m2p=None, jobs=1, m4p=(0, 1000)):
     c = {"M1": me.rate(*m1), "M2": me.rate(*m2), "M2_post": me.rate(*(m2p or (100, 100))), "M3": me.rate(*m3),
-         "M4": me.rate(*m4), "M5": me.rate(*m5), "M6": me.rate(*m6), "M7": me.rate(*m7),
+         "M4": me.rate(*m4), "M4_post": me.rate(*m4p), "M5": me.rate(*m5), "M6": me.rate(*m6), "M7": me.rate(*m7),
          "components": {"M1": {"wrong": 0, "invented": 0, "omitted": 0}},
          "legibility": me.rate(1, 1), "jobs": jobs, "crashes": crashes or {}}
     return c
@@ -141,6 +141,60 @@ def test_ha05_image_regression_of_one_count_passes_and_two_fails():
     pbase = doc({"photo": cell(m1=(10, 1000))})
     assert evaluate("ratchet", doc({"photo": cell(m1=(11, 1000))}), pbase)["passed"]
     assert not evaluate("ratchet", doc({"photo": cell(m1=(12, 1000))}), pbase)["passed"]
+
+
+# EV-05 (P2 plan 9.4, P1 review LOW-3): M2 and M2_post have zero ratchet tolerance on every rendering. The image
+# tolerance of one count is for noisy extraction metrics; a critical lost is never noise (S3).
+@pytest.mark.parametrize("rendering", ["scan", "photo", "rot90"])
+def test_ev05_one_count_m2_regression_on_an_image_rendering_fails(rendering):
+    base = doc({rendering: cell(m2=(36, 36))})
+    res = evaluate("ratchet", doc({rendering: cell(m2=(35, 36))}), base)  # one of 36 criticals no longer recalled
+    assert gate.exit_code(res) == 1
+    assert [(f["rendering"], f["metric"], f["tolerance"]) for f in res["failures"]] == [(rendering, "M2", 0)]
+
+
+@pytest.mark.parametrize("rendering", ["scan", "photo", "rot90"])
+def test_ev05_one_count_m2_post_regression_on_an_image_rendering_fails(rendering):
+    base = doc({rendering: cell(m2p=(36, 36))})
+    res = evaluate("ratchet", doc({rendering: cell(m2p=(35, 36))}), base)
+    assert gate.exit_code(res) == 1
+    assert [(f["rendering"], f["metric"], f["tolerance"]) for f in res["failures"]] == [(rendering, "M2_post", 0)]
+
+
+def test_ev05_other_metrics_keep_the_image_tolerance_and_m2_improvement_passes():
+    base = doc({"scan": cell(m2=(35, 36), m3=(800, 1000))})
+    assert evaluate("ratchet", doc({"scan": cell(m2=(36, 36), m3=(799, 1000))}), base)["passed"]
+
+
+def test_ev05_a_config_can_never_shrink_the_zero_tolerance_set(tmp_path):
+    cfgfile = tmp_path / "gate.json"
+    cfgfile.write_text(json.dumps({"zero_tolerance": []}))
+    assert gate.load_config(cfgfile)["zero_tolerance"] == ["M2", "M2_post"]
+    cfgfile.write_text(json.dumps({"zero_tolerance": ["M5"]}))
+    assert gate.load_config(cfgfile)["zero_tolerance"] == ["M2", "M2_post", "M5"]
+    base = doc({"scan": cell(m2=(36, 36))})
+    cur = doc({"scan": cell(m2=(35, 36))})
+    # even a caller that passes an empty set gets the floor
+    assert not gate.evaluate("ratchet", cur, split="test", baseline=base, tolerance=TOL, zero_tolerance=[])["passed"]
+
+
+# EV-06 (P1 review LOW-1): M4_post, the false critical alerts after confirmation, is ratcheted like M4.
+def test_ev06_m4_post_regression_fails_the_ratchet():
+    base = doc({"native": cell(), "scan": cell()})
+    res = evaluate("ratchet", doc({"native": cell(m4p=(1, 1000)), "scan": cell()}), base)
+    assert gate.exit_code(res) == 1
+    assert [(f["rendering"], f["metric"]) for f in res["failures"]] == [("native", "M4_post")]
+    # lower is better and the image tolerance of one count still applies: +1 passes, +2 fails on scan
+    assert evaluate("ratchet", doc({"native": cell(), "scan": cell(m4p=(1, 1000))}), base)["passed"]
+    assert not evaluate("ratchet", doc({"native": cell(), "scan": cell(m4p=(2, 1000))}), base)["passed"]
+    assert evaluate("ratchet", base, doc({"native": cell(m4p=(3, 1000)), "scan": cell()}))["passed"]  # improvement
+
+
+def test_ev06_a_baseline_without_m4_post_is_refused_not_compared():
+    old = doc({"native": cell()})
+    del old["results"]["test"]["native"]["M4_post"]
+    with pytest.raises(gate.GateConfigError):
+        evaluate("ratchet", doc({"native": cell()}), old)
 
 
 def test_ha05_native_has_no_tolerance_and_improvements_pass():
@@ -246,7 +300,7 @@ def _all_keys(obj):
             yield from _all_keys(v)
 
 
-WHITELIST = {"M1", "M2", "M2_post", "M3", "M4", "M5", "M6", "M7", "num", "den", "value", "ci_low", "ci_high", "target", "pass",
+WHITELIST = {"M1", "M2", "M2_post", "M3", "M4", "M4_post", "M5", "M6", "M7", "num", "den", "value", "ci_low", "ci_high", "target", "pass",
              "components", "wrong", "invented", "omitted", "legibility", "jobs", "crashes", "RuntimeError"}
 
 
@@ -602,7 +656,8 @@ def test_committed_gate_json_equals_builtin_defaults():
     assert gate.load_config(path) == gate.load_config(None) == gate.DEFAULT_CONFIG
     raw = json.loads(path.read_text(encoding="utf-8"))
     assert raw == {"mode": "ratchet", "profile": "ci", "split": "test", "baseline": "eval/baseline.json",
-                   "tolerance": {"native": 0, "csv": 0, "scan": 1, "photo": 1, "rot90": 1}}
+                   "tolerance": {"native": 0, "csv": 0, "scan": 1, "photo": 1, "rot90": 1},
+                   "zero_tolerance": ["M2", "M2_post"]}
 
 
 # ---------------------------------------------------------------- P1 review MED-1: subset runs are never ratcheted

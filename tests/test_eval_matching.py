@@ -353,3 +353,132 @@ def test_low5_meq_rows_match_as_printed_and_never_as_mmol():
     assert m.compare(na, ext_row(na)).correct
     assert not m.unit_ok(na, ext_row(na, unit_raw="mmol/L"))
     assert m.value_ok(na, ext_row(na, unit_raw="mmol/L")) and m.range_ok(na, ext_row(na, unit_raw="mmol/L"))
+
+
+# ======================================================================== EV-04 (P2 plan 9.4, T16 F2 completion)
+# An unread line with a page and a bbox covers a GT row only on that row's page and when the line's y band overlaps
+# the row's printed line. Without geometry on either side the two-rows-per-line cap applies alone.
+from tools.eval import geometry as geo  # noqa: E402
+
+K_ROW = gt_row("potassium", 6.7, "mmol/L", 3.5, 5.1)
+K_BOX = [50.0, 100.0, 300.0, 112.0]  # the printed Potassium line, PDF points (top-left origin)
+
+
+def geo_line(text, page, bbox, index=0):
+    u = unread(text, index)
+    u.source_page, u.source_bbox = page, bbox
+    return u
+
+
+def test_ev04_unread_line_on_another_page_never_covers():
+    u = geo_line("Potassium 6.7 mmol/L", 2, [50, 100, 300, 112])  # same y band, but page 2; the GT row is on page 1
+    assert K_ROW["page"] == 1
+    assert not m.covers(u, K_ROW, K_BOX)
+    assert m.align([K_ROW], [], [u], [K_BOX]).covered == {}
+
+
+def test_ev04_same_page_without_vertical_overlap_does_not_cover():
+    far = geo_line("Potassium 6.7 mmol/L", 1, [50, 400, 300, 412])  # 288 pt below the printed line
+    touching = geo_line("Potassium 6.7 mmol/L", 1, [50, 112, 300, 124])  # shares only the edge y = 112
+    assert not m.covers(far, K_ROW, K_BOX)
+    assert not m.covers(touching, K_ROW, K_BOX)  # zero-length overlap is not overlap
+    assert m.align([K_ROW], [], [far], [K_BOX]).covered == {}
+
+
+def test_ev04_same_page_with_vertical_overlap_covers():
+    u = geo_line("Potassium 6.7 mmol/L", 1, [48, 104, 310, 116])  # y 104..116 overlaps 100..112 by 8 pt
+    assert m.covers(u, K_ROW, K_BOX)
+    a = m.align([K_ROW], [], [u], [K_BOX])
+    assert a.covered == {0: [0]} and a.unread_used == [0]
+
+
+def test_ev04_text_is_still_required_when_geometry_matches():
+    u = geo_line("Toll free 1800-000-0123", 1, [48, 104, 310, 116])
+    assert not m.covers(u, K_ROW, K_BOX)
+
+
+def test_ev04_without_geometry_only_the_two_row_cap_applies():
+    rows = twenty()
+    page = "  ".join(f"{g['name']} {g['value_text']} {g['unit']}" for g in rows)
+    # no geometry on the line (v0, csv): as before, at most two rows
+    assert len(m.align(rows, [], [unread(page)]).covered) == 2
+    # a geometric line but no mapped GT boxes (csv-like): the text test and the cap apply alone
+    u = geo_line(page, 1, [0, 0, 600, 800])
+    assert len(m.align(rows, [], [u]).covered) == 2
+    assert len(m.align(rows, [], [u], [None] * 20).covered) == 2
+    # a line without a page is geometry-less even if it has a box
+    nopage = unread(page)
+    nopage.source_bbox = [0, 0, 600, 800]
+    assert len(m.align(rows, [], [nopage], [K_BOX] * 20).covered) == 2
+
+
+def test_ev04_geometry_only_narrows_the_cap_still_holds():
+    # a tall line (y 0..800) overlaps all three printed lines and holds all three results; the cap still gives 2
+    k, na, cl_ = (gt_row("potassium", 6.7, "mmol/L", 3.5, 5.1), gt_row("sodium", 140, "mmol/L", 135, 145),
+                  gt_row("chloride", 102, "mmol/L", 98, 107))
+    boxes = [[50, 100, 300, 112], [50, 120, 300, 132], [50, 140, 300, 152]]
+    u = geo_line("Potassium 6.7 Sodium 140 Chloride 102", 1, [0, 0, 600, 800])
+    a = m.align([k, na, cl_], [], [u], boxes)
+    assert sorted(a.covered) == [0, 1]  # granted in GT order; the third stays an uncovered omission
+    # a one-line band covers only its own row
+    one = geo_line("Potassium 6.7 Sodium 140 Chloride 102", 1, [50, 121, 300, 131])
+    assert sorted(m.align([k, na, cl_], [], [one], boxes).covered) == [1]
+
+
+# ---- the GT side mapping (geometry.py), expectations worked out by hand
+
+def test_ev04_native_mapping_is_the_identity_and_csv_has_none():
+    assert geo.gt_bbox_in_input([50, 100, 300, 112], "native", None) == [50, 100, 300, 112]
+    assert geo.gt_bbox_in_input([50, 100, 300, 112], "csv", None) is None
+    assert geo.gt_bbox_in_input(None, "native", None) is None
+
+
+def test_ev04_scan_mapping_is_homography_then_72_over_dpi():
+    # H = scale 2 and translation (5, 7) in pixels; bbox x 10..20, y 100..110 -> px x 25..45, y 207..227
+    # then x 72/150 = 0.48: x 12..21.6, y 99.36..108.96
+    h = {"homography": [[2, 0, 5], [0, 2, 7], [0, 0, 1]], "dpi": 150}
+    got = geo.gt_bbox_in_input([10, 100, 20, 110], "scan", h)
+    assert got == pytest.approx([12.0, 99.36, 21.6, 108.96])
+    # the photo has no 72/dpi step: pixels
+    assert geo.gt_bbox_in_input([10, 100, 20, 110], "photo", h) == pytest.approx([25, 207, 45, 227])
+
+
+def test_ev04_rot90_mapping():
+    # +90: (x, y) -> (y, W - x) with W = 1241 px, from a 150 dpi raster (s = 150/72). A line at x 100..300, y 200..212 pt
+    # is at y' = 1241 - 2.08333 x = 616..1032.67 px and x' = 2.08333 y = 416.67..441.67 px; x 0.48 gives
+    # x' 200..212 and y' 295.68..495.68 (= 595.68 - x_pt)
+    s = 150 / 72
+    h = {"homography": [[0, s, 0], [-s, 0, 1241], [0, 0, 1]], "dpi": 150}
+    got = geo.gt_bbox_in_input([100, 200, 300, 212], "rot90", h)
+    assert got == pytest.approx([200.0, 295.68, 212.0, 495.68], abs=1e-6)
+
+
+def test_ev04_image_renderings_need_their_homography():
+    with pytest.raises(ValueError):
+        geo.gt_bbox_in_input([0, 0, 1, 1], "scan", None)
+
+
+def test_ev04_vertical_overlap_lengths():
+    assert geo.vertical_overlap([0, 100, 5, 112], [9, 104, 20, 116]) == 8.0
+    assert geo.vertical_overlap([0, 100, 5, 112], [0, 112, 5, 124]) == 0.0
+    assert geo.vertical_overlap([0, 100, 5, 112], [0, 105, 5, 107]) == 2.0  # contained
+    assert geo.vertical_overlap(None, [0, 0, 1, 1]) == 0.0
+
+
+def test_ev04_render_meta_is_read_from_the_corpus_layout(tmp_path):
+    import json
+
+    (tmp_path / "render_meta").mkdir()
+    (tmp_path / "scan").mkdir()
+    (tmp_path / "render_meta" / "T9.scan.json").write_text(json.dumps(
+        {"pages": [{"page": 1, "homography": [[2, 0, 0], [0, 2, 0], [0, 0, 1]], "dpi": 150},
+                   {"page": 2, "homography": [[1, 0, 0], [0, 1, 0], [0, 0, 1]], "dpi": 150}]}))
+    meta = geo.load_render_meta(str(tmp_path / "scan" / "T9.pdf"), "T9", "scan")
+    assert sorted(meta) == [1, 2]
+    rows = [{"page": 1, "bbox": [0, 100, 10, 110]}, {"page": 2, "bbox": [0, 100, 10, 110]}]
+    got = geo.map_gt_rows("scan", rows, meta)
+    assert got[0] == pytest.approx([0, 96, 9.6, 105.6])  # scale 2 then 0.48: x 0..9.6, y 200..220 -> 96..105.6
+    assert got[1] == pytest.approx([0, 48, 4.8, 52.8])  # x 1, then 0.48
+    assert geo.load_render_meta("x/native/T9.pdf", "T9", "native") is None
+    with pytest.raises(OSError):
+        geo.load_render_meta(str(tmp_path / "scan" / "T8.pdf"), "T8", "scan")  # never silently loosened

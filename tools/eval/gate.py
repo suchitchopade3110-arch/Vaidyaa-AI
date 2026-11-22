@@ -3,7 +3,7 @@
 Judge-side module: imports nothing from ``app`` or ``tools.eval.adapters`` (GN-11).
 
 Modes: ``none`` (compute only), ``report`` (targets shown, never fails the run), ``ratchet`` (no regression of
-the ratcheted metrics (``targets.RATCHETED``: M1-M5 and M2_post) beyond the per-rendering count tolerance, and the
+the ratcheted metrics (``targets.RATCHETED``: M1-M5, M2_post and M4_post) beyond the per-rendering count tolerance, and the
 crash count may not rise; M6 and M7 are never ratcheted) and ``targets`` (every target on the gate split, plus the
 ratchet). Targets and the ratchet are exact integer comparisons; nothing here loosens a target.
 
@@ -26,7 +26,7 @@ import hashlib
 import json
 import pathlib
 from fractions import Fraction
-from typing import Any, Mapping
+from typing import Any, Mapping, Sequence
 
 from tools.eval import targets as tg
 
@@ -35,7 +35,11 @@ MODES = ("none", "report", "ratchet", "targets")
 DEFAULT_CONFIG: dict[str, Any] = {
     "mode": "ratchet", "profile": "ci", "split": "test", "baseline": "eval/baseline.json",
     "tolerance": {"native": 0, "csv": 0, "scan": 1, "photo": 1, "rot90": 1},
+    "zero_tolerance": ["M2", "M2_post"],
 }
+# Metrics that get zero ratchet tolerance on every rendering (P1 review LOW-3, plan 9.4): one critical lost is a
+# regression even on an image rendering. A config file may add to this set but never shrink it (tighten only).
+ZERO_TOLERANCE_FLOOR = ("M2", "M2_post")
 NO_BASELINE_HINT = "no baseline; run `make eval-baseline` to record eval/baseline.json (and log a DECISIONS line)"
 REBASELINE_HINT = ("the baseline is never silently reused. If the change is deliberate, re-record with "
                    "`make eval-baseline` and add a DECISIONS line naming what changed and why.")
@@ -46,7 +50,7 @@ _REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
 # (``generate._COMMON_MODULES``). report.py and hygiene.py only format or redact counts and are left out on purpose.
 JUDGE_MODULES = (
     "tools/eval/match.py", "tools/eval/review_sim.py", "tools/eval/metrics.py", "tools/eval/targets.py",
-    "tools/eval/gate.py", "tools/eval/run.py", "tools/eval/ocr_cache.py",
+    "tools/eval/gate.py", "tools/eval/run.py", "tools/eval/ocr_cache.py", "tools/eval/geometry.py",
 )
 JUDGE_GLOBS = ("tools/eval/adapters/*.py",)  # every adapter, scorer and v0 needs_review rule
 # denominators fixed by the GT for a given corpus fingerprint and sampling (M3 and M7 depend on the extraction)
@@ -86,8 +90,10 @@ def load_config(path: str | pathlib.Path | None) -> dict[str, Any]:
         except ValueError as exc:
             raise GateConfigError(f"{path}: not valid JSON ({exc})") from exc
         tol = {**cfg["tolerance"], **data.pop("tolerance", {})}
+        zero = sorted(set(ZERO_TOLERANCE_FLOOR) | set(data.pop("zero_tolerance", [])))
         cfg.update(data)
         cfg["tolerance"] = tol
+        cfg["zero_tolerance"] = zero
     if cfg["mode"] not in MODES:
         raise GateConfigError(f"unknown gate mode {cfg['mode']!r}; known: {', '.join(MODES)}")
     return cfg
@@ -160,8 +166,10 @@ def check_denominators(current: Mapping[str, Any], baseline: Mapping[str, Any], 
 
 
 def ratchet_failures(current: Mapping[str, Any], baseline: Mapping[str, Any], split: str,
-                     tolerance: Mapping[str, int]) -> list[dict[str, Any]]:
-    """Regressions of the ratcheted metrics as counts, and any rise of the crash count. The run must cover every
+                     tolerance: Mapping[str, int], zero_tolerance: Sequence[str] = ZERO_TOLERANCE_FLOOR
+                     ) -> list[dict[str, Any]]:
+    """Regressions of the ratcheted metrics as counts, and any rise of the crash count. The per-rendering count
+    ``tolerance`` does not apply to the ``zero_tolerance`` metrics (never below ``ZERO_TOLERANCE_FLOOR``). The run must cover every
     baseline cell with the same jobs and GT denominators (``check_denominators``)."""
     cur = current["results"].get(split, {})
     base = baseline["results"].get(split)
@@ -176,9 +184,10 @@ def ratchet_failures(current: Mapping[str, Any], baseline: Mapping[str, Any], sp
         raise GateConfigError(f"baseline has no {split}/{extra[0]} cell; re-record it with `make eval-baseline`")
     check_denominators(current, baseline, split)
     fails: list[dict[str, Any]] = []
+    zero = set(ZERO_TOLERANCE_FLOOR) | set(zero_tolerance)
     for rendering in sorted(cur):
-        tol = int(tolerance.get(rendering, 0))
         for m in tg.RATCHETED:
+            tol = 0 if m in zero else int(tolerance.get(rendering, 0))
             if m not in base[rendering] or m not in cur[rendering]:
                 raise GateConfigError(f"{split}/{rendering} has no {m} in the run or the baseline; {REBASELINE_HINT}")
             c, b = cur[rendering][m], base[rendering][m]
@@ -224,7 +233,8 @@ def crash_failures(current: Mapping[str, Any]) -> list[dict[str, Any]]:
 
 
 def evaluate(mode: str, current: Mapping[str, Any], *, split: str = "test", baseline: Mapping[str, Any] | None = None,
-             tolerance: Mapping[str, int] | None = None) -> dict[str, Any]:
+             tolerance: Mapping[str, int] | None = None, zero_tolerance: Sequence[str] = ZERO_TOLERANCE_FLOOR
+             ) -> dict[str, Any]:
     """``{mode, passed, failures[]}``. ``ratchet`` and ``targets`` need a baseline (``GateConfigError`` when absent
     or incompatible). ``report`` and ``none`` never fail the run."""
     if mode not in MODES:
@@ -236,7 +246,8 @@ def evaluate(mode: str, current: Mapping[str, Any], *, split: str = "test", base
         if split not in current["results"]:
             raise GateConfigError(f"the {mode} gate needs the {split!r} split in this run")
         check_context(current, baseline, split)
-        failures += ratchet_failures(current, baseline, split, tolerance or DEFAULT_CONFIG["tolerance"])
+        failures += ratchet_failures(current, baseline, split, tolerance or DEFAULT_CONFIG["tolerance"],
+                                    zero_tolerance)
         if mode == "targets":
             failures += target_failures(current, split)
     return {"mode": mode, "passed": not failures, "failures": failures}
@@ -249,6 +260,7 @@ def exit_code(gate: Mapping[str, Any]) -> int:
 __all__ = [
     "DEFAULT_CONFIG", "EXIT_ERROR", "EXIT_GATE_FAILED", "EXIT_HYGIENE", "EXIT_OK", "GT_DENOMINATORS",
     "GateConfigError", "JUDGE_GLOBS", "JUDGE_MODULES", "MODES", "NO_BASELINE_HINT", "REBASELINE_HINT",
+    "ZERO_TOLERANCE_FLOOR",
     "check_context", "check_denominators", "crash_failures", "evaluate", "exit_code", "judge_paths", "judge_sources",
     "load_baseline", "load_config", "ratchet_failures", "target_failures",
 ]

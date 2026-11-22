@@ -20,6 +20,7 @@ from typing import Any, Sequence
 from tools.eval import units
 from tools.eval.catalogue import CATALOGUE
 from tools.eval.clinical import qualitative_class
+from tools.eval.geometry import vertical_overlap
 
 FIELDS = ("name", "value", "unit", "range", "flag")
 NOISE_TOKENS = frozenset({"serum", "plasma", "blood", "level", "test", "count", "value", "result", "s", "sr"})
@@ -476,19 +477,38 @@ class Alignment:
 UNREAD_LINE_MAX_ROWS = 2  # GT rows one unread line can cover (6.6.7)
 
 
-def covers(u: Any, g: Any) -> bool:
+def _has_box(b: Any) -> bool:
+    return isinstance(b, (list, tuple)) and len(b) == 4 and all(isinstance(v, (int, float)) for v in b)
+
+
+def covers(u: Any, g: Any, g_box: Sequence[float] | None = None) -> bool:
     """``u`` covers ``g`` if its normalised text contains g's printed value as a token (run) and at least one of
-    g's name tokens (6.6.7)."""
+    g's name tokens (6.6.7).
+
+    Geometry (P2 plan 9.4, T16 F2): when the unread line carries a page and a bbox AND ``g_box`` (the GT bbox
+    mapped into the input file's page space, ``geometry.gt_bbox_in_input``) is given, the line must also be on g's
+    page and overlap g's box vertically (positive length). A line is a band of y, so a line elsewhere on the page
+    or on another page cannot be the printed line of ``g``. Without geometry on either side the text test (and the
+    per-line cap in ``align``) applies alone, exactly as before."""
     text = field(u, "source_text") or f"{field(u, 'name_raw') or ''} {field(u, 'value_raw') or ''}"
     ut = tokens(text)
-    return contains_tokens(ut, tokens(field(g, "value_text"))) and bool(name_tokens(field(g, "name")) & set(ut))
+    if not (contains_tokens(ut, tokens(field(g, "value_text"))) and bool(name_tokens(field(g, "name")) & set(ut))):
+        return False
+    ubox, upage = field(u, "source_bbox"), field(u, "source_page")
+    if _has_box(ubox) and upage is not None and _has_box(g_box):
+        if int(upage) != int(field(g, "page")):
+            return False
+        return vertical_overlap(ubox, g_box) > 0.0
+    return True
 
 
-def align(gt_rows: Sequence[Any], extracted: Sequence[Any], unread: Sequence[Any] = ()) -> Alignment:
+def align(gt_rows: Sequence[Any], extracted: Sequence[Any], unread: Sequence[Any] = (),
+          gt_boxes: Sequence[Sequence[float] | None] | None = None) -> Alignment:
     """Greedy minimum-cost alignment of GT rows to extracted rows, then unread-line coverage (6.6).
 
     ``gt_rows`` are the rows in the job's scope (one page for a photo job); ``extracted`` are rows of kind ``row``
-    and ``unread`` the ``unread_line`` items. Candidates are stably sorted by (cost, g index, e index) and a pair is
+    and ``unread`` the ``unread_line`` items. ``gt_boxes`` (optional, one per GT row) are the GT bboxes mapped into
+    the input file's page space; they only narrow unread-line coverage (``covers``). Candidates are stably sorted by (cost, g index, e index) and a pair is
     taken when both sides are still free. Deterministic; no scipy."""
     ng, ne = len(gt_rows), len(extracted)
     scale = max(ng, ne) or 1
@@ -516,10 +536,10 @@ def align(gt_rows: Sequence[Any], extracted: Sequence[Any], unread: Sequence[Any
     # One unread line is one printed line, which holds at most two results (plan 6.6.7, "two per line"). Without this
     # bound a single page-length ``source_text`` would cover every omission and critical (review P1 F2). The stricter
     # reading is taken (a hard cap of UNREAD_LINE_MAX_ROWS GT rows per line, granted in GT order) because bboxes are
-    # not available before P2; a bbox/page overlap test may only narrow this further.
+    # not available before P2; a bbox/page overlap test (``covers``, P2) only narrows this further.
     load = [0] * len(unread)
     for gi in unmatched_gt:
-        hit = [ui for ui, u in enumerate(unread) if load[ui] < UNREAD_LINE_MAX_ROWS and covers(u, gt_rows[gi])]
+        hit = [ui for ui, u in enumerate(unread) if load[ui] < UNREAD_LINE_MAX_ROWS and covers(u, gt_rows[gi], gt_boxes[gi] if gt_boxes is not None else None)]
         if hit:
             covered[gi] = hit
             for ui in hit:

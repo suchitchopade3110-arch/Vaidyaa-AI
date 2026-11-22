@@ -20,8 +20,9 @@ The definitions are the plan's conservative reading of PRD section 3 (DECISIONS 
   does not count. Denominator: all GT critical rows.
 * M3 correct pairs / (GT rows + unmatched extracted rows): inventions count against accuracy.
 * M4 extracted CRITICAL_* rows that are unmatched or whose GT row is not critical / GT rows (before review).
-  The diagnostic M4_post counts the scorer's CRITICAL_* flags on confirmed rows that are accepted inventions or
-  stand for a non-critical GT row (the alerts v2 would raise after confirmation, P1 review LOW-1).
+* M4_post (gated and ratcheted since P2, target as M4): the scorer's CRITICAL_* flags on confirmed rows that are
+  accepted inventions or stand for a non-critical GT row, over GT rows (the false alerts v2 raises after
+  confirmation, P1 review LOW-1).
 * M5 confirmed headline (simulated clinician, then the scorer; three levels) == GT headline / jobs.
 * M6 over jobs whose GT headline is normal and whose scope has no expected-needs_review row: status ok, rows
   extracted, none flagged, no unread line, no report-level item, not review_all, pre-review headline normal.
@@ -35,11 +36,12 @@ from dataclasses import dataclass, field as dc_field
 from typing import Any, Iterable, Mapping, Sequence
 
 from tools.eval import clinical
+from tools.eval import geometry as geo
 from tools.eval import match as mt
 from tools.eval import review_sim as rs
 from tools.eval.match import CRITICAL_FLAGS, FIELDS, field
 
-METRIC_IDS = ("M1", "M2", "M2_post", "M3", "M4", "M5", "M6", "M7")
+METRIC_IDS = ("M1", "M2", "M2_post", "M3", "M4", "M4_post", "M5", "M6", "M7")
 HEADLINES = ("critical", "abnormal", "normal", "unknown")
 Z95 = 1.959963984540054  # two-sided 95% normal quantile
 TOP_SIGNATURES = 20
@@ -49,7 +51,7 @@ DECOY_OVERLAP = 0.5
 _SCALARS = (
     "jobs", "review_all_jobs", "gt_rows", "ext_rows", "unread_lines", "pairs", "correct", "unmatched_gt",
     "unmatched_ext", "covered", "m1_wrong", "m1_invented", "m1_omitted", "gt_critical", "m2_num", "m2_post_num",
-    "m4_num", "m4_post_num", "m5_num", "m5_pre_num", "m5_oracle_num", "m5_oracle_clinical_num", "m5_oracle_clinical_den", "m6_den",
+    "m4_num", "m4_post_num", "pbox_num", "pbox_den", "m5_num", "m5_pre_num", "m5_oracle_num", "m5_oracle_clinical_num", "m5_oracle_clinical_den", "m6_den",
     "m6_num", "m7_num", "m7_den", "amb_rows", "amb_flagged", "legible",
 )
 _BREAKDOWNS = (
@@ -227,8 +229,13 @@ def _legible(g: Any, raw_tokens: Sequence[str]) -> bool:
     return mt.contains_tokens(raw_tokens, mt.legible_value_tokens(g))
 
 
+def _has_geometry(r: Any) -> bool:
+    b = field(r, "source_bbox")
+    return field(r, "source_page") is not None and isinstance(b, (list, tuple)) and len(b) == 4
+
+
 def job_record(job: Any, gt: Mapping[str, Any], extraction: Any, scorer: Any, *, oracle_scorer: Any = None,
-               crash: str | None = None) -> JobRecord:
+               crash: str | None = None, render_meta: Mapping[int, Mapping[str, Any]] | None = None) -> JobRecord:
     """Score one job. ``scorer`` is the active scorer (M5, M5-oracle); ``oracle_scorer`` (the GT-rules
     ``ClinicalRulesScorer``) adds M5-oracle-clinical. ``crash`` is the exception class name when the adapter raised
     (use ``crash_record``)."""
@@ -242,7 +249,15 @@ def job_record(job: Any, gt: Mapping[str, Any], extraction: Any, scorer: Any, *,
     items = list(field(extraction, "report_review_items") or [])
     sex, age = field(job, "sex"), field(job, "age")
 
-    a = mt.align(G, E, U)
+    gt_boxes = None
+    if any(_has_geometry(x) for x in E + U):  # geometry only ever narrows coverage; v0 has none (P2 plan 9.4)
+        files = field(job, "files") or ()
+        rm = render_meta
+        if rm is None and files:
+            rm = geo.load_render_meta(str(files[0]), str(field(job, "report_id")), str(field(job, "rendering")))
+        gt_boxes = geo.map_gt_rows(str(field(job, "rendering")), G, rm)
+
+    a = mt.align(G, E, U, gt_boxes)
     checks = {p.g: mt.compare(G[p.g], E[p.e]) for p in a.pairs}
     review = rs.simulate(G, E, U, a, review_all)
     gt_h = gt_headline(gt, G, pages)
@@ -306,12 +321,21 @@ def job_record(job: Any, gt: Mapping[str, Any], extraction: Any, scorer: Any, *,
             if gi is None or not field(G[gi], "is_critical"):
                 c["m4_num"] += 1
 
-    # M4_post (diagnostic): the scorer's critical flags on confirmed rows whose GT is not critical (or none)
+    # M4_post (gated): the scorer's critical flags on confirmed rows whose GT is not critical (or none)
     for ci, f in enumerate(conf_flags):
         if ci < len(review.sources) and _is_critical_flag(f):
             gi = review.sources[ci]
             if gi is None or not field(G[gi], "is_critical"):
                 c["m4_post_num"] += 1
+
+    # P-BOX (diagnostic, plan 9.4): matched pairs whose box lies on the GT row's page and overlaps its band
+    if gt_boxes is not None:
+        for p in a.pairs:
+            e, gb = E[p.e], gt_boxes[p.g]
+            if _has_geometry(e) and gb is not None:
+                c["pbox_den"] += 1
+                c["pbox_num"] += int(int(field(e, "source_page")) == int(field(G[p.g], "page"))
+                                     and geo.vertical_overlap(field(e, "source_bbox"), gb) > 0.0)
 
     # M5 and its diagnostics
     c["m5_num"] = int(conf_h == gt_h)
@@ -403,7 +427,7 @@ def aggregate(records: Iterable[JobRecord]) -> dict[str, dict[str, dict[str, Any
 
 
 def cell_results(counts: Mapping[str, Any]) -> dict[str, Any]:
-    """M1-M7 and M2_post for one split x rendering cell, plus the M1 components, legibility, job and crash counts
+    """M1-M7, M2_post and M4_post for one split x rendering cell, plus the M1 components, legibility, job and crash counts
     (the part of a cell that heldout may report, plan 6.11). Targets and pass/fail are added by the gate."""
     c = counts
     m1 = c["m1_wrong"] + c["m1_invented"] + c["m1_omitted"]
@@ -413,6 +437,7 @@ def cell_results(counts: Mapping[str, Any]) -> dict[str, Any]:
         "M2_post": rate(c["m2_post_num"], c["gt_critical"]),
         "M3": rate(c["correct"], c["gt_rows"] + c["unmatched_ext"]),
         "M4": rate(c["m4_num"], c["gt_rows"]),
+        "M4_post": rate(c["m4_post_num"], c["gt_rows"]),
         "M5": rate(c["m5_num"], c["jobs"]),
         "M6": rate(c["m6_num"], c["m6_den"]),
         "M7": rate(c["m7_num"], c["m7_den"]),
@@ -428,7 +453,7 @@ def cell_diagnostics(counts: Mapping[str, Any]) -> dict[str, Any]:
     c = counts
     sigs = sorted(c["signatures"].items(), key=lambda kv: (-kv[1], kv[0]))
     return {
-        "M4_post": rate(c.get("m4_post_num", 0), c["gt_rows"]),
+        "P_BOX": rate(c["pbox_num"], c["pbox_den"]),
         "M5_pre": rate(c["m5_pre_num"], c["jobs"]),
         "M5_oracle": rate(c["m5_oracle_num"], c["jobs"]),
         "M5_oracle_clinical": rate(c["m5_oracle_clinical_num"], c["m5_oracle_clinical_den"]),

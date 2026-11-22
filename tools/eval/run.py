@@ -521,7 +521,8 @@ def runtime_doc(out: _Outcome, wall: float) -> dict[str, Any]:
 def apply_gate(metrics: dict[str, Any], mode: str, gate_cfg: Mapping[str, Any], baseline_path: pathlib.Path
                ) -> dict[str, Any]:
     baseline = gate.load_baseline(baseline_path) if mode in ("ratchet", "targets") else None
-    res = gate.evaluate(mode, metrics, split=gate_cfg["split"], baseline=baseline, tolerance=gate_cfg["tolerance"])
+    res = gate.evaluate(mode, metrics, split=gate_cfg["split"], baseline=baseline, tolerance=gate_cfg["tolerance"],
+                        zero_tolerance=gate_cfg["zero_tolerance"])
     metrics["gate"] = res
     return res
 

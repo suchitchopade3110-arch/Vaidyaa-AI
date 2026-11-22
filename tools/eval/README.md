@@ -64,13 +64,14 @@ missing cell exits 2 and a crashed job exits 1.
 ## Gate
 
 `eval/gate.json` is merged over the defaults in `tools/eval/gate.py` (`mode`, `profile`, `split`, `baseline`,
-`tolerance`). It currently equals the defaults: ratchet M1 to M5 and M2_post on the test split against `eval/baseline.json`,
-tolerance 0 counts for native and csv, 1 count for scan, photo and rot90, and the crash count may not rise. M6 and
+`tolerance`). It currently equals the defaults: ratchet M1 to M5, M2_post and M4_post on the test split against `eval/baseline.json`,
+tolerance 0 counts for native and csv, 1 count for scan, photo and rot90 (except `zero_tolerance`: M2 and M2_post
+get 0 on every rendering, and a config can add to that set but never shrink it), and the crash count may not rise. M6 and
 M7 are never ratcheted; they are checked only against targets in `targets` mode, which the P3 gate switches on
 (change `"mode"` to `"targets"`). Targets (`targets.py`, PRD section 3, plan 6.9) are immutable constants.
 A fingerprint, profile, sampling, shard, adapter, scorer or judge digest that differs from the baseline exits 2: the
 baseline is never silently reused. The judge digest (`gate.judge_sources`) hashes the sources that define what is
-counted: `match`, `review_sim`, `metrics`, `targets`, `gate`, `run`, `ocr_cache` and every `adapters/*.py` (the v0
+counted: `match`, `geometry`, `review_sim`, `metrics`, `targets`, `gate`, `run`, `ocr_cache` and every `adapters/*.py` (the v0
 needs_review rules included), so changing a metric definition stops the ratchet instead of passing as an
 improvement. Accepting a deliberate trade-off needs `make eval-baseline` plus a `docs/DECISIONS.md` line naming
 the metrics that moved.
@@ -88,9 +89,11 @@ the metrics that moved.
 - M5 headline on confirmed: simulated-review scoring equals the GT headline.
 - M6 normal to ready: normal-headline reports with no expected review that come out ready (target 90% on every
   rendering: PRD M6 names no rendering).
+- M4_post false alerts after confirmation (S3 final state): critical flags the scorer raises on confirmed rows that
+  are inventions or stand for a non-critical GT row, over GT rows (ratcheted; target as M4, 0.5%).
 - M7 review burden: share of extracted rows and unread items flagged needs_review.
 
-Diagnostics (M4-post, M5-pre, M5-oracle, R-NR, legibility, per-family M3, error signatures, timings) are dev and
+Diagnostics (P-BOX, M5-pre, M5-oracle, R-NR, legibility, per-family M3, error signatures, timings) are dev and
 test only, except crash counts, legibility and M1 components.
 
 ## Adapter and scorer swap point (P2, plan 14)
