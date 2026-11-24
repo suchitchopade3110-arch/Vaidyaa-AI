@@ -18,7 +18,8 @@ target_metadata = Base.metadata
 # database as the API and workers. Override with `-x db_url=...` if needed.
 _x_url = context.get_x_argument(as_dictionary=True).get("db_url")
 if _x_url:
-    config.set_main_option("sqlalchemy.url", _x_url)
+    # configparser interpolation: a URL-encoded password ("p%40ss") must not be read as "%(...)s".
+    config.set_main_option("sqlalchemy.url", _x_url.replace("%", "%%"))
 else:
     try:
         from app.core.config import settings as _settings

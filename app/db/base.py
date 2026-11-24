@@ -13,3 +13,10 @@ from app.models.organisation import Organisation, Department  # noqa
 from app.models.async_job import AsyncJobRecord  # noqa
 from app.models.consent import ConsentRecord  # noqa
 from app.models.sign_off import SignOff  # noqa
+# P2 review flow (plans/P2.md §3)
+from app.models.extraction import (  # noqa
+    ExtractedRowRecord,
+    ExtractionEdit,
+    ReportExtraction,
+    SignOffDuplicateArchive,
+)
