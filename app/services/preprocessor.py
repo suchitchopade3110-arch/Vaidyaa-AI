@@ -33,6 +33,7 @@ from pydantic import BaseModel
 import torch
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+from app.services.review.layout import DocumentLayout
 from app.services.lab_engine.analytes import REGISTRY, canon_tokens, match_analyte
 from app.services.lab_engine.evaluate import normalize_age, normalize_sex
 from app.services.lab_engine.models import ParsedRow
@@ -492,11 +493,16 @@ def _canonical_lab_line(name: str, value: float, prefix: str, unit: str,
     return build_canonical_line(name, value, prefix, unit, low, high, **extra)
 
 
-def _parse_delimited_content(content: str, default_delim: str):
+ROW_META = "@row="     # provenance meta token: 1-based physical file line of the source row (plans/P2.md 6.2)
+
+
+def _parse_delimited_content(content: str, default_delim: str, row_meta: bool = False):
     """Structured parse of a delimited lab table.
 
     Returns None when the content is not delimited (caller treats it as plain
-    text); otherwise (canonical_lines, leftover_rows, warnings)."""
+    text); otherwise (canonical_lines, leftover_rows, warnings). With ``row_meta`` every canonical line and
+    every leftover line ends with ``@row=N`` (the physical file line the row started on); the lab engine
+    ignores unknown ``@`` meta, so the rows it reads are identical."""
     import csv
     import logging
 
@@ -504,8 +510,20 @@ def _parse_delimited_content(content: str, default_delim: str):
     if delim is None:
         return None
     decimal_comma = delim == ";"
-    rows = [[c.strip() for c in r] for r in csv.reader(io.StringIO(content), delimiter=delim)]
-    rows = [r for r in rows if any(r)]
+    reader = csv.reader(io.StringIO(content), delimiter=delim)
+    rows = []
+    row_nums: List[int] = []
+    prev_end = 0
+    for r in reader:
+        start, prev_end = prev_end + 1, reader.line_num
+        cells = [c.strip() for c in r]
+        if any(cells):
+            rows.append(cells)
+            row_nums.append(start)
+    cur_rn = [0]
+
+    def _meta(text: str) -> str:
+        return f"{text} {ROW_META}{cur_rn[0]}" if row_meta else text
 
     lines: List[str] = []
     leftover: List[str] = []
@@ -558,19 +576,20 @@ def _parse_delimited_content(content: str, default_delim: str):
         if flag_cell:
             flag = normalize_flag(flag_cell.split()) or flag
         ref_unit = r["unit"] or ""
-        lines.append(_canonical_lab_line(
+        lines.append(_meta(_canonical_lab_line(
             name, number, prefix, unit or "", low, high, strict_low=r["strict_lo"], strict_high=r["strict_hi"],
-            flag=flag, ref_unit=ref_unit, text=parsed["text"] or "", sex_ranges=r["sex_ranges"]))
+            flag=flag, ref_unit=ref_unit, text=parsed["text"] or "", sex_ranges=r["sex_ranges"])))
 
     if header_idx is not None:
         for i, row in enumerate(rows):
             if i <= header_idx:
                 continue
+            cur_rn[0] = row_nums[i]
             name, value, unit, rng = cell(row, "name"), cell(row, "value"), cell(row, "unit"), cell(row, "range")
             parsed = _parse_result_cell(value, decimal_comma)
             if not name or not re.search(r"[A-Za-z]", name) or parsed is None:
                 if any(ch.isdigit() for ch in "".join(row)):
-                    leftover.append(" ".join(c for c in row if c))
+                    leftover.append(_meta(" ".join(c for c in row if c)))
                     if value and re.search(r"\d", value) and name:
                         logging.getLogger(__name__).warning("CSV lab row not parsed: %r", row)
                 continue
@@ -587,12 +606,13 @@ def _parse_delimited_content(content: str, default_delim: str):
                 analyte_cols.append((j, base, hint.group(1).strip() if hint and is_unit_token(hint.group(1)) else ""))
         if len(analyte_cols) >= 2:
             data_rows = rows[hi_ + 1:]
-            for drow in data_rows:
+            for di, drow in enumerate(data_rows):
+                cur_rn[0] = row_nums[hi_ + 1 + di]
                 for j, base, hunit in analyte_cols:
                     if j < len(drow) and drow[j]:
                         parsed = _parse_result_cell(drow[j], decimal_comma)
                         if parsed is None:
-                            leftover.append(f"{base} {drow[j]}")
+                            leftover.append(_meta(f"{base} {drow[j]}"))
                             continue
                         emit(base, parsed, hunit, "", "")
             if len(data_rows) > 1:
@@ -600,7 +620,8 @@ def _parse_delimited_content(content: str, default_delim: str):
             return lines, leftover, warnings
 
     # ---- no recognisable header: positional (name, value, unit, range), after optional id columns ----
-    for row in rows:
+    for ri, row in enumerate(rows):
+        cur_rn[0] = row_nums[ri]
         name_idx = next((k for k, c in enumerate(row) if re.search(r"[A-Za-z]", c)), None)
         parsed = None
         if name_idx is not None and all(re.fullmatch(r"\d+", c or "") for c in row[:name_idx]) \
@@ -608,7 +629,7 @@ def _parse_delimited_content(content: str, default_delim: str):
             parsed = _parse_result_cell(row[name_idx + 1], decimal_comma)
         if parsed is None or name_idx is None:
             if any(ch.isdigit() for ch in "".join(row)):
-                leftover.append(" ".join(c for c in row if c))
+                leftover.append(_meta(" ".join(c for c in row if c)))
             continue
         name = row[name_idx]
         unit, rng = parsed["unit"], ""
@@ -623,13 +644,13 @@ def _parse_delimited_content(content: str, default_delim: str):
                 unit = extra
         if not unit and not rng and not _known_analyte(name) and parsed["text"] is None:
             # "Patient ref,12345" is not a lab result.
-            leftover.append(" ".join(c for c in row if c))
+            leftover.append(_meta(" ".join(c for c in row if c)))
             continue
         emit(name, parsed, unit, rng, "")
     return lines, leftover, warnings
 
 
-def _delimited_text_to_lines(file_path: str) -> str:
+def _delimited_text_to_lines(file_path: str, row_meta: bool = False) -> str:
     """Read a CSV/TSV/TXT lab export.
 
     CSV/TSV are parsed structurally (delimiter sniffed, header columns mapped
@@ -641,7 +662,7 @@ def _delimited_text_to_lines(file_path: str) -> str:
     if file_path.lower().endswith(".txt"):
         return content
 
-    parsed = _parse_delimited_content(content, "\t" if file_path.lower().endswith(".tsv") else ",")
+    parsed = _parse_delimited_content(content, "\t" if file_path.lower().endswith(".tsv") else ",", row_meta)
     if parsed is None:
         return "\n".join(
             ln for ln in (l.strip() for l in content.splitlines()) if ln and any(ch.isdigit() for ch in ln)
@@ -661,14 +682,26 @@ def run_ocr(file_path: str) -> OcrOutput:
 
     PRD: Lab Reports (PDF) → OCR → raw text → ClinicalBERT NER
     """
+    return _run_ocr_impl(file_path, with_layout=False)[0]
+
+
+def run_ocr_with_layout(file_path: str) -> Tuple[OcrOutput, DocumentLayout]:
+    """``run_ocr`` plus the page geometry of every physical line (E7 provenance, plans/P2.md 6.2).
+
+    The returned ``OcrOutput`` is the one ``run_ocr`` returns, except that structured CSV lines also carry the
+    ``@row=N`` provenance meta (the lab engine ignores it, so the rows it reads are identical)."""
+    return _run_ocr_impl(file_path, with_layout=True)
+
+
+def _run_ocr_impl(file_path: str, with_layout: bool) -> Tuple[OcrOutput, DocumentLayout]:
     ext = os.path.splitext(file_path)[1].lower()
     if ext in (".csv", ".tsv", ".txt"):
         # Already text — no OCR. The report route accepts .csv uploads; before
         # this branch they fell through to "Unsupported OCR format", the
         # pipeline swallowed that into empty text, and an abnormal panel was
         # reported as "low risk".
-        text = _delimited_text_to_lines(file_path)
-        return OcrOutput(raw_text=text, confidence=1.0, pages=[text])
+        text = _delimited_text_to_lines(file_path, row_meta=with_layout)
+        return OcrOutput(raw_text=text, confidence=1.0, pages=[text]), DocumentLayout(kind="csv")
     if os.getenv("OCR_ENGINE", "paddle").lower() == "paddle":
         try:
             from app.services.ocr_service import extract_text_from_file
@@ -679,11 +712,17 @@ def run_ocr(file_path: str) -> OcrOutput:
                 page.get("text", "") if isinstance(page, dict) else str(page)
                 for page in pages_payload
             ] or [result.get("full_text", "")]
-            return OcrOutput(
+            out = OcrOutput(
                 raw_text=result.get("full_text", ""),
                 confidence=float(result.get("avg_confidence", 0.0) or 0.0),
                 pages=pages,
             )
+            if pages_payload:
+                layouts = [p.get("layout") if isinstance(p, dict) else None for p in pages_payload]
+            else:
+                layouts = [result.get("layout")]
+            kind = "pdf" if ext == ".pdf" else "image"
+            return out, DocumentLayout.build(kind, out.raw_text, pages, layouts)
         except Exception as exc:
             print(f"[OCR] PaddleOCR unavailable/failed: {exc}. Falling back to legacy OCR.")
 
@@ -698,7 +737,9 @@ def run_ocr(file_path: str) -> OcrOutput:
         raise ValueError(f"Unsupported OCR format: {ext}")
 
     raw_text = "\n\n--- PAGE BREAK ---\n\n".join(pages)
-    return OcrOutput(raw_text=raw_text, confidence=confidence, pages=pages)
+    out = OcrOutput(raw_text=raw_text, confidence=confidence, pages=pages)
+    # legacy fallback: no geometry (every row will then say it could not be located)
+    return out, DocumentLayout.build("pdf" if ext == ".pdf" else "image", raw_text, [], [])
 
 
 def _ocr_pdf(pdf_path: str) -> Tuple[List[str], float]:
