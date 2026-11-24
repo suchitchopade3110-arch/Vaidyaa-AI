@@ -678,9 +678,13 @@ def test_review4_pdf(monkeypatch, name):
         assert RANK[str(result.risk_label).lower()] >= RANK[label], (name, result.risk_label)
     if label == "critical":
         assert result.risk_label == "critical" and result.risk_score >= 90 and result.explanation.startswith("CRITICAL:")
-    # no merged urinalysis row may be scored as an abnormality
+    # no merged urinalysis row may be scored as an abnormality. P2 (plans/P2.md 7.4/7.7): the legacy urinalysis
+    # reader's rows are now engine-scored confirmed rows (they used to be unscored dicts with flag NORMAL and no
+    # value_type), so the safety intent is kept as "never an anomaly flag", and each such row is marked as
+    # coming from the legacy reader (provenance), which is why a clinician reviews it.
     extra = result.lab_values[len(rows):]
-    assert all(r["flag"] == "NORMAL" and r.get("value_type") is None for r in extra), (name, extra)
+    assert all(r["flag"] in ("NORMAL", "NEGATIVE", "INFO", "UNKNOWN") and r.get("origin") == "legacy_urine"
+               for r in extra), (name, extra)
 
 
 def test_pdf_qualitative_and_qualified_results(monkeypatch):

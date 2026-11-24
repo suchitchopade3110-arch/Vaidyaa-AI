@@ -330,6 +330,16 @@ def _apply_urine_pattern_rules(entities: dict[str, Any]) -> list[str]:
     return patterns
 
 
+def apply_urine_pattern_rules(entities: dict[str, Any]) -> list[str]:
+    """Urinalysis pattern rules (UTI, DKA, ...) over urine entities. Public so the confirmed-rows scorer can call it."""
+    return _apply_urine_pattern_rules(entities)
+
+
+def urine_features(entities: dict[str, Any]) -> dict[str, Any]:
+    """Feature vector of urine entities (public wrapper for the confirmed-rows scorer)."""
+    return _urine_to_features(entities)
+
+
 def _value(container: dict[str, Any], key: str) -> str:
     return str((container.get(key) or {}).get("value", "")).lower()
 

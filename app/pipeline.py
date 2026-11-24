@@ -142,6 +142,8 @@ class PipelineResponse(BaseModel):
     segmentation_overlay_path: Optional[str] = None
     patient_history: List[Dict[str, Any]] = Field(default_factory=list)
     history_comparison: Optional[Dict[str, Any]] = None
+    critical_alerts: List[Dict[str, Any]] = Field(default_factory=list)   # the engine's alerts (P2)
+    confirmed: bool = False                                                # scored from clinician-confirmed rows
     ocr_engine: Optional[str] = None
     ocr_confidence: Optional[float] = None
     ner_engine: Optional[str] = None
@@ -1277,6 +1279,19 @@ def run_image_pipeline(
 # PIPELINE 2 - REPORT ANALYSIS
 # ============================================================================
 
+_NO_LABS_MESSAGE = (
+    "Insufficient evidence: no lab values could be extracted from this report, "
+    "so no risk assessment was made. Check the file is a readable lab report "
+    "and review it manually."
+)
+
+
+def _composition_history_reader(patient_id: str, job_id: Optional[str]) -> List[Dict[str, Any]]:
+    from app.services import patient_history_service
+
+    return patient_history_service.get_patient_history_sync(patient_id, limit=5, owner_job_id=job_id)
+
+
 def run_report_pipeline(
     file_path: str,
     patient_id: Optional[str] = None,
@@ -1286,357 +1301,31 @@ def run_report_pipeline(
     age: Optional[int] = None,
     explanation_mode: str = "brief",
 ) -> PipelineResponse:
-    """PDF/CSV report -> OCR -> NER -> lab engine -> optional XGBoost/SHAP -> optional RAG.
+    """TEST/EVAL COMPOSITION - never called by a route or task (enforced by tests/test_s1_static.py).
 
-    For lab reports every row is read, unit-normalised, range-checked and
-    flagged by the deterministic lab engine; models only contribute a score
-    and explanations, and the engine's findings are a floor under the final
-    risk. `gender` / `age` may be None: they are never assumed."""
+    Extracts the report (``review.extract.extract_report``) and scores every extracted row exactly as shown
+    (``review.scoring.score_confirmed_rows``): what a clinician's unedited Confirm would produce. In production
+    the two halves run in separate tasks with the clinician's review between them (S1)."""
+    from app.services.review.extract import extract_report
+    from app.services.review.scoring import accept_as_shown, score_confirmed_rows
+
     ctx = _make_context("report", patient_id, job_id)
-    sex = normalize_sex(gender)
-    patient_age = normalize_age(age)
-    logger.info("[%s] Starting report pipeline: %s type=%s", ctx.job_id, file_path, report_type)
-
-    try:
-        validation = _validate_file_safe(file_path)
-        if not validation.valid:
-            return _build_error_response(ctx, f"Validation failed: {validation.reason}")
-
-        ocr_result = _run_ocr_safe(file_path)
-        raw_text = getattr(ocr_result, "raw_text", "") or ""
-        parsed_lab_report = _parse_column_lab_report_safe(file_path, report_type)
-        panel_type = str(parsed_lab_report.get("panel_type") or "general")
-        urine_result = None
-        try:
-            from app.services.clinical_ner_service import detect_report_type, run_clinical_pipeline
-
-            # A urine section is analysed IN ADDITION to the blood tests, never
-            # instead of them: routing the whole report to the urinalysis
-            # branch on two urine keywords dropped Hb 6.1 / K 6.9 / platelets
-            # 12k from a mixed report and returned "low risk".
-            if detect_report_type(raw_text) == "urinalysis":
-                urine_result = run_clinical_pipeline(raw_text)
-        except Exception as exc:
-            logger.warning("[%s] Urinalysis NER enrichment skipped: %s", ctx.job_id, exc)
-        ner_result = _run_ner_safe(raw_text)
-
-        analysis: Optional[LabAnalysis] = None
-        clinical_analysis = None
-        if report_type == "lab":
-            parsed_rows, unparsed_lines, parse_warnings = _lab_rows_from_report(raw_text, parsed_lab_report)
-            analysis = analyze_lab_rows(
-                parsed_rows, sex, patient_age, unparsed_numeric_lines=unparsed_lines,
-                extra_warnings=tuple(parse_warnings),
-            )
-            lab_rows = [_scored_to_row(row) for row in analysis.rows]
-            lab_dict = _engine_lab_dict(analysis, sex, patient_age)
-            clinical_analysis = analyze_blood_report(
-                lab_dict,
-                gender=sex,
-                age=patient_age,
-                anomalies=_engine_legacy_anomalies(analysis),
-                critical_alerts=analysis.critical_alerts,
-            )
-        else:
-            lab_values = _extract_lab_values_safe(raw_text, ner_result, report_type)
-            lab_rows = [_lab_value_to_row(value, gender=sex, age=patient_age) for value in lab_values]
-            lab_dict = _lab_values_to_dict(lab_values, gender=sex, age=patient_age)
-
-        entities = _ner_entities_dict(ner_result)
-        if clinical_analysis is not None:
-            entities["conditions"] = clinical_analysis["active_conditions"]
-        tabular_prediction = None
-        anomalies = []
-        risk_score = 50.0
-        risk_factors = []
-        urine_rows: List[Dict[str, Any]] = []
-        urine_anomalies: List[Dict[str, Any]] = []
-        urine_risk = 0.0
-        has_blood_rows = analysis is not None and any(_is_blood_row(row) for row in analysis.rows)
-        if urine_result:
-            urine_entities = urine_result.get("entities") or {}
-            urine_entities["_source"] = urine_result.get("model_used")
-            urine_rows = _urine_entities_to_rows(urine_entities)
-            urine_anomalies = _urine_pattern_anomalies(
-                urine_entities.get("detected_patterns") or [],
-                urine_result.get("rag_evidence") or [],
-            )
-            urine_risk = _urine_risk_from_patterns(urine_entities.get("detected_patterns") or [])
-            if has_blood_rows:
-                entities["urinalysis"] = urine_entities
-            else:
-                panel_type = "urinalysis"
-                entities = urine_entities
-                lab_rows = urine_rows
-                lab_dict = urine_result.get("features") or {}
-                anomalies = list(urine_anomalies)
-                risk_score = urine_risk
-            risk_factors = [
-                {"feature": pattern, "shap": 0.0}
-                for pattern in (urine_entities.get("detected_patterns") or [])
-            ]
-        if urine_result and not has_blood_rows:
-            tabular_prediction = {
-                "report_type": "urinalysis",
-                "features": urine_result.get("features") or {},
-                "rag_evidence": urine_result.get("rag_evidence") or [],
-                "model_used": urine_result.get("model_used"),
-            }
-
-        if analysis is not None and analysis.rows:
-            # Engine verdicts come first and never depend on a model succeeding.
-            anomalies = _engine_anomaly_dicts(analysis)
-            risk_map = {"normal": 0.0, "moderate": 30.0, "high": 70.0, "critical": 95.0}
-            risk_score = risk_map.get(str(clinical_analysis["risk_level"]).lower(), 30.0 if anomalies else 0.0)
-            risk_factors = clinical_analysis["conditions"]
-            try:
-                tabular = predict_tabular(lab_dict, raw_text)
-                tabular_prediction = to_json_safe(tabular)
-                # The model's own registry flags (male/40 defaults, no unit
-                # handling) are not shown; the engine's anomalies are.
-                tabular_prediction["anomalies"] = {}
-                if not risk_factors:
-                    risk_factors = tabular_prediction.get("top_contributors", [])
-            except Exception as exc:
-                logger.warning("[%s] XGBoost skipped/failed: %s", ctx.job_id, exc)
-
-        if report_type == "lab" and anomalies and risk_score <= 0.05:
-            risk_score = max(_fallback_risk_from_anomalies(anomalies), 30.0)
-            if risk_score <= 0.05:
-                critical = sum(1 for a in anomalies if str(a.get("severity", "")).upper() == "CRITICAL")
-                high = sum(1 for a in anomalies if str(a.get("severity", "")).upper() == "HIGH")
-                risk_score = min(95.0, 15.0 + (critical * 25.0) + (high * 15.0))
-
-        ensemble_details = None
-        if urine_result and not has_blood_rows:
-            risk_label = _confidence_label(risk_score)
-            ensemble_details = {
-                "ensemble_risk_score": risk_score,
-                "risk_label": risk_label,
-                "model_scores": {"urinalysis_rules": risk_score},
-                "model_weights": {"urinalysis_rules": 1.0},
-                "model_agreement": "rules",
-                "agreement_std_dev": 0.0,
-                "shap_values": {},
-                "top_factors": risk_factors,
-                "anomalies": anomalies,
-                "uncertainty_flag": not bool(anomalies),
-                "confidence": risk_score,
-                "models_used": ["urinalysis_rules", "urinalysis_rag"],
-            }
-        else:
-            try:
-                from app.services.ensemble_predictor import ensemble_predict
-
-                ensemble_details = ensemble_predict(
-                    ml_features=lab_dict,
-                    lab_values=_ensemble_rows(lab_rows) if analysis is not None else lab_rows,
-                    clinical_risk_level=clinical_analysis.get("risk_level") if clinical_analysis else None,
-                )
-                risk_score = float(ensemble_details.get("ensemble_risk_score", risk_score))
-                risk_label = ensemble_details.get("risk_label")
-                if analysis is not None:
-                    # The engine's anomalies are authoritative; the ensemble's
-                    # registry-based flags (male/40 defaults) are not merged in.
-                    ensemble_details["anomalies"] = anomalies
-                else:
-                    ensemble_anomalies = ensemble_details.get("anomalies") or []
-                    if ensemble_anomalies:
-                        anomalies = _deduplicate_anomalies(anomalies + ensemble_anomalies)
-                if ensemble_details.get("top_factors"):
-                    risk_factors = ensemble_details["top_factors"]
-            except Exception as exc:
-                logger.warning("[%s] Ensemble predictor skipped: %s", ctx.job_id, exc)
-                risk_label = _confidence_label(risk_score)
-
-        floor_uncertain = False
-        # A pure urinalysis report: the blood-test engine found nothing to
-        # score, and its floor must not overwrite the urinalysis verdict.
-        engine_applies = analysis is not None and (has_blood_rows or not urine_result)
-        warnings: List[str] = list(analysis.warnings) if engine_applies else []
-        if engine_applies:
-            # LAST word on risk: the engine's findings are a floor no model
-            # output can lower (critical -> >=90, high -> >=70, any anomaly ->
-            # >=40) and unassessed rows can never read as "low".
-            risk_label, risk_score, floor_uncertain = apply_risk_floor(analysis, risk_label, risk_score)
-            if str(risk_label).lower() == "critical" and not any(getattr(r, "critical", None) for r in analysis.rows):
-                # Ceiling: "critical" needs a critical value. The ensemble's
-                # sigmoid used to call a cluster of mild abnormalities (an
-                # 88-year-old's Hb 12.4 / Cr 1.4 / Na 134) "critical".
-                risk_label = "high"
-                risk_score = min(float(risk_score), 89.0) if risk_score is not None else risk_score
-            if sex is None or patient_age is None:
-                missing = " and ".join(n for n, v in (("sex", sex), ("age", patient_age)) if v is None)
-                warnings.append(
-                    f"Patient {missing} not provided: reference ranges that depend on it were not assumed, "
-                    "and the statistical risk model ran without it (its score is approximate)."
-                )
-        if urine_result and has_blood_rows:
-            panel_type = f"{panel_type}+urinalysis"
-            seen = {_lab_name_key(str(row.get("test") or "")) for row in lab_rows}
-            lab_rows = lab_rows + [r for r in urine_rows if _lab_name_key(str(r.get("test") or "")) not in seen]
-            anomalies = _deduplicate_anomalies(anomalies + urine_anomalies)
-            if urine_risk and (risk_score is None or urine_risk > float(risk_score)):
-                urine_label = _confidence_label(urine_risk)
-                if _RISK_ORDER.get(str(urine_label).lower(), 0) > _RISK_ORDER.get(str(risk_label).lower(), 0):
-                    risk_label = urine_label
-                risk_score = urine_risk
-        score_num = float(risk_score) if risk_score is not None else 0.0
-
-        try:
-            from app.services.differential_diagnosis import generate_differential, generate_explanation
-
-            differential_diagnosis = generate_differential(
-                entities=entities,
-                anomalies=anomalies,
-                risk_score=score_num,
-                report_type=report_type,
-            )
-            explanation_mode = "full" if str(explanation_mode).lower() == "full" else "brief"
-            generated_explanation = generate_explanation(
-                entities=entities,
-                anomalies=anomalies,
-                risk_score=score_num,
-                risk_label=risk_label,
-                mode=explanation_mode,
-            )
-            explanation_brief = (
-                generated_explanation
-                if explanation_mode == "brief"
-                else generate_explanation(entities, anomalies, score_num, risk_label, mode="brief")
-            )
-            explanation_full = generated_explanation if explanation_mode == "full" else None
-        except Exception as exc:
-            logger.warning("[%s] Differential diagnosis skipped: %s", ctx.job_id, exc)
-            differential_diagnosis = None
-            explanation_mode = "brief"
-            explanation_brief = None
-            explanation_full = None
-
-        rag_result = _explain_report_safe(
-            raw_text=raw_text,
-            entities=entities,
-            risk_score=score_num,
-            risk_factors=risk_factors,
-            anomalies=anomalies,
-            report_type=report_type,
-            panel_type=panel_type,
-        )
-
-        patient_history: List[Dict[str, Any]] = []
-        history_comparison = None
-        if patient_id:
-            try:
-                from app.services.patient_history_service import compare_with_latest_history, get_patient_history_sync
-
-                patient_history = get_patient_history_sync(patient_id, limit=5, owner_job_id=ctx.job_id)
-                current_for_compare = {
-                    "report_id": ctx.job_id,
-                    "risk_score": score_num,
-                    "lab_values": lab_rows,
-                    "extracted_entities": entities,
-                    "completed_at": datetime.now(timezone.utc).isoformat(),
-                }
-                history_comparison = compare_with_latest_history(current_for_compare, patient_history)
-            except Exception as exc:
-                logger.warning("[%s] Patient history comparison skipped: %s", ctx.job_id, exc)
-
-        confidence_label = (
-            tabular_prediction.get("confidence", "MEDIUM")
-            if tabular_prediction
-            else risk_label or _confidence_label(float(rag_result.get("confidence_score", 50.0)))
-        )
-
-        if engine_applies:
-            if risk_label == "unknown":
-                confidence_label = "low"
-            explanation_brief = decorate_explanation(explanation_brief, analysis)
-            explanation_full = decorate_explanation(explanation_full, analysis) if explanation_full else None
-            rag_result = dict(rag_result)
-            rag_result["explanation"] = decorate_explanation(rag_result.get("explanation"), analysis)
-            rag_result["plain_language_summary"] = decorate_explanation(
-                rag_result.get("plain_language_summary"), analysis
-            )
-
-        if report_type == "lab" and not lab_rows and not urine_result:
-            # Nothing was read from the report (unreadable scan, unsupported
-            # layout, OCR failure). Scoring an empty panel yields "low risk /
-            # no critical finding" — a false negative. Say what happened.
-            logger.warning("[%s] No lab values extracted; returning insufficient-evidence result", ctx.job_id)
-            message = (
-                "Insufficient evidence: no lab values could be extracted from this report, "
-                "so no risk assessment was made. Check the file is a readable lab report "
-                "and review it manually."
-            )
-            return PipelineResponse(
-                job_id=ctx.job_id,
-                patient_id=ctx.patient_id,
-                pipeline_type="report",
-                status="completed",
-                extracted_entities=entities,
-                lab_values=[],
-                anomalies=[],
-                warnings=warnings,
-                panel_type=panel_type,
-                verdict="Uncertain",
-                risk_score=None,
-                risk_label="unknown",
-                confidence_score=0.0,
-                confidence_label="low",
-                explanation=message,
-                plain_language_summary=message,
-                sources=[],
-                uncertainty_flag=True,
-                hallucination_flagged=False,
-                ocr_engine="text" if Path(file_path).suffix.lower() in {".csv", ".tsv", ".txt"} else "paddle",
-                ocr_confidence=getattr(ocr_result, "confidence", None),
-                processing_time_ms=ctx.elapsed_ms,
-                completed_at=datetime.now(timezone.utc).isoformat(),
-            )
-
-        return PipelineResponse(
-            job_id=ctx.job_id,
-            patient_id=ctx.patient_id,
-            pipeline_type="report",
-            status="completed",
-            tabular_prediction=tabular_prediction,
-            ensemble_details=ensemble_details,
-            extracted_entities=entities,
-            lab_values=lab_rows,
-            anomalies=anomalies,
-            warnings=warnings,
-            panel_type=panel_type,
-            verdict=rag_result["verdict"],
-            risk_score=risk_score,
-            risk_label=risk_label or confidence_label,
-            differential_diagnosis=differential_diagnosis,
-            explanation_mode=explanation_mode,
-            explanation_brief=explanation_brief,
-            explanation_full=explanation_full,
-            rag_explanation=rag_result["explanation"],
-            confidence_score=rag_result["confidence_score"],
-            confidence_label=confidence_label,
-            explanation=explanation_brief or rag_result["explanation"],
-            plain_language_summary=explanation_brief or rag_result["plain_language_summary"],
-            sources=rag_result["sources"],
-            uncertainty_flag=(
-                rag_result["uncertainty_flag"]
-                or bool((ensemble_details or {}).get("uncertainty_flag"))
-                or floor_uncertain
-            ),
-            hallucination_flagged=rag_result["hallucination_flagged"],
-            shap_top_factors=risk_factors,
-            patient_history=patient_history[:3],
-            history_comparison=history_comparison,
-            ocr_engine="paddle",
-            ocr_confidence=getattr(ocr_result, "confidence", None),
-            ner_engine="groq-llama3-ner" if os.getenv("GROQ_API_KEY") else "clinicalbert-or-regex-ner",
-            processing_time_ms=ctx.elapsed_ms,
-            completed_at=datetime.now(timezone.utc).isoformat(),
-        )
-    except Exception as exc:
-        logger.error("[%s] Report pipeline crashed: %s", ctx.job_id, traceback.format_exc())
-        return _build_error_response(ctx, str(exc))
+    logger.info("[%s] Starting report composition: type=%s", ctx.job_id, report_type)
+    extraction = extract_report(file_path, report_type, gender, age)
+    if extraction.status != "ok":
+        return _build_error_response(ctx, "Validation failed" if extraction.error_code == "FILE_INVALID"
+                                     else "The analysis failed.")
+    accepted = accept_as_shown(extraction.rows)
+    scored = score_confirmed_rows(
+        accepted, sex=gender, age=age, patient_id=patient_id, job_id=ctx.job_id, explanation_mode=explanation_mode,
+        unread_line_count=extraction.unread_count, history_reader=_composition_history_reader,
+        report_type=report_type, ocr_confidence=extraction.ocr_confidence,
+        ocr_engine="text" if extraction.file_kind == "csv" else "paddle")
+    response = scored.response
+    if not accepted and response.status == "completed":
+        response = response.model_copy(update={"explanation": _NO_LABS_MESSAGE,
+                                               "plain_language_summary": _NO_LABS_MESSAGE})
+    return response
 
 
 # ============================================================================

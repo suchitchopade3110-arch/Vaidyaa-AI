@@ -94,8 +94,15 @@ def no_ocr_boxes(monkeypatch):
     monkeypatch.setattr(ocr_service, "ocr_image", _no_boxes)
 
 
+V0_RETIRED = pytest.mark.xfail(
+    strict=True, raises=BaseException,
+    reason="P2 T10: run_report_pipeline is now extract + score (two engine passes), which pipeline_v0's fidelity "
+           "check refuses by design; v0 retires when T17 switches the default adapter (plans/P2.md 9.5). strict: "
+           "T17 must delete or re-point this test, it cannot silently pass.")
+
 # ======================================================================== HA-01: v0 rules on real engine output
 
+@V0_RETIRED
 def test_ha01_v0_rules_on_real_engine_output(v0, no_ocr_boxes, tmp_path):
     k69 = cl.derive_row("potassium", value=6.9, unit="mmol/L", printed_range=PR("two_sided", 3.5, 5.1))
     na = cl.derive_row("sodium", value=139, unit="mmol/L", printed_range=PR("two_sided", 135, 145))
@@ -141,6 +148,7 @@ def test_ha01_v0_rules_on_real_engine_output(v0, no_ocr_boxes, tmp_path):
     assert r.printed_flag == "H" and r.needs_review and "NR0-FLAGCONFLICT" in _codes(r)
 
 
+@V0_RETIRED
 def test_ha01_v0_value_type_rule_and_report_items(v0, no_ocr_boxes, tmp_path):
     """NR0-VALUETYPE (unconvertible unit; two unlabelled values) and the unread-line count as a report item."""
     multi = cl.derive_row("sodium", value=141, unit="mmol/L", printed_range=PR("two_sided", 135, 145),
@@ -201,6 +209,7 @@ def _adapter_multiset(res) -> collections.Counter:
     return got
 
 
+@V0_RETIRED
 @pytest.mark.parametrize("family,mod,index,cls,pages,sex_known", HA02_CASES,
                          ids=[f"{c[0]}-{c[2]}" for c in HA02_CASES])
 def test_ha02_fidelity_with_run_report_pipeline(v0, no_ocr_boxes, tmp_path, family, mod, index, cls, pages,
@@ -218,6 +227,7 @@ def test_ha02_fidelity_with_run_report_pipeline(v0, no_ocr_boxes, tmp_path, fami
 GOLDEN = REPO / "tests" / "fixtures" / "eval_golden"
 
 
+@V0_RETIRED
 @pytest.mark.parametrize("gt_path", sorted(GOLDEN.glob("*.gt.json")), ids=lambda p: p.name.split(".")[0])
 def test_ha02_fidelity_on_golden_reports(v0, no_ocr_boxes, gt_path):
     gt = json.loads(gt_path.read_text(encoding="utf-8"))
@@ -257,6 +267,7 @@ def _assert_fidelity(v0, path: str, sex, age, n_pages: int):
 
 # ======================================================================== HA-03: hermetic environment
 
+@V0_RETIRED
 def test_ha03_hermetic_env_and_fast_urine_report(monkeypatch, no_ocr_boxes, tmp_path):
     import app.pipeline as pipeline
     import app.services.clinical_ner_service as ner
@@ -329,6 +340,7 @@ print(json.dumps({"preimported": adapter.app_preimported, "seen": seen, "flags":
 """
 
 
+@V0_RETIRED
 def test_ha03_fresh_process_inherits_key_but_run_sees_none(tmp_path):
     pdf = _tiny_pdf(tmp_path / "k.pdf", ["Potassium 6.9 mmol/L 3.5-5.1"])
     env = {**os.environ, "GROQ_API_KEY": "dummy-not-a-real-key", "PYTHONPATH": str(REPO)}
@@ -360,6 +372,7 @@ def test_ha03_missing_settings_is_a_config_error(tmp_path):
 
 # ======================================================================== HA-04: OCR cache
 
+@V0_RETIRED
 def test_ha04_ocr_cache_second_run_makes_no_paddle_calls(monkeypatch, tmp_path):
     pytest.importorskip("paddleocr")
     import app.services.ocr_service as ocr_service
