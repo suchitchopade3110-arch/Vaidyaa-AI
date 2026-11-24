@@ -1218,17 +1218,16 @@ def _is_atomic(line: str) -> bool:
     return len(toks) <= 1 or _is_tail_cell(line)
 
 
-def reassemble_cells(lines: List[str]) -> List[str]:
-    """Join PDF text emitted one table cell per line ("Hemoglobin", "6.5",
-    "g/dL", "13.0 - 17.0") back into rows. A name cell absorbs the following
-    tail cells only when the joined text actually parses as a row."""
-    out: List[str] = []
+def reassemble_cells_traced(lines: List[str]) -> List[Tuple[str, Tuple[int, ...]]]:
+    """``reassemble_cells`` that also reports, for every output line, the indexes (into ``lines``) of the
+    physical lines it was built from."""
+    out: List[Tuple[str, Tuple[int, ...]]] = []
     n = len(lines)
     i = 0
     while i < n:
         line = lines[i]
         if parse_line(line) is not None or _is_tail_cell(line) or not re.search(r"[A-Za-z]", line):
-            out.append(line)
+            out.append((line, (i,)))
             i += 1
             continue
         j = i + 1
@@ -1237,12 +1236,19 @@ def reassemble_cells(lines: List[str]) -> List[str]:
             acc += " " + lines[j]
             j += 1
         if j > i + 1 and parse_line(acc) is not None:
-            out.append(acc)
+            out.append((acc, tuple(range(i, j))))
             i = j
         else:
-            out.append(line)
+            out.append((line, (i,)))
             i += 1
     return out
+
+
+def reassemble_cells(lines: List[str]) -> List[str]:
+    """Join PDF text emitted one table cell per line ("Hemoglobin", "6.5",
+    "g/dL", "13.0 - 17.0") back into rows. A name cell absorbs the following
+    tail cells only when the joined text actually parses as a row."""
+    return [text for text, _ in reassemble_cells_traced(lines)]
 
 
 _SECTION_WORDS = {"routine", "examination", "profile", "panel", "count", "function", "analysis", "microscopy",
@@ -1262,46 +1268,87 @@ def _is_section_heading(line: str) -> bool:
     return letters.isupper() or bool(words & _SECTION_WORDS)
 
 
-def parse_lab_text_ex(text: str, decimal_comma: bool = False) -> Tuple[List[ParsedRow], int]:
-    """Plain report text -> (rows, number of result-like lines that could not be read)."""
+@dataclass
+class TracedRow:
+    row: ParsedRow
+    line_ids: Tuple[int, ...]          # indexes into TracedParse.lines (or CSV file line numbers for @row meta)
+
+
+@dataclass
+class UnreadLine:
+    line_ids: Tuple[int, ...]
+    text: str                          # the logical line that held result-like parts that could not be read
+    count: int                         # how many such parts
+
+
+@dataclass
+class TracedParse:
+    rows: List[TracedRow] = field(default_factory=list)
+    unread: List[UnreadLine] = field(default_factory=list)
+    unread_count: int = 0
+    lines: List[str] = field(default_factory=list)       # the non-empty stripped physical lines parsed
+    warnings: List[str] = field(default_factory=list)
+    structured: bool = False                              # True for the structured-CSV format
+
+
+def parse_lab_text_traced(text: str, decimal_comma: bool = False) -> TracedParse:
+    """``parse_lab_text_ex`` that also says which physical lines every row, and every unread part, came from.
+
+    Physical lines are the non-empty stripped lines of ``text`` numbered from 0."""
     lines = [ln.strip() for ln in (text or "").splitlines()]
     lines = [ln for ln in lines if ln]
     atomic = sum(1 for ln in lines if _is_atomic(ln))
     if lines and atomic / len(lines) >= 0.3:
-        lines = reassemble_cells(lines)
+        logical = reassemble_cells_traced(lines)
+    else:
+        logical = [(ln, (i,)) for i, ln in enumerate(lines)]
     ctx = _Ctx(decimal_comma=decimal_comma)
-    rows: List[ParsedRow] = []
-    unread = 0
+    out = TracedParse(lines=lines)
     last: Optional[ParsedRow] = None       # the row a following category list ("Deficient: <20") belongs to
+    last_tr: Optional[TracedRow] = None
     i = 0
-    while i < len(lines):
-        ln = lines[i]
+    while i < len(logical):
+        ln, ids = logical[i]
         if _is_header_line(ln):
             j = i
             toks: List[str] = []
-            while j < len(lines) and _is_header_line(lines[j]):
-                toks.extend(_tokens(normalize_line(lines[j])))
+            while j < len(logical) and _is_header_line(logical[j][0]):
+                toks.extend(_tokens(normalize_line(logical[j][0])))
                 j += 1
             if j - i >= 2 or len(toks) >= 2:
                 ctx.roles = _header_roles(toks)
                 last = None
+                last_tr = None
                 i = j
                 continue
         res = _parse_internal(ln, ctx)
-        unread += res.unread
+        if res.unread:
+            out.unread_count += res.unread
+            out.unread.append(UnreadLine(ids, ln, res.unread))
         if res.rows:
-            rows.extend(res.rows)
+            trs = [TracedRow(r, ids) for r in res.rows]
+            out.rows.extend(trs)
             last = res.rows[-1] if len(res.rows) == 1 else None
+            last_tr = trs[-1] if len(res.rows) == 1 else None
         elif res.kind == "interp" and last is not None:
             last.range_options.extend(res.options)
             finalize_ranges(last)
+            if last_tr is not None:
+                last_tr.line_ids = last_tr.line_ids + ids
         else:
             if res.kind != "interp":
                 last = None
+                last_tr = None
             if _is_section_heading(ln):
                 ctx.section = normalize_line(ln).lower()
         i += 1
-    return rows, unread
+    return out
+
+
+def parse_lab_text_ex(text: str, decimal_comma: bool = False) -> Tuple[List[ParsedRow], int]:
+    """Plain report text -> (rows, number of result-like lines that could not be read)."""
+    traced = parse_lab_text_traced(text, decimal_comma)
+    return [t.row for t in traced.rows], traced.unread_count
 
 
 def parse_lab_text(text: str, decimal_comma: bool = False) -> Tuple[List[ParsedRow], int]:
@@ -1405,15 +1452,24 @@ OTHER_ROWS_MARKER = "#other-rows"
 WARN_PREFIX = "#warn "
 
 
-def parse_structured_csv(text: str) -> Optional[Tuple[List[ParsedRow], int, List[str]]]:
-    """(rows, unread_numeric_lines, warnings) for run_ocr's structured CSV
-    output, or None if `text` is not that format."""
+_ROW_META_RE = re.compile(r"\s+@row=(\d+)\s*$")
+
+
+def _split_row_meta(line: str) -> Tuple[str, Tuple[int, ...]]:
+    m = _ROW_META_RE.search(line)
+    if not m:
+        return line, ()
+    return line[:m.start()], (int(m.group(1)),)
+
+
+def parse_structured_csv_traced(text: str) -> Optional[TracedParse]:
+    """Structured CSV output of run_ocr -> TracedParse, or None if `text` is not that format.
+
+    Line ids are the 1-based physical file lines named by ``@row=N`` meta (empty when the meta is absent)."""
     lines = (text or "").lstrip().splitlines()
     if not lines or lines[0].strip() != STRUCTURED_LAB_MARKER:
         return None
-    rows: List[ParsedRow] = []
-    warnings: List[str] = []
-    unparsed = 0
+    out = TracedParse(structured=True)
     in_other = False
     for line in lines[1:]:
         s = line.strip()
@@ -1423,22 +1479,38 @@ def parse_structured_csv(text: str) -> Optional[Tuple[List[ParsedRow], int, List
             in_other = True
             continue
         if s.startswith(WARN_PREFIX):
-            warnings.append(s[len(WARN_PREFIX):].strip())
+            out.warnings.append(s[len(WARN_PREFIX):].strip())
             continue
+        s, ids = _split_row_meta(s)
         if in_other:
             if _looks_like_result_line(s):
-                unparsed += 1
+                out.unread_count += 1
+                out.unread.append(UnreadLine(ids, s, 1))
             continue
         row = parse_canonical_line(s)
         if row is not None:
-            rows.append(row)
-    return rows, unparsed, warnings
+            out.rows.append(TracedRow(row, ids))
+    return out
+
+
+def parse_structured_csv(text: str) -> Optional[Tuple[List[ParsedRow], int, List[str]]]:
+    """(rows, unread_numeric_lines, warnings) for run_ocr's structured CSV
+    output, or None if `text` is not that format."""
+    traced = parse_structured_csv_traced(text)
+    if traced is None:
+        return None
+    return [t.row for t in traced.rows], traced.unread_count, traced.warnings
+
+
+def parse_report_text_traced(text: str) -> TracedParse:
+    """Structured CSV text or plain report text -> TracedParse (rows with line ids, unread lines, warnings)."""
+    structured = parse_structured_csv_traced(text)
+    if structured is not None:
+        return structured
+    return parse_lab_text_traced(text)
 
 
 def parse_report_text(text: str) -> Tuple[List[ParsedRow], int, List[str]]:
     """Structured CSV text or plain report text -> (rows, unread lines, warnings)."""
-    structured = parse_structured_csv(text)
-    if structured is not None:
-        return structured
-    rows, unparsed = parse_lab_text(text)
-    return rows, unparsed, []
+    traced = parse_report_text_traced(text)
+    return [t.row for t in traced.rows], traced.unread_count, traced.warnings
