@@ -1,0 +1,1094 @@
+%PDF-1.4
+%“Œ‹ž ReportLab Generated PDF document (opensource)
+1 0 obj
+<<
+/F1 2 0 R /F2 3 0 R
+>>
+endobj
+2 0 obj
+<<
+/BaseFont /Helvetica /Encoding /WinAnsiEncoding /Name /F1 /Subtype /Type1 /Type /Font
+>>
+endobj
+3 0 obj
+<<
+/BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding /Name /F2 /Subtype /Type1 /Type /Font
+>>
+endobj
+4 0 obj
+<<
+/Contents 9 0 R /MediaBox [ 0 0 612 792 ] /Parent 8 0 R /Resources <<
+/Font 1 0 R /ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
+>> /Rotate 0 /Trans <<
+
+>> 
+  /Type /Page
+>>
+endobj
+5 0 obj
+<<
+/Contents 10 0 R /MediaBox [ 0 0 612 792 ] /Parent 8 0 R /Resources <<
+/Font 1 0 R /ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
+>> /Rotate 0 /Trans <<
+
+>> 
+  /Type /Page
+>>
+endobj
+6 0 obj
+<<
+/PageMode /UseNone /Pages 8 0 R /Type /Catalog
+>>
+endobj
+7 0 obj
+<<
+/Author () /CreationDate (D:20000101000000+00'00') /Creator (vaidya-eval) /Keywords () /ModDate (D:20000101000000+00'00') /Producer (ReportLab PDF Library - \(opensource\)) 
+  /Subject (unspecified) /Title (Juniper Clinical Diagnostics - Laboratory Report) /Trapped /False
+>>
+endobj
+8 0 obj
+<<
+/Count 2 /Kids [ 4 0 R 5 0 R ] /Type /Pages
+>>
+endobj
+9 0 obj
+<<
+/Length 12631
+>>
+stream
+1 0 0 1 0 0 cm  BT /F1 12 Tf 14.4 TL ET
+0 0 0 rg
+BT /F2 15 Tf 18 TL ET
+BT 1 0 0 1 36 743.6 Tm (Juniper Clinical Diagnostics) Tj T* ET
+0 0 0 rg
+BT /F1 8 Tf 9.6 TL ET
+BT 1 0 0 1 36 731.32 Tm (1827 Elmgrove Avenue, Lakeside, IL 68999) Tj T* ET
+0 0 0 rg
+BT /F1 8 Tf 9.6 TL ET
+BT 1 0 0 1 36 720.32 Tm (Phone: \(515\) 555-0120) Tj T* ET
+1 w
+0 0 0 RG
+0 0 0 rg
+n 456 734 120 24 re S
+0 0 0 rg
+BT /F2 11 Tf 13.2 TL ET
+BT 1 0 0 1 475.36 741.44 Tm (FINAL REPORT) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 40 697.84 Tm (Patient Name: Imran Sen) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 40 685.34 Tm (Age: 57 Years) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 40 672.84 Tm (Patient ID: PID-564592) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 316 697.84 Tm (Lab No: LN85337582) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 316 685.34 Tm (Sample ID: S7484748) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 316 672.84 Tm (Referred By: Dr. Nandini Sethi) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 316 660.34 Tm (Collected: 08/17/2026) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 456 660.34 Tm (Reported: 08/17/2026) Tj T* ET
+.5 w
+.9 .9 .9 RG
+.9 .9 .9 rg
+n 36 623 540 15 re f*
+0 0 0 rg
+BT /F2 9 Tf 10.8 TL ET
+BT 1 0 0 1 40 626.36 Tm (CBC With Differential) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 36 612.32 Tm (Test) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 194.44 612.32 Tm (Current Result) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 268 612.32 Tm (Flag) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 322 612.32 Tm (Reference Interval) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 440 612.32 Tm (Units) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 520 612.32 Tm (Lab) Tj T* ET
+.6 w
+0 0 0 RG
+0 0 0 rg
+n 36 609 m 576 609 l S
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 36 593.34 Tm (WBC) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 238.19 593.34 Tm (6.1) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 322 593.34 Tm (4.5-11.0) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 440 593.34 Tm (x10\263/\265L) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 520 593.34 Tm (01) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 36 575.96 Tm (RBC Count) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 233.46 575.96 Tm (4.85) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 322 575.96 Tm (Male: 4.50-5.50) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 322 565.59 Tm (Female: 3.80-4.80) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 440 575.96 Tm (million/\265L) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 520 575.96 Tm (01) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 36 548.21 Tm (Hemoglobin) Tj T* ET
+0 0 0 rg
+BT /F2 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 233.46 548.21 Tm (22.8) Tj T* ET
+0 0 0 rg
+BT /F2 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 268 548.21 Tm (HH) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 322 548.21 Tm (Male: 13.0-18.0) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 322 537.84 Tm (Female: 11.5-16.5) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 440 548.21 Tm (gm%) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 520 548.21 Tm (01) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 36 520.46 Tm (MCH) Tj T* ET
+0 0 0 rg
+BT /F2 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 233.46 520.46 Tm (47.0) Tj T* ET
+0 0 0 rg
+BT /F2 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 268 520.46 Tm (H) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 322 520.46 Tm (27.0-32.0) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 440 520.46 Tm (pg) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 520 520.46 Tm (01) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 36 503.08 Tm (RDW) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 233.46 503.08 Tm (13.1) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 322 503.08 Tm (11.5-14.5) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 440 503.08 Tm (%) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 520 503.08 Tm (01) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 36 485.7 Tm (PLT) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 235.82 485.7 Tm (210) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 322 485.7 Tm (150-450) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 440 485.7 Tm (10\263/\265L) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 520 485.7 Tm (01) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 36 468.32 Tm (Neutrophils) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 240.55 468.32 Tm (72) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 322 468.32 Tm (40-80) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 440 468.32 Tm (%) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 520 468.32 Tm (01) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 36 450.94 Tm (Lymphocytes) Tj T* ET
+0 0 0 rg
+BT /F2 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 240.55 450.94 Tm (42) Tj T* ET
+0 0 0 rg
+BT /F2 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 268 450.94 Tm (H) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 322 450.94 Tm (20-40) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 440 450.94 Tm (%) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 520 450.94 Tm (01) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 36 433.56 Tm (Monocytes) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 245.27 433.56 Tm (6) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 322 433.56 Tm (2-10) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 440 433.56 Tm (%) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 520 433.56 Tm (01) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 36 416.18 Tm (Eosinophils) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 245.27 416.18 Tm (2) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 322 416.18 Tm (1-6) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 440 416.18 Tm (%) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 520 416.18 Tm (01) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 36 398.8 Tm (Basophils) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 245.27 398.8 Tm (1) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 322 398.8 Tm (0-2) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 440 398.8 Tm (%) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 520 398.8 Tm (01) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 36 381.42 Tm (Absolute Neutrophil Count) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 233.46 381.42 Tm (4.39) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 322 381.42 Tm (2.00-7.00) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 440 381.42 Tm (10\263/\265L) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 520 381.42 Tm (01) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 36 364.04 Tm (Absolute Lymphocyte Count) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 233.46 364.04 Tm (2.56) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 322 364.04 Tm (1.00-3.00) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 440 364.04 Tm (10\263/\265L) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 520 364.04 Tm (01) Tj T* ET
+.5 w
+.9 .9 .9 RG
+.9 .9 .9 rg
+n 36 335.3261 540 15 re f*
+0 0 0 rg
+BT /F2 9 Tf 10.8 TL ET
+BT 1 0 0 1 40 338.69 Tm (Cardiac Markers) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 36 324.65 Tm (Test) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 194.44 324.65 Tm (Current Result) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 268 324.65 Tm (Flag) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 322 324.65 Tm (Reference Interval) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 440 324.65 Tm (Units) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 520 324.65 Tm (Lab) Tj T* ET
+.6 w
+0 0 0 RG
+0 0 0 rg
+n 36 321.3261 m 576 321.3261 l S
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 36 305.66 Tm (Creatine Kinase \(CK\)) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 235.82 305.66 Tm (153) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 322 305.66 Tm (30-200) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 440 305.66 Tm (U/L) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 520 305.66 Tm (01) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 36 288.28 Tm (CK-MB) Tj T* ET
+0 0 0 rg
+BT /F2 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 240.55 288.28 Tm (27) Tj T* ET
+0 0 0 rg
+BT /F2 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 268 288.28 Tm (H) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 322 288.28 Tm (< 25) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 440 288.28 Tm (U/L) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 520 288.28 Tm (01) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 36 270.9 Tm (Troponin I) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 226.13 270.9 Tm (< 0.01) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 322 270.9 Tm (< 0.04) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 440 270.9 Tm (ng/mL) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 520 270.9 Tm (01) Tj T* ET
+.5 w
+.9 .9 .9 RG
+.9 .9 .9 rg
+n 36 242.1875 540 15 re f*
+0 0 0 rg
+BT /F2 9 Tf 10.8 TL ET
+BT 1 0 0 1 40 245.55 Tm (Blood Gases, Arterial) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 36 231.51 Tm (Test) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 194.44 231.51 Tm (Current Result) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 268 231.51 Tm (Flag) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 322 231.51 Tm (Reference Interval) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 440 231.51 Tm (Units) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 520 231.51 Tm (Lab) Tj T* ET
+.6 w
+0 0 0 RG
+0 0 0 rg
+n 36 228.1875 m 576 228.1875 l S
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 36 212.52 Tm (Blood pH) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 233.46 212.52 Tm (7.40) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 322 212.52 Tm (7.35-7.45) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 520 212.52 Tm (01) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 36 195.14 Tm (pCO2) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 240.55 195.14 Tm (43) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 322 195.14 Tm (35-45) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 440 195.14 Tm (mmHg) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 520 195.14 Tm (01) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 36 177.76 Tm (pO2) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 240.55 177.76 Tm (90) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 322 177.76 Tm (80-100) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 440 177.76 Tm (mmHg) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 520 177.76 Tm (01) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 36 160.38 Tm (Total CO2) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 240.55 160.38 Tm (24) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 322 160.38 Tm (22-29) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 440 160.38 Tm (mEq/L) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 520 160.38 Tm (01) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 36 143 Tm (Base Excess) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 238.19 143 Tm (0.9) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 322 143 Tm (-2.0-2.0) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 440 143 Tm (mmol/L) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 520 143 Tm (01) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 36 125.63 Tm (Ionized Calcium) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 233.46 125.63 Tm (1.14) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 322 125.63 Tm (1.12-1.32) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 440 125.63 Tm (mmol/L) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 520 125.63 Tm (01) Tj T* ET
+.4 w
+.4 .4 .4 RG
+.4 .4 .4 rg
+n 36 81 m 576 81 l S
+0 0 0 rg
+BT /F1 7 Tf 8.4 TL ET
+BT 1 0 0 1 36 71.28 Tm (Tel: \(515\) 555-0120) Tj T* ET
+0 0 0 rg
+BT /F1 7 Tf 8.4 TL ET
+BT 1 0 0 1 166 71.28 Tm (Toll Free: \(800\) 555-0177) Tj T* ET
+0 0 0 rg
+BT /F1 7 Tf 8.4 TL ET
+BT 1 0 0 1 497.41 71.28 Tm (Turnaround time: 6 hours) Tj T* ET
+0 0 0 rg
+BT /F1 7 Tf 8.4 TL ET
+BT 1 0 0 1 36 61.48 Tm (Accreditation Cert. No. FA-6100) Tj T* ET
+0 0 0 rg
+BT /F2 7 Tf 8.4 TL ET
+BT 1 0 0 1 539.04 61.48 Tm (Page 1 of 2) Tj T* ET
+0 0 0 rg
+BT /F1 7 Tf 8.4 TL ET
+BT 1 0 0 1 36 51.68 Tm (Juniper Clinical Diagnostics, 1827 Elmgrove Avenue, Lakeside, IL 68999  |  info@juniper.example.org) Tj T* ET
+ 
+endstream
+endobj
+10 0 obj
+<<
+/Length 12445
+>>
+stream
+1 0 0 1 0 0 cm  BT /F1 12 Tf 14.4 TL ET
+.5 w
+.82 .82 .82 RG
+.82 .82 .82 rg
+n
+56 748 m
+56 753.5228 51.52285 758 46 758 c
+40.47715 758 36 753.5228 36 748 c
+36 742.4772 40.47715 738 46 738 c
+51.52285 738 56 742.4772 56 748 c
+f*
+.8 w
+.25 .25 .25 RG
+.25 .25 .25 rg
+n
+56 748 m
+56 753.5228 51.52285 758 46 758 c
+40.47715 758 36 753.5228 36 748 c
+36 742.4772 40.47715 738 46 738 c
+51.52285 738 56 742.4772 56 748 c
+S
+.8 w
+.25 .25 .25 RG
+.25 .25 .25 rg
+n 40.5 742.5 11 11 re S
+0 0 0 rg
+BT /F2 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 40.57 744.04 Tm (JC) Tj T* ET
+0 0 0 rg
+BT /F2 10 Tf 12 TL ET
+BT 1 0 0 1 64 746.4 Tm (Juniper Clinical Diagnostics) Tj T* ET
+0 0 0 rg
+BT /F1 8 Tf 9.6 TL ET
+BT 1 0 0 1 493.74 748.32 Tm (Patient ID: PID-564592) Tj T* ET
+0 0 0 rg
+BT /F1 8 Tf 9.6 TL ET
+BT 1 0 0 1 64 734.32 Tm (Patient Name: Imran Sen) Tj T* ET
+0 0 0 rg
+BT /F1 8 Tf 9.6 TL ET
+BT 1 0 0 1 499.95 734.32 Tm (Lab No: LN85337582) Tj T* ET
+.6 w
+0 0 0 RG
+0 0 0 rg
+n 36 720 m 576 720 l S
+.5 w
+.9 .9 .9 RG
+.9 .9 .9 rg
+n 36 697 540 15 re f*
+0 0 0 rg
+BT /F2 9 Tf 10.8 TL ET
+BT 1 0 0 1 40 700.36 Tm (Hemoglobin A1c) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 36 686.32 Tm (Test) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 194.44 686.32 Tm (Current Result) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 268 686.32 Tm (Flag) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 322 686.32 Tm (Reference Interval) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 440 686.32 Tm (Units) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 520 686.32 Tm (Lab) Tj T* ET
+.6 w
+0 0 0 RG
+0 0 0 rg
+n 36 683 m 576 683 l S
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 36 667.34 Tm (HbA1c) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 238.19 667.34 Tm (4.4) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 322 667.34 Tm (< 5.7) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 440 667.34 Tm (%) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 520 667.34 Tm (01) Tj T* ET
+.5 w
+.9 .9 .9 RG
+.9 .9 .9 rg
+n 36 638.6205 540 15 re f*
+0 0 0 rg
+BT /F2 9 Tf 10.8 TL ET
+BT 1 0 0 1 40 641.98 Tm (Vitamins) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 36 627.94 Tm (Test) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 194.44 627.94 Tm (Current Result) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 268 627.94 Tm (Flag) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 322 627.94 Tm (Reference Interval) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 440 627.94 Tm (Units) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 520 627.94 Tm (Lab) Tj T* ET
+.6 w
+0 0 0 RG
+0 0 0 rg
+n 36 624.6205 m 576 624.6205 l S
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 36 608.96 Tm (Vitamin B12) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 235.82 608.96 Tm (750) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 322 608.96 Tm (200-900) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 440 608.96 Tm (pg/mL) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 520 608.96 Tm (01) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 36 591.58 Tm (Folate) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 238.19 591.58 Tm (7.8) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 322 591.58 Tm (2.7-17.0) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 440 591.58 Tm (ng/mL) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 520 591.58 Tm (01) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 36 574.2 Tm (Vitamin D, 25-Hydroxy) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 233.46 574.2 Tm (37.3) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 322 574.2 Tm (30.0-100.0) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 440 574.2 Tm (ng/mL) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 520 574.2 Tm (01) Tj T* ET
+.5 w
+.9 .9 .9 RG
+.9 .9 .9 rg
+n 36 545.4819 540 15 re f*
+0 0 0 rg
+BT /F2 9 Tf 10.8 TL ET
+BT 1 0 0 1 40 548.84 Tm (Special Chemistry) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 36 534.8 Tm (Test) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 194.44 534.8 Tm (Current Result) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 268 534.8 Tm (Flag) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 322 534.8 Tm (Reference Interval) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 440 534.8 Tm (Units) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 520 534.8 Tm (Lab) Tj T* ET
+.6 w
+0 0 0 RG
+0 0 0 rg
+n 36 531.4819 m 576 531.4819 l S
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 36 515.82 Tm (C Reactive Protein) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 238.19 515.82 Tm (4.8) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 322 515.82 Tm (0.0-6.0) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 440 515.82 Tm (mg/L) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 520 515.82 Tm (01) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 36 498.44 Tm (LDH) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 235.82 498.44 Tm (224) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 322 498.44 Tm (140-280) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 440 498.44 Tm (U/L) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 520 498.44 Tm (01) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 36 481.06 Tm (Amylase) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 240.55 481.06 Tm (73) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 322 481.06 Tm (28-100) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 440 481.06 Tm (U/L) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 520 481.06 Tm (01) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 36 463.68 Tm (Lipase) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 240.55 463.68 Tm (47) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 322 463.68 Tm (13-60) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 440 463.68 Tm (U/L) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 520 463.68 Tm (01) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 36 446.3 Tm (PSA, Total) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 233.46 446.3 Tm (3.17) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 322 446.3 Tm (Male: < 4.00) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 440 446.3 Tm (ng/mL) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 520 446.3 Tm (01) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 36 428.92 Tm (Procalcitonin) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 233.46 428.92 Tm (0.07) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 322 428.92 Tm (< 0.10) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 440 428.92 Tm (ng/mL) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 520 428.92 Tm (01) Tj T* ET
+.5 w
+.9 .9 .9 RG
+.9 .9 .9 rg
+n 36 400.2047 540 15 re f*
+0 0 0 rg
+BT /F2 9 Tf 10.8 TL ET
+BT 1 0 0 1 40 403.56 Tm (Thyroid Panel) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 36 389.52 Tm (Test) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 194.44 389.52 Tm (Current Result) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 268 389.52 Tm (Flag) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 322 389.52 Tm (Reference Interval) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 440 389.52 Tm (Units) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 520 389.52 Tm (Lab) Tj T* ET
+.6 w
+0 0 0 RG
+0 0 0 rg
+n 36 386.2047 m 576 386.2047 l S
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 36 370.54 Tm (Total T3) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 235.82 370.54 Tm (166) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 322 370.54 Tm (80-200) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 440 370.54 Tm (ng/dL) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 520 370.54 Tm (01) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 36 353.16 Tm (Total T4) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 238.19 353.16 Tm (6.0) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 322 353.16 Tm (5.0-12.0) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 440 353.16 Tm (\265g/dL) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 520 353.16 Tm (01) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 36 335.78 Tm (Thyroid Stimulating Hormone \(TSH\)) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 233.46 335.78 Tm (2.66) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 322 335.78 Tm (0.27-4.20) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 440 335.78 Tm (\265IU/mL) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 520 335.78 Tm (01) Tj T* ET
+.5 w
+.9 .9 .9 RG
+.9 .9 .9 rg
+n 36 307.0661 540 15 re f*
+0 0 0 rg
+BT /F2 9 Tf 10.8 TL ET
+BT 1 0 0 1 40 310.43 Tm (Comprehensive Metabolic Panel) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 36 296.39 Tm (Test) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 194.44 296.39 Tm (Current Result) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 268 296.39 Tm (Flag) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 322 296.39 Tm (Reference Interval) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 440 296.39 Tm (Units) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 520 296.39 Tm (Lab) Tj T* ET
+.6 w
+0 0 0 RG
+0 0 0 rg
+n 36 293.0661 m 576 293.0661 l S
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 36 277.4 Tm (Potassium) Tj T* ET
+0 0 0 rg
+BT /F2 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 238.19 277.4 Tm (2.3) Tj T* ET
+0 0 0 rg
+BT /F2 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 268 277.4 Tm (LL) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 322 277.4 Tm (3.5-5.1) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 440 277.4 Tm (mEq/L) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 520 277.4 Tm (01) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 36 260.02 Tm (Calcium) Tj T* ET
+0 0 0 rg
+BT /F2 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 233.46 260.02 Tm (13.7) Tj T* ET
+0 0 0 rg
+BT /F2 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 268 260.02 Tm (HH) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 322 260.02 Tm (8.8-10.4) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 440 260.02 Tm (mg/dL) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 520 260.02 Tm (01) Tj T* ET
+.5 w
+.9 .9 .9 RG
+.9 .9 .9 rg
+n 36 231.307 540 15 re f*
+0 0 0 rg
+BT /F2 9 Tf 10.8 TL ET
+BT 1 0 0 1 40 234.67 Tm (Hepatic Function Panel) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 36 220.63 Tm (Test) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 194.44 220.63 Tm (Current Result) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 268 220.63 Tm (Flag) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 322 220.63 Tm (Reference Interval) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 440 220.63 Tm (Units) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 520 220.63 Tm (Lab) Tj T* ET
+.6 w
+0 0 0 RG
+0 0 0 rg
+n 36 217.307 m 576 217.307 l S
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 36 201.64 Tm (AST \(SGOT\)) Tj T* ET
+0 0 0 rg
+BT /F2 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 245.27 201.64 Tm (8) Tj T* ET
+0 0 0 rg
+BT /F2 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 268 201.64 Tm (L) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 322 201.64 Tm (10-40) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 440 201.64 Tm (U/L) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 520 201.64 Tm (01) Tj T* ET
+0 0 0 rg
+BT /F2 7.5 Tf 9 TL ET
+BT 1 0 0 1 36 180.73 Tm (Footnotes:) Tj T* ET
+0 0 0 rg
+BT /F1 7.5 Tf 9 TL ET
+BT 1 0 0 1 36 169.73 Tm (01 = Main Laboratory, 1827 Elmgrove Avenue, Lakeside, IL 68999) Tj T* ET
+0 0 0 rg
+BT /F1 7.5 Tf 9 TL ET
+BT 1 0 0 1 36 158.73 Tm (** Fasting specimen recommended for glucose and lipid tests.) Tj T* ET
+.4 w
+.4 .4 .4 RG
+.4 .4 .4 rg
+n 36 81 m 576 81 l S
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 268 70.32 Tm (*** End of Report ***) Tj T* ET
+0 0 0 rg
+BT /F1 7 Tf 8.4 TL ET
+BT 1 0 0 1 394.45 60.08 Tm (Dr. Meena Ferreira, MD \(Pathology\)  |  Reg. No. FX-60222) Tj T* ET
+0 0 0 rg
+BT /F1 7 Tf 8.4 TL ET
+BT 1 0 0 1 36 50.28 Tm (Tel: \(515\) 555-0120) Tj T* ET
+0 0 0 rg
+BT /F1 7 Tf 8.4 TL ET
+BT 1 0 0 1 166 50.28 Tm (Toll Free: \(800\) 555-0177) Tj T* ET
+0 0 0 rg
+BT /F1 7 Tf 8.4 TL ET
+BT 1 0 0 1 497.41 50.28 Tm (Turnaround time: 6 hours) Tj T* ET
+0 0 0 rg
+BT /F1 7 Tf 8.4 TL ET
+BT 1 0 0 1 36 40.48 Tm (Accreditation Cert. No. FA-6100) Tj T* ET
+0 0 0 rg
+BT /F2 7 Tf 8.4 TL ET
+BT 1 0 0 1 539.04 40.48 Tm (Page 2 of 2) Tj T* ET
+0 0 0 rg
+BT /F1 7 Tf 8.4 TL ET
+BT 1 0 0 1 36 30.68 Tm (Juniper Clinical Diagnostics, 1827 Elmgrove Avenue, Lakeside, IL 68999  |  info@juniper.example.org) Tj T* ET
+ 
+endstream
+endobj
+xref
+0 11
+0000000000 65535 f 
+0000000061 00000 n 
+0000000102 00000 n 
+0000000209 00000 n 
+0000000321 00000 n 
+0000000514 00000 n 
+0000000708 00000 n 
+0000000776 00000 n 
+0000001070 00000 n 
+0000001135 00000 n 
+0000013818 00000 n 
+trailer
+<<
+/ID 
+[<2d69579740723dd50b075c6abfa4fe4a><2d69579740723dd50b075c6abfa4fe4a>]
+% ReportLab generated PDF document -- digest (opensource)
+
+/Info 7 0 R
+/Root 6 0 R
+/Size 11
+>>
+startxref
+26316
+%%EOF

@@ -1,0 +1,65 @@
+male|WBC thousands normal
+WBC 7.2 10^3/µL 4.0 - 11.0
+Platelets 250 10^3/µL 150 - 400
+Hemoglobin 14.5 g/dL 13.0 - 17.0
+---
+male|WBC 900 /uL true leukopenia
+WBC 900 /µL 4000 - 11000
+---
+male|ANC 500 neutropenia
+Neutrophils Absolute 500 /µL 1800 - 7700
+Lymphocytes Absolute 600 /µL 1000 - 4800
+---
+male|Platelets 15000 /uL
+Platelet Count 15000 /µL 150000 - 450000
+---
+male|Platelets 15 x10^3
+Platelet Count 15 10^3/µL 150 - 450
+---
+male|Platelets lakhs
+Platelet Count 0.15 lakhs/cumm 1.5 - 4.5
+---
+male|VLDL high
+VLDL Cholesterol 95 mg/dL 5 - 40
+Non-HDL Cholesterol 210 mg/dL 0 - 130
+---
+male|urea vs BUN
+Blood Urea 60 mg/dL 15 - 45
+Urea 12 mmol/L 2.5 - 7.1
+---
+male|PP glucose
+PP Glucose 135 mg/dL 70 - 140
+Post Prandial Blood Sugar 240 mg/dL 70 - 140
+---
+male|free thyroid
+Free T4 0.4 ng/dL 0.8 - 1.8
+Free T3 1.0 pg/mL 2.3 - 4.2
+T3 Total 40 ng/dL 80 - 200
+T4 Total 2.0 µg/dL 5 - 12
+---
+male|calcium mmol
+Calcium 3.6 mmol/L 2.15 - 2.55
+Magnesium 0.4 mmol/L 0.7 - 1.0
+---
+male|troponin
+Troponin I 2.5 ng/mL 0.00 - 0.04
+Troponin T 500 ng/L 0 - 14
+hs Troponin I 850 ng/L 0 - 34
+---
+male|INR and PT
+INR 6.5 0.8 - 1.2
+PT 45 sec 11 - 13.5
+---
+male|HbA1c IFCC
+HbA1c 75 mmol/mol 20 - 42
+---
+male|creatinine critical variants
+S. Creatinine 12.5 mg/dL 0.7 - 1.3
+Serum Potassium 7.1 mmol/L 3.5 - 5.1
+Serum Sodium 112 mmol/L 135 - 145
+Random Blood Sugar 520 mg/dL 70 - 140
+---
+male|vit D
+25-OH Vitamin D 8 ng/mL 30 - 100
+Vitamin D 20 nmol/L 75 - 250
+Vitamin B12 90 pmol/L 150 - 700

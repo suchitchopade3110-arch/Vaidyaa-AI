@@ -1,0 +1,121 @@
+male|C1 by-method serology
+HBsAg by ELISA Reactive
+Anti HCV by CMIA Reactive
+Dengue NS1 Antigen by ELISA Positive
+Hemoglobin 14.1 g/dL 13.0-17.0
+---
+male|C1b HIV numbered alone
+HIV 1 & 2 Antibodies Reactive
+---
+male|C2 Lal names
+GLUCOSE, POST PRANDIAL (PP), 2 HOURS, PLASMA 135.00 mg/dL 70.00 - 140.00
+VITAMIN B12; CYANOCOBALAMIN, SERUM 90.00 pg/mL 211.00 - 946.00
+GLUCOSE, FASTING (F), PLASMA 320.00 mg/dL 70.00 - 100.00
+HbA1c (GLYCOSYLATED HEMOGLOBIN), BLOOD 9.4 % 4.00 - 5.60
+THYROID STIMULATING HORMONE (TSH), ULTRASENSITIVE 25.0 µIU/mL 0.55 - 4.78
+TOTAL IRON BINDING CAPACITY (TIBC) 520 µg/dL 250 - 425
+---
+male|C3 mixed blood + urine routine
+COMPLETE BLOOD COUNT
+Hemoglobin 6.1 g/dL 13.0-17.0
+Platelet Count 12000 /cumm 150000-450000
+Serum Potassium 6.9 mmol/L 3.5-5.1
+URINE ROUTINE EXAMINATION
+Colour Pale Yellow
+Appearance Clear
+Specific Gravity 1.020 1.005-1.030
+pH 6.0 4.6-8.0
+Urine Protein Nil
+Urine Glucose Nil
+Pus Cells 2-3 /hpf 0-5
+Epithelial Cells 1-2 /hpf
+RBC Nil /hpf
+Leukocyte Esterase Negative
+Nitrite Negative
+---
+male|C4 page / header lines only + normal rows
+Page 1 of 2
+Hemoglobin 14.1 g/dL 13.0-17.0
+WBC 7200 /uL 4000-11000
+---
+male|C4b header
+LIPID PROFILE (8 parameters)
+Total Cholesterol 180 mg/dL <200
+---
+male|C4c header
+Kidney Function Test 2
+Creatinine 1.0 mg/dL 0.7-1.3
+---
+male|C5 cell per line interpretive
+25-OH Vitamin D
+12
+ng/mL
+Deficiency: <20
+Insufficiency: 20-29
+Sufficiency: 30-100
+eGFR
+12
+mL/min/1.73m2
+Kidney failure: <15
+---
+male|C6 normal full
+Hemoglobin 14.5 g/dL 13.0 - 17.0
+WBC 7200 /uL 4000 - 11000
+Platelet Count 250000 /uL 150000 - 450000
+Sodium 140 mmol/L 135 - 145
+Potassium 4.2 mmol/L 3.5 - 5.1
+Creatinine 1.0 mg/dL 0.7 - 1.3
+---
+male|C7 mild only
+Hemoglobin 12.8 g/dL 13.0 - 17.0
+Sodium 140 mmol/L 135 - 145
+---
+none,none|C8 no sex/age no ranges
+Hemoglobin 12.4 g/dL
+Creatinine 1.25 mg/dL
+Sodium 140 mmol/L
+---
+female,none|C8b sex, no age, no ranges
+Hemoglobin 9.4 g/dL
+Sodium 140 mmol/L
+---
+none,none|C8c no sex/age: normal electrolytes only
+Sodium 140 mmol/L
+Potassium 4.2 mmol/L
+---
+male|C9 unreadable garbage
+asdf qwer zxcv
+lorem ipsum dolor
+---
+male|C9b numeric garbage
+Hemogl0bin 6.l g/dL
+P0tassium 6,9 mmol/L
+---
+male|C10 unknown analyte abnormal by printed flag only
+Lactate 8.5 mmol/L H
+Ammonia 220 umol/L
+Digoxin 4.2 ng/mL 0.8-2.0
+---
+male|C11 qualified criticals
+Glucose <20 mg/dL 70-100
+Potassium >8.0 mmol/L 3.5-5.1
+Platelet Count <10 x10^3/uL 150-410
+Hemoglobin <5.0 g/dL
+---
+male|C12 border values
+Potassium 6.0 mmol/L
+Hemoglobin 7.0 g/dL
+Glucose 50 mg/dL
+Sodium 125 mmol/L
+INR 3.0
+---
+male|C13 OCR-ish spacing & colon
+Hemoglobin : 6.1 g/dL ( 13.0 - 17.0 )
+S.Potassium: 6.9 mEq/L (3.5 - 5.1)
+Sr. Creatinine - 12.5 mg/dl ( 0.7 - 1.3 )
+B. Urea : 210 mg/dl (15-45)
+T. Bilirubin 12.5 mg/dl (0.2-1.2)
+S.G.P.T 400 IU/L (upto 40)
+S.G.O.T. 380 IU/L (upto 40)
+Hb% 6.1 gm%
+TLC 800 /cmm

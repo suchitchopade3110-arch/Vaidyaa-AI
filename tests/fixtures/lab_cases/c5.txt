@@ -1,0 +1,37 @@
+male|direct bilirubin word order
+Bilirubin Direct 1.0 mg/dL 0.0 - 0.3
+Bilirubin Indirect 0.4 mg/dL 0.2 - 0.9
+---
+male|MCHC spelled out
+Mean Corpuscular Hemoglobin Concentration 33.0 g/dL 32.0 - 36.0
+Mean Corpuscular Volume 88 fL 80 - 100
+---
+male|ionized calcium
+Ionized Calcium 1.20 mmol/L 1.10 - 1.30
+---
+male|urine creatinine and ratios
+Urine Creatinine 150 mg/dL 20 - 320
+BUN/Creatinine Ratio 15 ratio 10 - 20
+---
+male|WBC cells/cumm 900
+Total WBC Count 900 cells/cumm 4000 - 11000
+Absolute Neutrophil Count 300 cells/cumm 2000 - 7000
+---
+male|glucose random normal
+Glucose (Random) 128 mg/dL 70 - 140
+---
+male|hba1c bracket name
+Glycosylated Hemoglobin (HbA1c) 9.4 % 4.0 - 5.6
+---
+male|CK
+CK 5200 U/L 30 - 200
+LDH 900 U/L 140 - 280
+GGT 300 U/L 10 - 60
+---
+male|electrolytes short with unit
+K 6.9 mmol/L 3.5 - 5.1
+Na 118 mmol/L 135 - 145
+---
+male|ph text
+pH 7.62 units 7.35 - 7.45
+pCO2 22 mmHg 35 - 45

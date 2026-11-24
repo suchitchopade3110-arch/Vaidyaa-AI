@@ -27,14 +27,10 @@ from app.db import base  # noqa: F401 — import models for Alembic
 from fastapi.exceptions import RequestValidationError
 from app.core.errors import validation_exception_handler, general_exception_handler
 from prometheus_fastapi_instrumentator import Instrumentator
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
+from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
-limiter = Limiter(
-    key_func=get_remote_address,  # swap to API key func later
-    storage_uri=settings.REDIS_URL,
-)
+from app.core.rate_limit import limiter
 from app.routes import (
     auth,
     patient_history_routes,
@@ -85,6 +81,10 @@ async def lifespan(app: FastAPI):
     log.info("WHO multimodal RAG ingest check initiated in background")
     yield
     log.info("VaidyaAI API shutting down")
+    # Close pooled DB connections on the loop that opened them. Without this
+    # a restarted app (or a second TestClient) inherits connections bound to
+    # a dead event loop ("Future attached to a different loop").
+    await engine.dispose()
 
 
 _IS_PRODUCTION = settings.APP_ENV == "production"
@@ -142,6 +142,7 @@ async def http_exception_handler(request: Request, exc: HTTPException):
                 "timestamp": datetime.now(UTC).isoformat(),
             }
         },
+        headers=getattr(exc, "headers", None),  # e.g. WWW-Authenticate on 401
     )
 
 

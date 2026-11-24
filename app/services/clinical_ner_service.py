@@ -145,13 +145,18 @@ def detect_report_type(text: str) -> str:
     return "urinalysis" if hits >= 2 else "lab"
 
 
-def run_urinalysis_pipeline(text: str) -> dict[str, Any]:
-    """Urinalysis NER + pattern extraction + RAG evidence."""
+def extract_urine_entities(text: str) -> dict[str, Any]:
+    """Urinalysis entities from report text: Groq NER, regex fallback. No patterns, no knowledge-base query."""
     try:
         raw = _call_groq(URINE_NER_PROMPT.format(text=text[:12000]))
-        entities = _normalize_urine_entities(_parse_json(raw))
+        return _normalize_urine_entities(_parse_json(raw))
     except Exception:
-        entities = _extract_urine_entities_regex(text)
+        return _extract_urine_entities_regex(text)
+
+
+def run_urinalysis_pipeline(text: str) -> dict[str, Any]:
+    """Urinalysis NER + pattern extraction + RAG evidence."""
+    entities = extract_urine_entities(text)
 
     patterns = _apply_urine_pattern_rules(entities)
     entities["detected_patterns"] = patterns
@@ -323,6 +328,16 @@ def _apply_urine_pattern_rules(entities: dict[str, Any]) -> list[str]:
     if wbc_value > 5 and "negative" in nitrite:
         patterns.append("Renal_TB_suspected")
     return patterns
+
+
+def apply_urine_pattern_rules(entities: dict[str, Any]) -> list[str]:
+    """Urinalysis pattern rules (UTI, DKA, ...) over urine entities. Public so the confirmed-rows scorer can call it."""
+    return _apply_urine_pattern_rules(entities)
+
+
+def urine_features(entities: dict[str, Any]) -> dict[str, Any]:
+    """Feature vector of urine entities (public wrapper for the confirmed-rows scorer)."""
+    return _urine_to_features(entities)
 
 
 def _value(container: dict[str, Any], key: str) -> str:

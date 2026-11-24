@@ -4,6 +4,9 @@ from typing import Optional, Dict, Any, List, Tuple
 import math
 import re
 
+from app.services.lab_engine import units as _eng_units
+from app.services.lab_engine.analytes import match_analyte as _eng_match
+
 
 def _lab(unit: str, all_range=None, male_range=None, female_range=None, aliases: Optional[List[str]] = None) -> Dict[str, Any]:
     config: Dict[str, Any] = {"unit": unit}
@@ -291,14 +294,17 @@ def _get(d: dict, keys: list) -> Optional[float]:
 
 
 def _find_config(key: str) -> tuple[Optional[str], Optional[Dict[str, Any]]]:
+    """Exact (normalised) match on a LAB_RANGES key or alias.
+
+    Substring matching used to map "Non-HDL Cholesterol" to HDL and "Direct
+    Bilirubin" to total bilirubin; a name that is not exactly a known key or
+    alias is now simply not found (the lab engine resolves names itself)."""
     key_norm = _normalize(key)
     if key_norm in LAB_RANGES:
         return key_norm, LAB_RANGES[key_norm]
     for reg_key, reg_config in LAB_RANGES.items():
-        aliases = [reg_key] + list(reg_config.get("aliases", []))
-        for alias in aliases:
-            alias_norm = _normalize(alias)
-            if alias_norm == key_norm or alias_norm in key_norm or key_norm in alias_norm:
+        for alias in [reg_key] + list(reg_config.get("aliases", [])):
+            if _normalize(alias) == key_norm:
                 return reg_key, reg_config
     return None, None
 
@@ -336,80 +342,214 @@ def clean_test_name(name: str) -> str:
     return cleaned.strip()
 
 
-def enrich_lab_with_who_ranges(lab_values: List[Any], gender: str = "M") -> List[Any]:
-    """Replace PDF reference ranges with WHO canonical ranges where available."""
+# Unit spelling / count-multiplier / monovalent helpers live in the lab engine
+# (single source of truth); these aliases keep the old private names working.
+_clean_unit = _eng_units.clean_unit
+_unit_key = _eng_units.unit_key
+_count_multiplier = _eng_units.count_multiplier
+_is_monovalent = _eng_units.is_monovalent
+
+
+# (analyte-family substrings, from-unit, to-unit, converter). Factors are the
+# standard SI -> conventional conversions.
+_SI_CONVERSIONS: List[Tuple[Tuple[str, ...], str, str, Any]] = [
+    (("glucose", "sugar", "fbs", "fpg", "ppbs", "rbs"), "mmol/l", "mg/dl", lambda v: v * 18.016),
+    (("creatinine",), "umol/l", "mg/dl", lambda v: v / 88.42),
+    (("bun", "blood urea nitrogen"), "mmol/l", "mg/dl", lambda v: v * 2.801),
+    (("urea",), "mmol/l", "mg/dl", lambda v: v * 6.006),
+    (("triglyceride",), "mmol/l", "mg/dl", lambda v: v * 88.57),
+    (("cholesterol", "hdl", "ldl", "vldl"), "mmol/l", "mg/dl", lambda v: v * 38.67),
+    (("calcium",), "mmol/l", "mg/dl", lambda v: v * 4.008),
+    (("bilirubin",), "umol/l", "mg/dl", lambda v: v / 17.1),
+    (("uric acid", "urate"), "umol/l", "mg/dl", lambda v: v / 59.48),
+    (("hemoglobin", "haemoglobin", "hb", "mchc", "albumin", "protein", "globulin"), "g/l", "g/dl", lambda v: v / 10.0),
+    (("hba1c", "glycated", "glycosylated"), "mmol/mol", "%", lambda v: v / 10.929 + 2.15),
+]
+
+
+def units_equivalent(a: Any, b: Any, test_key: Any = "") -> bool:
+    """True when two unit strings denote the same unit for this analyte
+    (spelling variants only; no numeric conversion). Empty units never match."""
+    return _eng_units.units_equivalent(a, b, test_key)
+
+
+def _match_engine_analyte(test_key: Any):
+    """Registry analyte for a name, or for a "<name> <registry key>" string
+    (callers join the printed name and the LAB_RANGES key)."""
+    words = str(test_key or "").split()
+    if not words:
+        return None
+    found = _eng_match(" ".join(words))
+    for i in range(1, len(words)):
+        if found is not None:
+            break
+        found = _eng_match(" ".join(words[:i])) or _eng_match(" ".join(words[i:]))
+    return found
+
+
+def convert_to_reference_unit(test_key: str, value: Any, unit: Any, ref_unit: str) -> Tuple[Optional[float], bool]:
+    """Express `value` (reported in `unit`) in the reference table's unit.
+
+    Returns (value_in_ref_unit, ok). ok=False means the units are known to
+    differ and there is no safe conversion: the caller must NOT compare the
+    value against the reference range. An empty reported unit is assumed to
+    already be in the reference unit.
+
+    Equivalent spellings (mEq/L for mmol/L on monovalent ions, IU/L for U/L,
+    gm% for g/dL, cells/cumm for /uL ...) are recognised first. Count units
+    are really scaled (7.2 x10^3/uL -> 7200 /uL, 2.5 lakhs/cumm -> 250000);
+    the lab engine's analyte registry is consulted for SI conversions before
+    the legacy family table."""
+    if value is None:
+        return None, True
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None, True
+    have, want = _unit_key(unit), _unit_key(ref_unit)
+    if not have or not want or have == want:
+        return number, True
+    if units_equivalent(unit, ref_unit, test_key):
+        return number, True
+    m_have, m_want = _count_multiplier(unit), _count_multiplier(ref_unit)
+    if m_have is not None and m_want is not None:
+        return round(number * m_have / m_want, 6), True
+    analyte = _match_engine_analyte(test_key)
+    if analyte is not None and _unit_key(analyte.unit) == want:
+        res = _eng_units.resolve_unit(analyte, unit, number)
+        if res.ok and res.kind in ("converted", "same"):
+            return (round(res.fn(number), 6) if res.fn else number), True
+    name = str(test_key or "").lower()
+    for families, src, dst, fn in _SI_CONVERSIONS:
+        if have == src and want == dst and any(f in name for f in families):
+            return round(fn(number), 2), True
+    return None, False
+
+
+def _printed_range(lv: Any) -> Tuple[Optional[float], Optional[float]]:
+    if hasattr(lv, "name"):
+        return getattr(lv, "ref_low", None), getattr(lv, "ref_high", None)
+    return (lv or {}).get("ref_low"), (lv or {}).get("ref_high")
+
+
+def enrich_lab_with_who_ranges(lab_values: List[Any], gender: Optional[str] = None) -> List[Any]:
+    """Fill in a reference range from the registry ONLY where the report did
+    not print one.
+
+    * A range printed on the report always wins and the row is left exactly
+      as read (value and unit stay in the report's own unit).
+    * Otherwise the registry range for the patient's sex is used; a
+      sex-specific range is NOT applied when the sex is unknown (never
+      assumed), and the row simply keeps no range.
+    * Units are reconciled first (7.9 mmol/L glucose -> mg/dL, 7.2 x10^3/uL ->
+      7200 /uL); the original reading is kept in `result_text`. An
+      unconvertible unit tags the row `value_type="unit_mismatch"` so it is
+      not scored against a range in a different unit.
+
+    The pipeline uses the lab engine instead; this stays for callers that
+    still import it (workers/report_tasks)."""
     enriched: List[Any] = []
-    gender_key = _resolve_gender(gender)
+    gender_key = _known_gender(gender)
 
     for lv in lab_values:
-        if hasattr(lv, "name"):
+        is_obj = hasattr(lv, "name")
+        if is_obj:
             raw_name = clean_test_name(getattr(lv, "name", ""))
             setattr(lv, "name", raw_name)
-            test_key = _normalize(raw_name)
-            current_ref_low = getattr(lv, "ref_low", None)
-            current_ref_high = getattr(lv, "ref_high", None)
             value = getattr(lv, "value", None)
+            reported_unit = getattr(lv, "unit", "") or ""
         else:
             raw_name = clean_test_name((lv or {}).get("test") or (lv or {}).get("name") or "")
-            test_key = _normalize(raw_name)
-            current_ref_low = (lv or {}).get("ref_low")
-            current_ref_high = (lv or {}).get("ref_high")
             value = (lv or {}).get("value")
+            reported_unit = (lv or {}).get("unit", "") or ""
+        test_key = _normalize(raw_name)
+
+        p_lo, p_hi = _printed_range(lv)
+        if p_lo is not None or p_hi is not None:
+            if not is_obj:
+                lv = dict(lv or {})
+                lv["test"] = raw_name
+                lv["name"] = raw_name
+            enriched.append(lv)
+            continue
 
         reg_key, who_config = _find_config(test_key)
-        if who_config:
-            if gender_key in who_config:
-                lo, hi = who_config[gender_key]
-            elif "all" in who_config:
-                lo, hi = who_config["all"]
-            else:
-                lo, hi = None, None
+        if not who_config:
+            if not is_obj:
+                lv = dict(lv or {})
+                lv["test"] = raw_name
+                lv["name"] = raw_name
+            enriched.append(lv)
+            continue
 
+        converted, unit_ok = convert_to_reference_unit(
+            f"{test_key} {reg_key}", value, reported_unit, who_config.get("unit", "")
+        )
+        if not unit_ok:
+            if is_obj:
+                setattr(lv, "value_type", "unit_mismatch")
+            else:
+                lv = dict(lv or {})
+                lv["value_type"] = "unit_mismatch"
+            enriched.append(lv)
+            continue
+        note = None
+        if converted is not None and value is not None and converted != float(value):
+            note = f"reported as {value} {reported_unit}".strip()
+            value = converted
+
+        if gender_key and gender_key in who_config:
+            lo, hi = who_config[gender_key]
+        elif "all" in who_config:
+            lo, hi = who_config["all"]
+        else:
+            lo, hi = None, None  # sex-specific range and sex unknown: no range
+
+        ref_unit = who_config.get("unit", "") if lo is not None or note else reported_unit
+        if is_obj:
+            if note:
+                setattr(lv, "value", value)
+                setattr(lv, "result_text", note)
             if lo is not None:
-                lo, hi = _scale_if_thousand_unit(float(lo), float(hi), float(value or 0), who_config.get("unit", ""))
-                if hasattr(lv, "name"):
-                    setattr(lv, "ref_low", lo)
-                    setattr(lv, "ref_high", hi)
-                    setattr(lv, "unit", who_config.get("unit", getattr(lv, "unit", "")))
-                    if getattr(lv, "value", None) is not None:
-                        setattr(lv, "flag", None)
-                        setattr(lv, "status", None)
-                else:
-                    lv = dict(lv or {})
-                    lv["test"] = raw_name
-                    lv["name"] = raw_name
-                    lv["ref_low"] = lo
-                    lv["ref_high"] = hi
-                    lv["unit"] = who_config.get("unit", lv.get("unit", ""))
-        elif hasattr(lv, "name"):
-            # Still clean the name for downstream matching even without a WHO hit.
-            setattr(lv, "name", raw_name)
+                setattr(lv, "ref_low", lo)
+                setattr(lv, "ref_high", hi)
+                setattr(lv, "flag", None)
+                setattr(lv, "status", None)
+            setattr(lv, "unit", ref_unit or reported_unit)
         else:
             lv = dict(lv or {})
             lv["test"] = raw_name
             lv["name"] = raw_name
-
+            if note:
+                lv["value"] = value
+                lv["result_text"] = note
+            if lo is not None:
+                lv["ref_low"] = lo
+                lv["ref_high"] = hi
+            lv["unit"] = ref_unit or reported_unit
         enriched.append(lv)
 
     return enriched
 
 
-def _resolve_gender(value: Any) -> str:
+def _known_gender(value: Any) -> Optional[str]:
+    """"M" / "F" for a recognisable sex, else None (never assume one)."""
     if value is None:
-        return "M"
-    if isinstance(value, (int, float)):
-        return "F" if int(value) == 0 else "M"
+        return None
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return "F" if int(value) == 0 else "M" if int(value) == 1 else None
     txt = str(value).strip().upper()
     if txt in {"F", "FEMALE", "0"}:
         return "F"
-    return "M"
+    if txt in {"M", "MALE", "1"}:
+        return "M"
+    return None
 
 
-def _scale_if_thousand_unit(lo: float, hi: float, value: float, unit: str) -> tuple[float, float]:
-    unit_l = _normalize(unit)
-    if hi >= 1000 and abs(value) < 1000 and any(x in unit_l for x in ["/µl", "/ul", "10^3", "thousand", "cells/µl", "cells/ul"]):
-        return lo / 1000.0, hi / 1000.0
-    return lo, hi
+def _resolve_gender(value: Any) -> str:
+    """Legacy helper: "F" for a female value, "M" otherwise (including unknown).
+    New code should use _known_gender, which returns None when unknown."""
+    return _known_gender(value) or "M"
 
 
 def get_hemoglobin_threshold(gender: str = "M", age: int = 40, pregnant: bool = False) -> float:
@@ -506,9 +646,8 @@ def calculate_derived_markers(lab_dict: Dict[str, Any]) -> Dict[str, Any]:
 
     creatinine = _get(lab_dict, ["creatinine", "serum creatinine"])
     age = _get(lab_dict, ["age"])
-    gender_raw = lab_dict.get("gender", lab_dict.get("sex", "M"))
-    gender = "M" if str(gender_raw) in ["1", "M", "Male", "male"] else "F"
-    if creatinine and age and creatinine > 0:
+    gender = _known_gender(lab_dict.get("gender", lab_dict.get("sex")))
+    if creatinine and age and gender and creatinine > 0:
         egfr = ((140 - float(age)) * 72) / (float(creatinine) * 72)
         if gender == "F":
             egfr *= 0.85
@@ -569,9 +708,13 @@ def _parse_numeric(value: Any) -> Optional[float]:
     return None
 
 
-def flag_anomalies(lab_dict: Dict[str, Any], gender: str = "M", age: int = 40, crp_for_ferritin: Optional[float] = None) -> Dict[str, Dict[str, Any]]:
+def flag_anomalies(lab_dict: Dict[str, Any], gender: Optional[str] = None, age: Optional[int] = None, crp_for_ferritin: Optional[float] = None) -> Dict[str, Dict[str, Any]]:
+    """Registry-range flags (legacy; the lab pipeline uses the lab engine).
+
+    Sex-specific ranges are skipped when the sex is unknown, and the age-banded
+    haemoglobin threshold when the age is unknown: nothing is assumed."""
     results: Dict[str, Dict[str, Any]] = {}
-    gender_key = _resolve_gender(gender if gender is not None else lab_dict.get("gender"))
+    gender_key = _known_gender(gender if gender is not None else lab_dict.get("gender"))
 
     for raw_key, raw_value in lab_dict.items():
         key = _normalize(raw_key)
@@ -588,14 +731,18 @@ def flag_anomalies(lab_dict: Dict[str, Any], gender: str = "M", age: int = 40, c
             continue
 
         if reg_key in {"hemoglobin", "hb", "haemoglobin"}:
+            if gender_key is None or age is None:
+                continue
             lo = get_hemoglobin_threshold(gender_key, age)
             hi = 17.5 if gender_key == "M" else 15.5
         elif reg_key in {"ferritin", "serum ferritin"}:
+            if gender_key is None:
+                continue
             ft = get_ferritin_threshold(crp_for_ferritin, gender_key)
             lo = ft["deficiency_threshold"]
             hi = ft["overload_threshold"]
         else:
-            if gender_key in config:
+            if gender_key and gender_key in config:
                 lo, hi = config[gender_key]
             elif "all" in config:
                 lo, hi = config["all"]
@@ -603,7 +750,6 @@ def flag_anomalies(lab_dict: Dict[str, Any], gender: str = "M", age: int = 40, c
                 continue
 
         unit = config.get("unit", "")
-        lo, hi = _scale_if_thousand_unit(lo, hi, value, unit)
         reference = f"{lo} - {hi}" if hi is not None else f">{lo}"
 
         if value < lo:
@@ -763,15 +909,29 @@ def detect_clinical_patterns(anomalies: Dict[str, Any], critical_alerts: Optiona
     return unique[:10]
 
 
-def analyze_blood_report(lab_dict: Dict[str, Any], gender: str = "M", age: int = 40) -> Dict[str, Any]:
+def analyze_blood_report(
+    lab_dict: Dict[str, Any],
+    gender: Optional[str] = None,
+    age: Optional[int] = None,
+    anomalies: Optional[Dict[str, Dict[str, Any]]] = None,
+    critical_alerts: Optional[List[Dict[str, Any]]] = None,
+) -> Dict[str, Any]:
+    """Conditions / derived markers / diabetes and vitamin-D classification.
+
+    `anomalies` and `critical_alerts`, when given (the lab engine's findings,
+    keyed like lab_dict), REPLACE the registry-range flagging done here, so a
+    printed reference range or a converted unit is never re-judged against the
+    registry. Sex/age may be None; whatever needs them is skipped."""
     crp = None
     for k, v in lab_dict.items():
         if _normalize(k) in ("crp", "c reactive protein", "c-reactive protein"):
             crp = _parse_numeric(v)
             break
 
-    anomalies = flag_anomalies(lab_dict, gender, age, crp)
-    critical_alerts = check_critical_thresholds(lab_dict)
+    if anomalies is None:
+        anomalies = flag_anomalies(lab_dict, gender, age, crp)
+    if critical_alerts is None:
+        critical_alerts = check_critical_thresholds(lab_dict)
     conditions = detect_clinical_patterns(anomalies, critical_alerts)
     derived = calculate_derived_markers({**lab_dict, "age": age, "gender": gender})
 

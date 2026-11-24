@@ -751,6 +751,17 @@ function YoloDetectionPanel({ result }) {
   );
 }
 
+// Model/version string for clinician sign-off (backend caps it at 200 chars).
+function imageModelVersions(result) {
+  const used = result?.ensemble_details?.models_used;
+  if (Array.isArray(used) && used.length) return used.join(',');
+  if (typeof used === 'string' && used) return used;
+  const cls = result?.classification || {};
+  const parts = [cls.model_version || cls.model_used || cls.model, result?.yolo?.model_used]
+    .filter((v) => typeof v === 'string' && v);
+  return parts.join(',');
+}
+
 function ImageAnalysis() {
   const [analysisType, setAnalysisType] = useState('xray');
   const [file, setFile]                 = useState(null);
@@ -762,7 +773,6 @@ function ImageAnalysis() {
   const [elapsed, setElapsed]           = useState(0);
   const [serverAnalysisId, setServerAnalysisId] = useState('');
   const timerRef = useRef(null);
-  const jobId = useRef('JOB-' + Math.floor(Math.random() * 900 + 100)).current;
 
   const ALLOWED = ['.dcm', '.jpg', '.jpeg', '.png'];
 
@@ -792,14 +802,14 @@ function ImageAnalysis() {
       formData.append('file', file);
       if (patientId) formData.append('patient_id', patientId);
 
-      const submitRes = await fetch(`${API_BASE || '/api/v1'}/analyze/image/${analysisType}`, {
+      const submitRes = await apiFetch(`${API_BASE || '/api/v1'}/analyze/image/${analysisType}`, {
         method: 'POST',
         body: formData,
       });
 
       if (!submitRes.ok) {
         const errData = await submitRes.json().catch(() => ({}));
-        throw new Error(errData.detail || `API returned ${submitRes.status}`);
+        throw new Error(apiErrorMessage(errData, `API returned ${submitRes.status}`));
       }
 
       const submitData = await submitRes.json();
@@ -809,7 +819,7 @@ function ImageAnalysis() {
       // Poll for result
       const poll = async () => {
         try {
-          const pollRes = await fetch(`${API_BASE || '/api/v1'}/analyze/image/${analysisId}`);
+          const pollRes = await apiFetch(`${API_BASE || '/api/v1'}/analyze/image/${analysisId}`);
           const data = await pollRes.json();
 
           const payload = data.result || data;
@@ -841,6 +851,7 @@ function ImageAnalysis() {
               }));
           setResult({
             ...payload,
+            status: resolveResultStatus(payload, data.status),
             classification,
             confidence: payload.confidence?.score
               ?? payload.confidence_score
@@ -931,7 +942,7 @@ function ImageAnalysis() {
               <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>⏱ {elapsed}s</span>
             </div>
             <StatusBadge status="processing" size="lg" />
-            <div style={{ marginTop: '14px', fontSize: '12px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>{jobId} · {analysisType.toUpperCase()}</div>
+            <div style={{ marginTop: '14px', fontSize: '12px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>{serverAnalysisId ? String(serverAnalysisId).slice(0, 8) : 'Initializing...'} · {analysisType.toUpperCase()}</div>
             <div style={{ marginTop: '12px' }}>
               <ImagePreview file={file} />
             </div>
@@ -946,7 +957,7 @@ function ImageAnalysis() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div style={{ display: 'flex', gap: '16px', alignItems: 'stretch', flexWrap: 'wrap' }}>
             <Card style={{ flex: 1, minWidth: '300px' }}>
-              <ResultHeader status={result.status} jobId={jobId} elapsed={elapsed} />
+              <ResultHeader status={result.status} jobId={serverAnalysisId ? String(serverAnalysisId).slice(0, 8) : ''} elapsed={elapsed} />
               {result.uncertainty && (
                 <div style={{ marginTop: '12px' }}>
                   <UncertaintyBanner message="Low confidence — findings require radiologist review before clinical use." />
@@ -960,7 +971,7 @@ function ImageAnalysis() {
                 <ConfidenceMeter value={result.confidence} label="Overall Confidence" />
               </div>
             </Card>
-            {window.ReportQRWidget && <ReportQRWidget reportId={serverAnalysisId} patientId={patientId} />}
+            {window.ReportQRWidget && <ReportQRWidget reportId={serverAnalysisId} patientId={patientId} modelVersions={imageModelVersions(result)} />}
           </div>
 
           <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>

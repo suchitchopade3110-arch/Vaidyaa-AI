@@ -5,12 +5,21 @@ from __future__ import annotations
 import json
 import uuid
 from datetime import datetime
-from typing import Any
+from typing import Any, Optional
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.async_job import AsyncJobRecord
 from app.models.report import Report
+
+
+def owned_by(owner_user_id: uuid.UUID):
+    """SQL filter: the report came from a job submitted by this user.
+    A subquery, not an IN-list of ids — that broke past ~32k jobs."""
+    return Report.celery_task_id.in_(
+        select(AsyncJobRecord.id).where(AsyncJobRecord.user_id == owner_user_id)
+    )
 
 
 def _coerce_uuid(value: str) -> uuid.UUID | None:
@@ -50,23 +59,41 @@ def _report_to_dict(report: Report) -> dict[str, Any]:
     }
 
 
-async def get_patient_history(patient_id: str, limit: int, db: AsyncSession) -> list[dict[str, Any]]:
-    """Return recent reports for a patient from newest to oldest."""
+async def get_patient_history(
+    patient_id: str,
+    limit: int,
+    db: AsyncSession,
+    owner_user_id: Optional[uuid.UUID] = None,
+) -> list[dict[str, Any]]:
+    """Return recent reports for a patient from newest to oldest.
+
+    `owner_user_id` restricts results to reports produced by that user's
+    jobs (Report.celery_task_id -> async_jobs.user_id). Pass None only for
+    admin / internal callers.
+    """
     patient_uuid = _coerce_uuid(patient_id)
     if patient_uuid is None:
         return []
 
+    query = select(Report).where(Report.patient_id == patient_uuid)
+    if owner_user_id is not None:
+        query = query.where(owned_by(owner_user_id))
     result = await db.execute(
-        select(Report)
-        .where(Report.patient_id == patient_uuid)
-        .order_by(Report.created_at.desc())
-        .limit(max(1, min(int(limit or 10), 50)))
+        query.order_by(Report.created_at.desc()).limit(max(1, min(int(limit or 10), 50)))
     )
     return [_report_to_dict(report) for report in result.scalars().all()]
 
 
-def get_patient_history_sync(patient_id: str, limit: int = 5) -> list[dict[str, Any]]:
-    """Best-effort sync history lookup for Celery/report pipeline code."""
+def get_patient_history_sync(patient_id: str, limit: int = 5, owner_job_id: Optional[str] = None) -> list[dict[str, Any]]:
+    """Best-effort sync history lookup for Celery/report pipeline code.
+
+    Only reports from jobs submitted by the SAME user who submitted
+    `owner_job_id` are returned. `patient_id` is a user-supplied form field,
+    so without this any user could pull another user's reports for that
+    patient into their own job result. No owner job -> no history.
+    """
+    if not owner_job_id:
+        return []
     patient_uuid = _coerce_uuid(patient_id)
     if patient_uuid is None:
         return []
@@ -77,24 +104,23 @@ def get_patient_history_sync(patient_id: str, limit: int = 5) -> list[dict[str, 
 
         from app.core.config import settings
 
-        db_url = (
-            f"postgresql://{settings.POSTGRES_USER}:{settings.POSTGRES_PASSWORD}"
-            f"@{settings.POSTGRES_HOST}:{settings.POSTGRES_PORT}/{settings.POSTGRES_DB}"
-        )
-        with psycopg2.connect(db_url) as conn:
+        with psycopg2.connect(settings.SYNC_DATABASE_URL) as conn:
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
                 cursor.execute(
                     """
-                    SELECT id, patient_id, report_type, status, parsed_data, risk_score,
-                           risk_factors, anomalies, explanation, confidence_score,
-                           confidence, uncertainty_flag, analysis_result, created_at,
-                           completed_at
-                    FROM reports
-                    WHERE patient_id = %s
-                    ORDER BY created_at DESC
+                    SELECT r.id, r.patient_id, r.report_type, r.status, r.parsed_data, r.risk_score,
+                           r.risk_factors, r.anomalies, r.explanation, r.confidence_score,
+                           r.confidence, r.uncertainty_flag, r.analysis_result, r.created_at,
+                           r.completed_at
+                    FROM reports r
+                    JOIN async_jobs a ON a.id = r.celery_task_id
+                    WHERE r.patient_id = %s
+                      AND a.user_id = (SELECT user_id FROM async_jobs WHERE id = %s)
+                      AND r.celery_task_id <> %s
+                    ORDER BY r.created_at DESC
                     LIMIT %s
                     """,
-                    (str(patient_uuid), max(1, min(int(limit or 5), 50))),
+                    (str(patient_uuid), str(owner_job_id), str(owner_job_id), max(1, min(int(limit or 5), 50))),
                 )
                 rows = cursor.fetchall()
     except Exception:
@@ -206,9 +232,14 @@ def _comparison_summary(risk_delta: float | None, lab_deltas: list[dict[str, Any
     return " ".join(pieces)
 
 
-async def get_longitudinal_trend(patient_id: str, test_name: str, db: AsyncSession) -> dict[str, Any]:
+async def get_longitudinal_trend(
+    patient_id: str,
+    test_name: str,
+    db: AsyncSession,
+    owner_user_id: Optional[uuid.UUID] = None,
+) -> dict[str, Any]:
     """Return time-series values for one lab test."""
-    history = await get_patient_history(patient_id, limit=50, db=db)
+    history = await get_patient_history(patient_id, limit=50, db=db, owner_user_id=owner_user_id)
     target = str(test_name).lower().strip()
     points = []
     for report in reversed(history):

@@ -27,6 +27,7 @@ testpaths = ["tests"]
 pythonpath = ["."]
 markers = [
     "integration: needs live infra (Celery worker + Redis + Postgres); excluded from the no-infra CI job via `-m \"not integration\"`.",
+    "e2e_ui: drives the live stack in a real browser via Playwright (tests/e2e_ui); excluded from the unit CI step via `--ignore=tests/e2e_ui`.",
 ]
 
 [tool.ruff]

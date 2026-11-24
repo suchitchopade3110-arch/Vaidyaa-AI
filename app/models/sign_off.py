@@ -21,7 +21,9 @@ class SignOff(Base):
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
-    job_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    # One sign-off per job (FR-9.1, N17): migration c4f1e2d3b5a6 archived duplicates (keeping the earliest)
+    # and replaced ix_sign_offs_job_id with uq_sign_offs_job_id.
+    job_id: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
     clinician_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True
     )

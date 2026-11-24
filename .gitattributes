@@ -1,0 +1,9 @@
+# Test fixtures and model artefacts are binary: never diff/merge them as text
+# (a PDF diffed as text carries raw bytes that get mangled in transit).
+*.pdf binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.dcm binary
+*.pt binary
+*.onnx binary

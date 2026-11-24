@@ -1,46 +1,38 @@
 import pytest
 
 
-@pytest.mark.xfail(
-    reason="Stale test: app.services.rag_pipeline no longer exposes a "
-    "module-level verify_claim() function — it moved to the RAGPipeline "
-    "class as an instance method (rag_pipeline.verify_claim(...)). Flagged "
-    "during the CI/coverage pass rather than guessed at and silently "
-    "rewritten; needs someone with context on the intended call site to fix.",
-    strict=False,
-)
-def test_verify_claim_stub_returns_valid_schema():
-    from app.services.rag_pipeline import verify_claim
+def test_verify_claim_without_sources_is_uncertain_and_low_confidence():
+    """RAGPipeline.verify_claim (the current API; the old module-level
+    verify_claim() these tests used was removed) must not call the LLM or
+    claim confidence when nothing was retrieved."""
+    from app.services.rag_pipeline import rag_pipeline
 
-    result = verify_claim("High glucose may indicate diabetes risk.")
+    result = rag_pipeline.verify_claim("High glucose may indicate diabetes risk.", {}, [])
 
-    assert "verdict" in result
-    assert "summary" in result
-    assert "confidence" in result
-    assert "citations" in result
-    assert "uncertain" in result
-    assert "disclaimer" in result
-    assert result["verdict"] in {
-        "supported",
-        "contradicted",
-        "insufficient_evidence",
-    }
-    assert 0.0 <= result["confidence"] <= 1.0
-    assert "NOT a medical diagnosis" in result["disclaimer"]
+    assert result["verdict"] == "uncertain"
+    assert 0.0 <= result["confidence_score"] <= 0.3
+    assert "NOT" in result["disclaimer"].upper() and "DIAGNOSIS" in result["disclaimer"].upper()
 
 
-@pytest.mark.xfail(
-    reason="Stale test: same module-level verify_claim() import issue as "
-    "test_verify_claim_stub_returns_valid_schema above.",
-    strict=False,
-)
-def test_verify_claim_stub_is_insufficient_evidence():
-    from app.services.rag_pipeline import verify_claim
+def test_claim_pipeline_without_llm_is_flagged_insufficient(monkeypatch):
+    """End to end through the pipeline with retrieval returning evidence but
+    the reasoning step unavailable: the result must be flagged, not given a
+    confident score."""
+    import app.pipeline as pipeline
+    from app.services.rag_pipeline import rag_pipeline
 
-    result = verify_claim("some random claim")
+    monkeypatch.setattr(rag_pipeline, "retrieve_evidence",
+                        lambda *a, **k: [{"id": "1", "text": "x", "score": 0.8}, {"id": "2", "text": "y", "score": 0.6}])
+    monkeypatch.setattr(pipeline, "_rag_service", lambda: rag_pipeline)
+    monkeypatch.setattr("app.services.rag_pipeline._get_groq",
+                        lambda: (_ for _ in ()).throw(RuntimeError("GROQ_API_KEY is not set")))
 
-    assert result["verdict"] == "insufficient_evidence"
-    assert result["uncertain"] is True
+    result = pipeline.run_claim_pipeline("Metformin is a first-line therapy for type 2 diabetes.")
+
+    assert result.status == "completed"
+    assert result.uncertainty_flag is True
+    assert result.confidence_score <= 30
+    assert result.explanation.startswith("Insufficient evidence")
 
 
 def test_verify_claim_task_exists():

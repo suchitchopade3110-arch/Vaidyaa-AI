@@ -27,11 +27,29 @@ from typing import Optional, List, Dict, Any, Tuple
 import numpy as np
 import cv2
 from PIL import Image
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 # ── Device ────────────────────────────────────────────────
 import torch
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+from app.services.review.layout import DocumentLayout
+from app.services.lab_engine.analytes import REGISTRY, canon_tokens, match_analyte
+from app.services.lab_engine.evaluate import normalize_age, normalize_sex
+from app.services.lab_engine.models import ParsedRow
+from app.services.lab_engine.tokenizer import (
+    OTHER_ROWS_MARKER,
+    STRUCTURED_LAB_MARKER,
+    WARN_PREFIX,
+    build_canonical_line,
+    normalize_flag,
+    parse_lab_text,
+    parse_range_text,
+    parse_report_text,
+    parse_structured_csv,
+    qualitative_class,
+)
+from app.services.lab_engine.units import fmt_num, is_unit_token, parse_number, units_equivalent
 
 
 # ════════════════════════════════════════════════════════════
@@ -71,6 +89,7 @@ class OcrOutput(BaseModel):
     raw_text: str
     confidence: float          # mean word confidence from Tesseract
     pages: List[str]           # per-page text
+    layout: Optional[Any] = Field(default=None, exclude=True)   # DocumentLayout when read with run_ocr_with_layout
 
 
 class NerOutput(BaseModel):
@@ -319,6 +338,344 @@ def normalize_image(
 # SECTION 4 — OCR ENGINE
 # ════════════════════════════════════════════════════════════
 
+# Structured CSV/TSV lab tables are handed to extract_all_lab_values / the lab
+# engine as text that starts with this marker followed by one canonical line
+# per result (see lab_engine.tokenizer.build_canonical_line):
+#     <name> <value> [<unit>] [<low>-<high> | lt<high> | gt<low>] [@flag=H] [@refu=..] [@txt=..] [@sx=..]
+# Numbers are already normalised (decimal commas -> '.'), the unit has no
+# spaces, and the line is parsed right-to-left, so it is unambiguous even for
+# names containing digits and for rows without a unit or range. Anything the
+# table parser could not map follows an "#other-rows" line as plain text;
+# table-level problems (ambiguous result columns ...) are "#warn" lines.
+_OTHER_ROWS_MARKER = OTHER_ROWS_MARKER
+
+_CSV_FLAG_WORDS = {"h", "l", "hh", "ll", "*", "h*", "l*", "high", "low", "h/l", "n", "normal", "a", "abn",
+                   "abnormal", "critical", "**", "crit", "↑", "↓"}
+_CSV_NAME_HEADERS = {"test", "tests", "parameter", "parameters", "investigation", "investigations",
+                     "analyte", "name", "component", "analysis", "determination"}
+_CSV_VALUE_HEADERS = {"result", "results", "value", "observed", "reading", "finding", "ergebnis", "wert"}
+_CSV_UNIT_HEADERS = {"unit", "units", "uom", "einheit"}
+_CSV_RANGE_HEADERS = {"reference", "ref", "range", "interval", "normal", "referenzbereich", "referenz", "normalbereich"}
+_CSV_FLAG_HEADERS = {"flag", "flags", "status", "abnormal", "interpretation"}
+_CSV_PREVIOUS_HEADERS = {"previous", "prior", "last", "old", "prev", "earlier", "baseline", "historical"}
+_CSV_CURRENT_HEADERS = {"current", "latest", "today", "new", "present", "recent"}
+_CSV_LOW_HEADERS = {"low", "lower", "min", "minimum"}
+_CSV_HIGH_HEADERS = {"high", "upper", "max", "maximum"}
+
+def _fmt_num(x: float) -> str:
+    return fmt_num(x)
+
+
+def _parse_number_token(tok: str, decimal_comma: bool) -> Optional[float]:
+    """Parse "7.9", "7,9", "1,500", "150,000", "1,234.5", "2.54E+04" -> float.
+
+    A comma is a decimal separator ("7,9") unless the token is shaped like
+    thousands grouping ("150,000", first group not starting with 0) AND the
+    file is not a ';'-delimited decimal-comma export (where "12.000" is a
+    thousands-dot number)."""
+    t = (tok or "").strip().replace("−", "-")
+    if not decimal_comma and re.fullmatch(r"[+-]?\d+,\d{1,2}(?!\d)", t):
+        t = t.replace(",", ".")
+    elif not decimal_comma and re.fullmatch(r"[+-]?\d+,\d+", t):
+        return None if not re.fullmatch(r"[+-]?\d{1,3},\d{3}", t) else parse_number(t, False)
+    return parse_number(t, decimal_comma)
+
+
+_RESULT_RE = re.compile(r"^\s*(?P<q><=|>=|[<>≤≥])?\s*(?P<n>[+-]?(?:\d[\d.,]*|\.\d+)(?:[eE][+-]?\d+)?)\s*(?P<rest>.*?)\s*$")
+_QUAL_MAP = {"<": "<", "≤": "<=", "<=": "<=", ">": ">", "≥": ">=", ">=": ">="}
+
+
+def _parse_result_cell(cell: str, decimal_comma: bool) -> Optional[Dict[str, Any]]:
+    """Result cell -> {value, prefix, unit, flag, text} or None.
+
+    A trailing H/L/* flag is captured; any other trailing text must look like
+    a unit. A qualitative cell ("Reactive", "Negative") returns text only."""
+    cell = (cell or "").strip()
+    m = _RESULT_RE.match(cell)
+    if m:
+        value = _parse_number_token(m.group("n"), decimal_comma)
+        if value is None:
+            return None
+        unit, flags = "", []
+        for tok in m.group("rest").split():
+            if tok.lower() in _CSV_FLAG_WORDS:
+                flags.append(tok)
+            elif is_unit_token(tok) and not unit:
+                unit = tok
+            else:
+                return None
+        return {"value": value, "prefix": _QUAL_MAP.get(m.group("q") or "", ""), "unit": unit,
+                "flag": normalize_flag(flags), "text": None}
+    if cell and qualitative_class(cell) is not None:
+        return {"value": None, "prefix": "", "unit": "", "flag": None, "text": cell}
+    return None
+
+
+def _decomma(text: str) -> str:
+    """'3,5-5,1' / '150.000-400.000' -> '3.5-5.1' / '150000-400000' (decimal-comma files)."""
+    def one(m):
+        v = parse_number(m.group(0), True)
+        return _fmt_num(v) if v is not None else m.group(0)
+    return re.sub(r"\d[\d.,]*\d|\d", one, text)
+
+
+def _parse_range_cell(cell: str, decimal_comma: bool) -> Dict[str, Any]:
+    """Reference-range cell -> {lo, hi, strict_lo, strict_hi, unit, sex_ranges} (all None when unreadable)."""
+    text = (cell or "").strip()
+    empty = {"lo": None, "hi": None, "strict_lo": False, "strict_hi": False, "unit": None, "sex_ranges": None}
+    if not text:
+        return empty
+    if decimal_comma:
+        text = _decomma(text)
+    return parse_range_text(text, False) or empty
+
+
+def _header_role(cell: str) -> Optional[str]:
+    toks = set(re.sub(r"[^a-z0-9]+", " ", (cell or "").lower()).split())
+    if not toks:
+        return None
+    if toks & _CSV_PREVIOUS_HEADERS:
+        return "previous"
+    if toks & _CSV_UNIT_HEADERS:
+        return "unit"
+    if toks & _CSV_FLAG_HEADERS:
+        return "flag"
+    if toks & _CSV_LOW_HEADERS and not toks & (_CSV_VALUE_HEADERS | _CSV_NAME_HEADERS):
+        return "ref_low"
+    if toks & _CSV_HIGH_HEADERS and not toks & (_CSV_VALUE_HEADERS | _CSV_NAME_HEADERS):
+        return "ref_high"
+    if toks & _CSV_RANGE_HEADERS:
+        return "range"
+    if toks & _CSV_VALUE_HEADERS:
+        return "value"
+    if toks & _CSV_NAME_HEADERS:
+        return "name"
+    return None
+
+
+def _is_current_header(cell: str) -> bool:
+    toks = set(re.sub(r"[^a-z0-9]+", " ", (cell or "").lower()).split())
+    return bool(toks & _CSV_CURRENT_HEADERS)
+
+
+def _sniff_delimiter(content: str, default: str) -> Optional[str]:
+    """Pick the delimiter that splits the sample into a consistent number of
+    >=2 columns. Priority tab > ; > | > , on ties, so a decimal-comma file
+    ("7,9") with ';' separators is not misread as comma-separated."""
+    import csv
+    from collections import Counter
+
+    sample = [ln for ln in content.splitlines() if ln.strip()][:60]
+    if not sample:
+        return None
+    best, best_key = None, None
+    for rank, delim in enumerate(("\t", ";", "|", ",")):
+        try:
+            counts = [len(r) for r in csv.reader(sample, delimiter=delim)]
+        except csv.Error:
+            continue
+        freq = Counter(counts)
+        modal, n = max(freq.items(), key=lambda kv: (kv[1], kv[0]))
+        consistency = n / len(counts)
+        if modal < 2 or consistency < 0.6:
+            continue
+        key = (round(consistency, 2), -rank)
+        if best_key is None or key > best_key:
+            best, best_key = delim, key
+    return best
+
+
+def _known_analyte(name: str) -> bool:
+    return match_analyte(name) is not None
+
+
+def _canonical_lab_line(name: str, value: float, prefix: str, unit: str,
+                        low: Optional[float], high: Optional[float], **extra: Any) -> str:
+    return build_canonical_line(name, value, prefix, unit, low, high, **extra)
+
+
+ROW_META = "@row="     # provenance meta token: 1-based physical file line of the source row (plans/P2.md 6.2)
+
+
+def _parse_delimited_content(content: str, default_delim: str, row_meta: bool = False):
+    """Structured parse of a delimited lab table.
+
+    Returns None when the content is not delimited (caller treats it as plain
+    text); otherwise (canonical_lines, leftover_rows, warnings). With ``row_meta`` every canonical line and
+    every leftover line ends with ``@row=N`` (the physical file line the row started on); the lab engine
+    ignores unknown ``@`` meta, so the rows it reads are identical."""
+    import csv
+    import logging
+
+    delim = _sniff_delimiter(content, default_delim)
+    if delim is None:
+        return None
+    decimal_comma = delim == ";"
+    reader = csv.reader(io.StringIO(content), delimiter=delim)
+    rows = []
+    row_nums: List[int] = []
+    prev_end = 0
+    for r in reader:
+        start, prev_end = prev_end + 1, reader.line_num
+        cells = [c.strip() for c in r]
+        if any(cells):
+            rows.append(cells)
+            row_nums.append(start)
+    cur_rn = [0]
+
+    def _meta(text: str) -> str:
+        return f"{text} {ROW_META}{cur_rn[0]}" if row_meta else text
+
+    lines: List[str] = []
+    leftover: List[str] = []
+    warnings: List[str] = []
+
+    header_idx, cols, unit_hint = None, {}, ""
+    value_candidates: List[int] = []
+    for i, row in enumerate(rows[:15]):
+        roles: Dict[str, int] = {}
+        cands: List[int] = []
+        for j, cell in enumerate(row):
+            role = _header_role(cell)
+            if role == "value":
+                cands.append(j)
+            if role and role not in roles:
+                roles[role] = j
+        if "name" in roles and "value" in roles:
+            header_idx, cols, value_candidates = i, roles, cands
+            break
+
+    ambiguous = False
+    if header_idx is not None and len(value_candidates) > 1:
+        header = rows[header_idx]
+        current = [j for j in value_candidates if _is_current_header(header[j])]
+        if len(current) == 1:
+            cols["value"] = current[0]
+        else:
+            ambiguous = True
+    if ambiguous:
+        warnings.append("ambiguous result columns: several result columns and none marked current/latest; no rows read")
+        return [], [], warnings
+    if header_idx is not None:
+        hint = re.search(r"\(([^)]*)\)", rows[header_idx][cols["value"]])
+        if hint and "unit" not in cols and is_unit_token(hint.group(1)):
+            unit_hint = hint.group(1).strip()
+
+    def cell(row, key):
+        j = cols.get(key)
+        return row[j] if j is not None and j < len(row) else ""
+
+    def emit(name, parsed, unit, rng_cell, flag_cell, low_cell="", high_cell=""):
+        number, prefix = parsed["value"], parsed["prefix"]
+        unit = unit or parsed["unit"]
+        r = _parse_range_cell(rng_cell, decimal_comma)
+        low, high = r["lo"], r["hi"]
+        if rng_cell == "" and (low_cell or high_cell):
+            low = _parse_number_token(low_cell, decimal_comma) if low_cell else None
+            high = _parse_number_token(high_cell, decimal_comma) if high_cell else None
+        flag = parsed["flag"]
+        if flag_cell:
+            flag = normalize_flag(flag_cell.split()) or flag
+        ref_unit = r["unit"] or ""
+        lines.append(_meta(_canonical_lab_line(
+            name, number, prefix, unit or "", low, high, strict_low=r["strict_lo"], strict_high=r["strict_hi"],
+            flag=flag, ref_unit=ref_unit, text=parsed["text"] or "", sex_ranges=r["sex_ranges"])))
+
+    if header_idx is not None:
+        for i, row in enumerate(rows):
+            if i <= header_idx:
+                continue
+            cur_rn[0] = row_nums[i]
+            name, value, unit, rng = cell(row, "name"), cell(row, "value"), cell(row, "unit"), cell(row, "range")
+            parsed = _parse_result_cell(value, decimal_comma)
+            if not name or not re.search(r"[A-Za-z]", name) or parsed is None:
+                if any(ch.isdigit() for ch in "".join(row)):
+                    leftover.append(_meta(" ".join(c for c in row if c)))
+                    if value and re.search(r"\d", value) and name:
+                        logging.getLogger(__name__).warning("CSV lab row not parsed: %r", row)
+                continue
+            emit(name, parsed, unit or unit_hint, rng, cell(row, "flag"), cell(row, "ref_low"), cell(row, "ref_high"))
+        return lines, leftover, warnings
+
+    # ---- wide format: header cells are analyte names, one patient per row ----
+    for hi_, hrow in enumerate(rows[:5]):
+        analyte_cols = []
+        for j, c in enumerate(hrow):
+            base = re.sub(r"\s*\([^)]*\)\s*", " ", c).strip()
+            if j > 0 and base and match_analyte(base) is not None:
+                hint = re.search(r"\(([^)]*)\)", c)
+                analyte_cols.append((j, base, hint.group(1).strip() if hint and is_unit_token(hint.group(1)) else ""))
+        if len(analyte_cols) >= 2:
+            data_rows = rows[hi_ + 1:]
+            for di, drow in enumerate(data_rows):
+                cur_rn[0] = row_nums[hi_ + 1 + di]
+                for j, base, hunit in analyte_cols:
+                    if j < len(drow) and drow[j]:
+                        parsed = _parse_result_cell(drow[j], decimal_comma)
+                        if parsed is None:
+                            leftover.append(_meta(f"{base} {drow[j]}"))
+                            continue
+                        emit(base, parsed, hunit, "", "")
+            if len(data_rows) > 1:
+                warnings.append(f"wide-format file with {len(data_rows)} data rows: all rows are included as one patient")
+            return lines, leftover, warnings
+
+    # ---- no recognisable header: positional (name, value, unit, range), after optional id columns ----
+    for ri, row in enumerate(rows):
+        cur_rn[0] = row_nums[ri]
+        name_idx = next((k for k, c in enumerate(row) if re.search(r"[A-Za-z]", c)), None)
+        parsed = None
+        if name_idx is not None and all(re.fullmatch(r"\d+", c or "") for c in row[:name_idx]) \
+                and name_idx + 1 < len(row):
+            parsed = _parse_result_cell(row[name_idx + 1], decimal_comma)
+        if parsed is None or name_idx is None:
+            if any(ch.isdigit() for ch in "".join(row)):
+                leftover.append(_meta(" ".join(c for c in row if c)))
+            continue
+        name = row[name_idx]
+        unit, rng = parsed["unit"], ""
+        for extra in row[name_idx + 2:]:
+            if not extra:
+                continue
+            if not rng and _parse_range_cell(extra, decimal_comma)["lo"] is not None or \
+                    not rng and _parse_range_cell(extra, decimal_comma)["hi"] is not None or \
+                    not rng and _parse_range_cell(extra, decimal_comma)["sex_ranges"]:
+                rng = extra
+            elif not unit and is_unit_token(extra):
+                unit = extra
+        if not unit and not rng and not _known_analyte(name) and parsed["text"] is None:
+            # "Patient ref,12345" is not a lab result.
+            leftover.append(_meta(" ".join(c for c in row if c)))
+            continue
+        emit(name, parsed, unit, rng, "")
+    return lines, leftover, warnings
+
+
+def _delimited_text_to_lines(file_path: str, row_meta: bool = False) -> str:
+    """Read a CSV/TSV/TXT lab export.
+
+    CSV/TSV are parsed structurally (delimiter sniffed, header columns mapped
+    by name, decimal commas normalised) and returned as marker + canonical
+    lines that the lab engine parses exactly. Content without a consistent
+    delimiter, and plain .txt, is passed through as text."""
+    with open(file_path, "r", encoding="utf-8-sig", errors="replace") as fh:
+        content = fh.read()
+    if file_path.lower().endswith(".txt"):
+        return content
+
+    parsed = _parse_delimited_content(content, "\t" if file_path.lower().endswith(".tsv") else ",", row_meta)
+    if parsed is None:
+        return "\n".join(
+            ln for ln in (l.strip() for l in content.splitlines()) if ln and any(ch.isdigit() for ch in ln)
+        )
+    lines, leftover, warnings = parsed
+    out = [STRUCTURED_LAB_MARKER] + [f"{WARN_PREFIX}{w}" for w in warnings] + lines
+    if leftover:
+        out.append(_OTHER_ROWS_MARKER)
+        out.extend(leftover)
+    return "\n".join(out)
+
+
 def run_ocr(file_path: str) -> OcrOutput:
     """
     OCR pipeline: PaddleOCR + PyMuPDF, with legacy Tesseract fallback.
@@ -326,7 +683,26 @@ def run_ocr(file_path: str) -> OcrOutput:
 
     PRD: Lab Reports (PDF) → OCR → raw text → ClinicalBERT NER
     """
+    return _run_ocr_impl(file_path, with_layout=False)[0]
+
+
+def run_ocr_with_layout(file_path: str) -> Tuple[OcrOutput, DocumentLayout]:
+    """``run_ocr`` plus the page geometry of every physical line (E7 provenance, plans/P2.md 6.2).
+
+    The returned ``OcrOutput`` is the one ``run_ocr`` returns, except that structured CSV lines also carry the
+    ``@row=N`` provenance meta (the lab engine ignores it, so the rows it reads are identical)."""
+    return _run_ocr_impl(file_path, with_layout=True)
+
+
+def _run_ocr_impl(file_path: str, with_layout: bool) -> Tuple[OcrOutput, DocumentLayout]:
     ext = os.path.splitext(file_path)[1].lower()
+    if ext in (".csv", ".tsv", ".txt"):
+        # Already text — no OCR. The report route accepts .csv uploads; before
+        # this branch they fell through to "Unsupported OCR format", the
+        # pipeline swallowed that into empty text, and an abnormal panel was
+        # reported as "low risk".
+        text = _delimited_text_to_lines(file_path, row_meta=with_layout)
+        return OcrOutput(raw_text=text, confidence=1.0, pages=[text]), DocumentLayout(kind="csv")
     if os.getenv("OCR_ENGINE", "paddle").lower() == "paddle":
         try:
             from app.services.ocr_service import extract_text_from_file
@@ -337,11 +713,17 @@ def run_ocr(file_path: str) -> OcrOutput:
                 page.get("text", "") if isinstance(page, dict) else str(page)
                 for page in pages_payload
             ] or [result.get("full_text", "")]
-            return OcrOutput(
+            out = OcrOutput(
                 raw_text=result.get("full_text", ""),
                 confidence=float(result.get("avg_confidence", 0.0) or 0.0),
                 pages=pages,
             )
+            if pages_payload:
+                layouts = [p.get("layout") if isinstance(p, dict) else None for p in pages_payload]
+            else:
+                layouts = [result.get("layout")]
+            kind = "pdf" if ext == ".pdf" else "image"
+            return out, DocumentLayout.build(kind, out.raw_text, pages, layouts)
         except Exception as exc:
             print(f"[OCR] PaddleOCR unavailable/failed: {exc}. Falling back to legacy OCR.")
 
@@ -356,7 +738,9 @@ def run_ocr(file_path: str) -> OcrOutput:
         raise ValueError(f"Unsupported OCR format: {ext}")
 
     raw_text = "\n\n--- PAGE BREAK ---\n\n".join(pages)
-    return OcrOutput(raw_text=raw_text, confidence=confidence, pages=pages)
+    out = OcrOutput(raw_text=raw_text, confidence=confidence, pages=pages)
+    # legacy fallback: no geometry (every row will then say it could not be located)
+    return out, DocumentLayout.build("pdf" if ext == ".pdf" else "image", raw_text, [], [])
 
 
 def _ocr_pdf(pdf_path: str) -> Tuple[List[str], float]:
@@ -672,146 +1056,20 @@ def strip_commentary(text: str) -> str:
         cleaned_lines.append(line)
     return '\n'.join(cleaned_lines)
 
-REFERENCE_REGISTRY = {
-    "hemoglobin": {"male": (13.5, 17.5), "female": (12.0, 15.5), "unit": "g/dL"},
-    "wbc count": {"all": (4000, 10000), "unit": "/cmm"},
-    "platelet count": {"all": (150000, 410000), "unit": "/cmm"},
-    "hematocrit": {"male": (40, 49), "female": (36, 46), "unit": "%"},
-    "mcv": {"all": (83, 101), "unit": "fL"},
-    "mch": {"all": (27.1, 32.5), "unit": "pg"},
-    "mchc": {"all": (32.5, 36.7), "unit": "g/dL"},
-    "rdw": {"all": (11.6, 14.0), "unit": "%"},
-    "cholesterol": {"all": (0, 200), "unit": "mg/dL"},
-    "triglyceride": {"all": (0, 150), "unit": "mg/dL"},
-    "hdl cholesterol": {"male": (40, 999), "female": (50, 999), "unit": "mg/dL"},
-    "direct ldl": {"all": (0, 100), "unit": "mg/dL"},
-    "fasting blood sugar": {"all": (74, 106), "unit": "mg/dL"},
-    "hba1c": {"all": (0, 6.5), "unit": "%"},
-    "creatinine": {"male": (0.66, 1.25), "female": (0.50, 1.10), "unit": "mg/dL"},
-    "tsh": {"all": (0.35, 4.94), "unit": "µIU/mL"},
-    "iron": {"all": (49, 181), "unit": "µg/dL"},
-    "tibc": {"all": (261, 462), "unit": "µg/dL"},
-    "ferritin": {"male": (22, 322), "female": (10, 291), "unit": "ng/mL"},
-    "vitamin b12": {"all": (187, 833), "unit": "pg/mL"},
-    "25(oh) vitamin d": {"all": (30, 100), "unit": "ng/mL"},
-}
-
-def resolve_reference(name: str, gender: str = "male", age: int = 40, pdf_ref_low: float = None, pdf_ref_high: float = None):
+def resolve_reference(name: str, gender: Optional[str] = None, age: Optional[int] = None,
+                      pdf_ref_low: float = None, pdf_ref_high: float = None):
+    """(low, high, source). A range printed on the report always wins; the
+    registry is consulted by EXACT analyte match only, and never assumes a
+    sex or an age (sex-specific analytes without a known sex have no range)."""
     if pdf_ref_low is not None and pdf_ref_high is not None:
         return pdf_ref_low, pdf_ref_high, "pdf"
-    name_l = name.lower().strip()
-    for reg_key, config in REFERENCE_REGISTRY.items():
-        if reg_key in name_l or name_l in reg_key:
-            g_key = gender if gender in config else "all"
-            if g_key in config:
-                low, high = config[g_key]
-                return low, high, "registry"
-    return None, None, "unknown"
-
-class UniversalValueExtractor:
-    NUMERIC_PATTERN = re.compile(
-        r'([A-Za-z][A-Za-z0-9\s\(\)/\-]{2,50}?)\s+'
-        r'[HL]?\s*(<\s*|>\s*)?(\d+\.?\d*)\s+'
-        r'([µuμa-zA-Z%°/]+(?:[/][a-zA-Z]+)?)\s+'
-        r'(\d+\.?\d*)\s*[-–]\s*(\d+\.?\d*)',
-        re.MULTILINE
-    )
-    BINARY_MAP = {
-        "urine glucose": ["present", "positive", "+"],
-        "urine protein": ["present", "positive", "+"],
-        "hbsag": ["reactive"],
-        "hiv": ["reactive"],
-        "malarial parasite": ["detected", "present", "positive"],
-    }
-    QUALITATIVE_ABNORMAL = [
-        "hypochromic", "microcytic", "macrocytic", "poikilocytosis",
-        "anisocytosis", "blasts", "immature", "abnormal morphology"
-    ]
-    LT_GT_PATTERN = re.compile(
-        r'([A-Za-z][A-Za-z0-9\s\(\)/\-B]{2,40}?)\s+'
-        r'[HL]?\s*([<>])\s*(\d+\.?\d*)\s+'
-        r'([µuμa-zA-Z%/]+)\s+'
-        r'(\d+\.?\d*)\s*[-–]\s*(\d+\.?\d*)',
-        re.MULTILINE
-    )
-
-    def extract_all(self, text: str) -> List[LabValue]:
-        stripped = strip_commentary(text)
-        results = self._extract_numeric(stripped)
-        results += self._extract_binary(stripped)
-        results += self._extract_qualitative(stripped)
-        results += self._extract_lt_gt(stripped)
-        return self._deduplicate(results)
-
-    def _extract_numeric(self, text: str) -> List[LabValue]:
-        results = []
-        for match in self.NUMERIC_PATTERN.finditer(text):
-            name = match.group(1).strip()
-            prefix = match.group(2) or ""
-            value = float(match.group(3))
-            unit = match.group(4).strip()
-            ref_low = float(match.group(5))
-            ref_high = float(match.group(6))
-            if not self._is_valid_name(name): continue
-            results.append(LabValue(
-                name=name, value=value, unit=unit,
-                ref_low=ref_low, ref_high=ref_high,
-                prefix=prefix.strip(), value_type="numeric"
-            ))
-        return results
-
-    def _extract_binary(self, text: str) -> List[LabValue]:
-        results = []
-        for test_name, abnormal_vals in self.BINARY_MAP.items():
-            if test_name not in text.lower(): continue
-            pattern = re.compile(rf'{re.escape(test_name)}\s+(\w[\w\s(+)\-]*)', re.IGNORECASE)
-            match = pattern.search(text)
-            if not match: continue
-            res_text = match.group(1).strip()
-            is_ab = any(av in res_text.lower() for av in abnormal_vals)
-            results.append(LabValue(
-                name=test_name.title(), unit="", result_text=res_text,
-                value_type="binary", is_abnormal=is_ab
-            ))
-        return results
-
-    def _extract_qualitative(self, text: str) -> List[LabValue]:
-        results = []
-        pattern = re.compile(r'(RBC Morphology|WBC Morphology|Peripheral Smear)\s+([A-Za-z\s]+)', re.IGNORECASE)
-        for match in pattern.finditer(text):
-            name, finding = match.group(1).strip(), match.group(2).strip()
-            is_ab = any(ab in finding.lower() for ab in self.QUALITATIVE_ABNORMAL)
-            results.append(LabValue(
-                name=name, unit="", result_text=finding,
-                value_type="qualitative", is_abnormal=is_ab
-            ))
-        return results
-
-    def _extract_lt_gt(self, text: str) -> List[LabValue]:
-        results = []
-        for match in self.LT_GT_PATTERN.finditer(text):
-            name, op, val = match.group(1).strip(), match.group(2), float(match.group(3))
-            unit, low, high = match.group(4).strip(), float(match.group(5)), float(match.group(6))
-            results.append(LabValue(
-                name=name, value=val-0.01 if op=="<" else val+0.01,
-                unit=unit, ref_low=low, ref_high=high,
-                prefix=op, display_value=f"{op}{val}", value_type="lt_gt"
-            ))
-        return results
-
-    def _is_valid_name(self, name: str) -> bool:
-        if len(name) < 3 or len(name) > 60: return False
-        if not name[0].isalpha(): return False
-        if name.lower().strip() in {"page", "date", "patient", "sample"}: return False
-        return True
-
-    def _deduplicate(self, values: List[LabValue]) -> List[LabValue]:
-        seen = {}
-        for lv in values:
-            key = lv.name.lower().strip()
-            if key not in seen or (lv.ref_low is not None and seen[key].ref_low is None):
-                seen[key] = lv
-        return list(seen.values())
+    analyte = match_analyte(name or "")
+    if analyte is None:
+        return None, None, "unknown"
+    rng, _reason = analyte.registry_range(normalize_sex(gender), normalize_age(age))
+    if rng is None or rng[0] is None or rng[1] is None:
+        return None, None, "unknown"
+    return rng[0], rng[1], "registry"
 
 def _parse_ner_entities(entities: List[Dict], raw_text: str) -> NerOutput:
     """Map ClinicalBERT entity groups → NerOutput contract."""
@@ -880,253 +1138,131 @@ def _regex_ner_fallback(text: str) -> NerOutput:
     )
 
 
-def extract_all_lab_values(text: str) -> List[LabValue]:
-    """Orchestrates Layer 1 (PDF table) and Layer 2 (Registry)."""
-    # Layer 1: PDF Table parser
-    layer1_labs = extract_lab_table_from_pdf(text)
-    layer1_names = {lv.name.lower() for lv in layer1_labs}
-    
-    # Layer 2: Registry fallback (only for tests not found in Layer 1)
-    layer2_labs = _extract_lab_values_registry(text)
-    fallback_labs = [lv for lv in layer2_labs if lv.name.lower() not in layer1_names]
-    
-    return deduplicate_lab_values(layer1_labs + fallback_labs)
+def _range_flag(value: float, low: Optional[float], high: Optional[float]) -> Tuple[str, str, float]:
+    """(flag, status, pct_deviation) against the report's own range."""
+    if low is not None and value < low:
+        pct = round(((low - value) / low) * 100, 1) if low else 100.0
+        status = "CRITICAL" if pct > 50 else "HIGH" if pct > 25 else "LOW"
+        return f"⬇️ {status}", status, pct
+    if high is not None and value > high:
+        pct = round(((value - high) / high) * 100, 1) if high else 100.0
+        status = "CRITICAL" if pct > 50 else "HIGH"
+        return f"⬆️ {status}", status, pct
+    return "NORMAL", "NORMAL", 0.0
 
-# Unit normalizer for common clinical tests
-UNIT_CONVERTERS = {
-    "wbc": {
-        "cells/µL": lambda x: x / 1000,   # 9993 → 9.993
-        "cells/mm³": lambda x: x / 1000,
-        "/µL": lambda x: x / 1000,
-    },
-    "platelets": {
-        "/µL": lambda x: x / 1000,
-        "cells/µL": lambda x: x / 1000,
-    }
-}
 
-def normalize_unit(test_name: str, value: float, unit: str) -> float:
-    name_l = test_name.lower()
-    # Hardcoded heuristic for common unit scaling issues (Bug 1)
-    if "wbc" in name_l and value > 100:
-        return value / 1000
-    if "platelet" in name_l and value > 1000:
-        return value / 1000
-
-    converters = UNIT_CONVERTERS.get(name_l, {})
-    for unit_key, converter in converters.items():
-        if unit_key in unit.lower():
-            return converter(value)
-    return value
-
-def deduplicate_lab_values(lab_values: List[LabValue]) -> List[LabValue]:
-    seen_values = {}
-    result = []
-    for lv in lab_values:
-        # Use rounded value as key to catch OCR variations of same test
-        key = round(lv.value, 1)
-        if key not in seen_values:
-            seen_values[key] = lv
-            result.append(lv)
+def _make_lab_value(name: str, value: float, unit: str, low: Optional[float], high: Optional[float],
+                    raw_text: str, prefix: str = "") -> LabValue:
+    """Legacy LabValue view of one row, flagged against the report's own range only."""
+    prefix = {"<=": "<", ">=": ">"}.get(prefix, prefix)
+    has_range = low is not None or high is not None
+    flag = status = None
+    pct = None
+    if has_range:
+        if prefix == "<":
+            # "<x": only certain when the whole interval lies below the range.
+            if low is not None and value <= low:
+                flag, status, pct = _range_flag(value - 1e-9, low, high)
+        elif prefix == ">":
+            if high is not None and value >= high:
+                flag, status, pct = _range_flag(value + 1e-9, low, high)
         else:
-            # Keep the one with cleaner name (shorter, no garbage words)
-            existing = seen_values[key]
-            if len(lv.name) < len(existing.name):
-                # Swap existing with the cleaner one
-                idx = result.index(existing)
-                result[idx] = lv
-                seen_values[key] = lv
-    return result
+            flag, status, pct = _range_flag(value, low, high)
+    return LabValue(
+        name=name, value=value, unit=unit, raw_text=raw_text, ref_low=low, ref_high=high,
+        flag=flag, status=status, pct_deviation=pct,
+        value_type="lt_gt" if prefix else "numeric",
+        display_value=f"{prefix}{_fmt_num(value)}" if prefix else "",
+        prefix=prefix,
+    )
 
-# KNOWN LAB TEST REGISTRY with reference ranges
-LAB_REGISTRY = {
-    "iron": {
-        "aliases": ["iron", "serum iron", "fe"],
-        "unit": "ug/dL",
-        "normal_range": (65, 175)
-    },
-    "tibc": {
-        "aliases": ["tibc", "total iron binding capacity", 
-                    "iron binding capacity"],
-        "unit": "µg/dL",
-        "normal_range": (250, 425)
-    },
-    "transferrin saturation": {
-        "aliases": ["transferrin saturation", "tsat", "transferrin sat"],
-        "unit": "%",
-        "normal_range": (20, 50)
-    },
-    "ferritin": {
-        "aliases": ["ferritin", "serum ferritin"],
-        "unit": "ng/mL",
-        "normal_range": (22, 322)
-    },
-    "hemoglobin": {
-        "aliases": ["hemoglobin", "hb", "haemoglobin"],
-        "unit": "g/dL",
-        "normal_range_male": (13.5, 17.5),
-        "normal_range_female": (12.0, 15.5)
-    },
-    "hba1c": {
-        "aliases": ["hba1c", "glycated hemoglobin", "a1c"],
-        "unit": "%",
-        "normal_range": (4.0, 5.7)
-    },
-    "creatinine": {
-        "aliases": ["creatinine", "serum creatinine", "scr"],
-        "unit": "mg/dL",
-        "normal_range_male": (0.74, 1.35),
-        "normal_range_female": (0.59, 1.04)
-    },
-    "glucose": {
-        "aliases": ["glucose", "blood glucose", "fasting glucose", "rbs"],
-        "unit": "mg/dL",
-        "normal_range": (70, 100)
-    },
-    "tsh": {
-        "aliases": ["tsh", "thyroid stimulating hormone"],
-        "unit": "µIU/mL",
-        "normal_range": (0.4, 4.0)
-    },
-    "ldl": {
-        "aliases": ["ldl", "ldl cholesterol", "low density lipoprotein"],
-        "unit": "mg/dL",
-        "normal_range": (0, 100)
-    },
-    "hdl": {
-        "aliases": ["hdl", "hdl cholesterol", "high density lipoprotein"],
-        "unit": "mg/dL",
-        "normal_range_male": (40, 60),
-        "normal_range_female": (50, 60)
-    },
-    "cholesterol": {
-        "aliases": ["total cholesterol", "cholesterol"],
-        "unit": "mg/dL",
-        "normal_range": (0, 200)
-    },
-    "wbc": {
-        "aliases": ["wbc", "white blood cell", "leucocytes", "leukocytes"],
-        "unit": "10³/µL",
-        "normal_range": (4.5, 11.0)
-    },
-    "platelets": {
-        "aliases": ["platelets", "platelet count", "plt"],
-        "unit": "10³/µL",
-        "normal_range": (150, 400)
-    },
-}
 
-def _extract_lab_values_registry(text: str, gender: str = "male") -> List[LabValue]:
-    """
-    Registry-based lab extraction.
-    Only extracts KNOWN test names from LAB_REGISTRY.
-    Ignores all header/footer/date noise.
-    """
-    text_lower = text.lower()
-    found = []
+def _parsed_row_to_labvalue(p: ParsedRow) -> LabValue:
+    if p.value is None:
+        positive = qualitative_class(p.text_value or "") == "POSITIVE"
+        return LabValue(name=p.name, value=None, unit="", raw_text=p.line, result_text=p.text_value or "",
+                        value_type="binary", is_abnormal=positive)
+    return _make_lab_value(p.name, p.value, p.unit or "", p.ref_low, p.ref_high, p.line, p.qualifier or "")
 
-    for test_key, config in LAB_REGISTRY.items():
-        for alias in config["aliases"]:
-            # Pattern: alias followed by number (value) within ~80 chars
-            pattern = re.compile(
-                rf'{re.escape(alias)}\s*[:\s]+(\d+\.?\d*)',
-                re.IGNORECASE
-            )
-            match = pattern.search(text_lower)
-            if match:
-                try:
-                    value = normalize_unit(test_key, float(match.group(1)), config.get("unit", ""))
-                    unit = config.get("unit", "")
 
-                    # Validate value is in plausible medical range
-                    # Reject obvious noise (page numbers, years, phone numbers)
-                    if value > 100000 or value < 0:
-                        continue
-                    # Reject 4-digit numbers that look like years
-                    if 1900 <= value <= 2100:
-                        continue
+def extract_all_lab_values(text: str) -> List[LabValue]:
+    """Legacy view of the lab engine's reader (app.services.lab_engine):
+    structured CSV text or plain report text -> LabValue rows, flagged
+    against the report's own printed range only. The pipeline itself uses
+    the engine's ParsedRow/ScoredRow objects directly."""
+    rows, _unread, _warnings = parse_report_text(text)
+    return deduplicate_lab_values([_parsed_row_to_labvalue(r) for r in rows])
 
-                    found.append(LabValue(
-                        name=test_key.title(),
-                        value=value,
-                        unit=unit,
-                        raw_text=match.group(0)
-                    ))
-                    break  # found this test, stop checking aliases
-                except ValueError:
-                    continue
-    return found
 
 def extract_lab_table_from_pdf(text: str) -> List[LabValue]:
+    """Rows that carry value + unit-or-not + a complete printed range."""
+    rows, _unread = parse_lab_text(text)
+    return [_parsed_row_to_labvalue(r) for r in rows
+            if r.value is not None and r.ref_low is not None and r.ref_high is not None]
+
+
+def _same_lab_test(a: str, b: str) -> bool:
+    """Two names denote the same test iff their canonical token sets are
+    equal (case/punctuation/noise words/synonyms normalised). Substring
+    containment is NOT enough: Direct vs Indirect Bilirubin, LDL vs VLDL and
+    Albumin vs Microalbumin are different analytes."""
+    ta, tb = canon_tokens(a), canon_tokens(b)
+    return bool(ta) and ta == tb
+
+
+def _row_quality(lv: LabValue) -> Tuple[int, int, int]:
+    """Higher is better: range read from the report, then a unit, then a
+    shorter (less OCR-noisy) name."""
+    has_range = int(lv.ref_low is not None and lv.ref_high is not None)
+    has_unit = int(bool((lv.unit or "").strip()))
+    return has_range, has_unit, -len(lv.name or "")
+
+
+def deduplicate_lab_values(lab_values: List[LabValue]) -> List[LabValue]:
+    """Drop OCR duplicates of the SAME test.
+
+    Duplicates must name the same test (_same_lab_test), share a (rounded)
+    value, and — when both carry a unit — have equivalent units. Among
+    duplicates the row with a report-read range and unit wins, then the
+    cleaner (shorter) name.
     """
-    Parse structured lab table pattern:
-    <test_name> <value> <unit> <ref_low> - <ref_high>
-    
-    Covers ANY test — not just registry ones.
-    Uses the lab's own reference range printed in the report.
-    """
-    # Pattern: captures name + value + unit + ref range
-    pattern = re.compile(
-        r'(Iron|TIBC|Transferrin Saturation|Ferritin'
-        r'|Hemoglobin|HbA1c|Creatinine|Glucose|TSH'
-        r'|Cholesterol|HDL|LDL|WBC|Platelets'
-        r'|[A-Za-z][A-Za-z\s\(\)]{3,40}?)\s*\n?\s*'
-        r'(\d+\.?\d*)\s+'          # ← RESULT (first number)
-        r'([µuµa-zA-Z%\/]+)\s+'   # ← UNIT
-        r'(\d+\.?\d*)\s*[-–]\s*'  # ← REF LOW
-        r'(\d+\.?\d*)',             # ← REF HIGH
-        re.MULTILINE | re.IGNORECASE
-    )
-    
-    results = []
-    for match in pattern.finditer(text):
-        name = match.group(1).strip()
-        # Bug 4: Clean leading single letters (OCR artifacts)
-        name = re.sub(r'^[A-Z]\s+', '', name).strip()
-        
-        raw_val = float(match.group(2))
-        raw_unit = match.group(3).strip()
-        
-        # Bug 1: Normalize units (e.g. cells/µL -> 10³/µL)
-        value = normalize_unit(name, raw_val, raw_unit)
-        unit = raw_unit
-        
-        ref_low = float(match.group(4))
-        ref_high = float(match.group(5))
-        
-        # If value was scaled, scale reference ranges by the same factor
-        if raw_val != 0 and value != raw_val:
-            scale = value / raw_val
-            ref_low *= scale
-            ref_high *= scale
-        
-        # Anomaly computed immediately using PDF's OWN range
-        if value < ref_low:
-            pct = round(((ref_low - value) / ref_low) * 100, 1)
-            status = "CRITICAL" if pct > 50 else "HIGH" if pct > 25 else "LOW"
-            flag = f"⬇️ {status}"
-        elif value > ref_high:
-            pct = round(((value - ref_high) / ref_high) * 100, 1)
-            status = "CRITICAL" if pct > 50 else "HIGH" if pct > 25 else "HIGH"
-            flag = f"⬆️ {status}"
-        else:
-            pct = 0.0
-            status = "NORMAL"
-            flag = "NORMAL"
-        
-        results.append(LabValue(
-            name=name,
-            value=value,
-            unit=unit,
-            raw_text=match.group(0),
-            ref_low=ref_low,      # ← from PDF itself
-            ref_high=ref_high,    # ← from PDF itself
-            flag=flag,
-            status=status,
-            pct_deviation=pct
-        ))
-    
-    return results
+    result: List[LabValue] = []
+    for lv in lab_values:
+        value_key = round(lv.value, 1) if lv.value is not None else None
+        dup_index = None
+        for i, existing in enumerate(result):
+            if (round(existing.value, 1) if existing.value is not None else None) != value_key:
+                continue
+            if not _same_lab_test(existing.name, lv.name):
+                continue
+            if (existing.unit or "").strip() and (lv.unit or "").strip() \
+                    and not units_equivalent(existing.unit, lv.unit, f"{existing.name} {lv.name}"):
+                continue
+            dup_index = i
+            break
+        if dup_index is None:
+            result.append(lv)
+        elif _row_quality(lv) > _row_quality(result[dup_index]):
+            result[dup_index] = lv
+    return result
+
+
+def _legacy_lab_registry() -> Dict[str, Dict[str, Any]]:
+    """Old LAB_REGISTRY-shaped view of the engine registry (ml/anomaly/lab_flagger imports it)."""
+    out: Dict[str, Dict[str, Any]] = {}
+    for key, a in REGISTRY.items():
+        entry: Dict[str, Any] = {"aliases": [s.lower() for s in a.synonyms], "unit": a.unit}
+        if "all" in a.ranges:
+            entry["normal_range"] = a.ranges["all"]
+        if "M" in a.ranges:
+            entry["normal_range_male"] = a.ranges["M"]
+        if "F" in a.ranges:
+            entry["normal_range_female"] = a.ranges["F"]
+        out[key.replace("_", " ")] = entry
+    return out
+
+
+LAB_REGISTRY = _legacy_lab_registry()
 
 def extract_clinical_flags_from_text(text: str) -> List[str]:
     """Scan comment/narrative section for clinical interpretations."""

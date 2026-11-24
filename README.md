@@ -74,8 +74,8 @@ Confidence is always reported on a **0–100 Platt-scaled range**. A 0–1 score
 ### Install
 
 ```bash
-git clone https://github.com/suchitchopade3110-arch/vadiyaaAI.git
-cd vadiyaaAI
+git clone https://github.com/suchitchopade3110-arch/Vaidyaa-AI.git
+cd Vaidyaa-AI
 
 python3 -m venv .venv
 source .venv/bin/activate
@@ -143,12 +143,15 @@ Fallbacks let the app boot, but predictions from a fallback path are **not** pro
 
 | Method | Endpoint | Purpose |
 | --- | --- | --- |
-| `POST` | `/api/v1/claims/verify` | Verify a clinical claim → Verified / Refuted / Uncertain |
-| `POST` | `/api/v1/reports/analyze` | Parse lab report, clinical note, or discharge summary |
-| `POST` | `/api/v1/images/analyze` | Segment + classify X-ray, CT, MRI, skin, or pathology image |
-| `GET` | `/api/v1/jobs/{job_id}` | Poll async job status |
-| `WS` | `/ws/jobs/{job_id}` | Live progress stream |
-| `GET` | `/health` | Liveness probe |
+| `POST` | `/auth/register`, `/auth/login`, `/auth/refresh`, `/auth/logout` | Accounts and JWTs (all other routes need `Authorization: Bearer`) |
+| `POST` | `/api/v1/verify/claim` | Verify a clinical claim → Verified / Refuted / Uncertain |
+| `POST` | `/api/v1/analyze/report/{lab\|clinical\|discharge}` | Analyse a lab report (`.pdf` or `.csv`), clinical note, or discharge summary |
+| `POST` | `/api/v1/analyze/image/{xray\|ct\|mri\|skin\|pathology}` | Segment + classify a medical image |
+| `GET` | `/api/v1/jobs` · `/api/v1/jobs/{job_id}` | Your jobs · poll one job (owner only) |
+| `POST` | `/api/v1/jobs/{job_id}/sign-off` | Clinician sign-off (required before QR sharing) |
+| `GET` | `/reports/{job_id}/qr` | QR share link for a signed-off report (owner only) |
+| `WS` | `/ws/{job_id}?token=…` | Live progress stream |
+| `GET` | `/health` · `/ready` | Liveness · readiness (DB + Redis) |
 
 Long-running analyses return a `job_id` immediately and complete on the Celery worker.
 
@@ -158,11 +161,36 @@ Live routes live in `app/api/v1/routes/`. Anything in `app/routes/` is legacy an
 
 ## Known limitations
 
-- **MedSAM falls back silently.** `segment-anything` is not pinned in `requirements.txt` and the checkpoint ships separately, so segmentation currently passes the full image through. Fix before trusting any ROI-dependent output.
-- **XGBoost version warnings** on load; the calibrated model needs re-export against the pinned version.
+- **Model weights and the knowledge base ship separately.** Without the
+  checkpoints under `models/`, the ChromaDB collections, and a `GROQ_API_KEY`,
+  every pipeline still runs end to end but on fallbacks: claim verification
+  returns `Uncertain` / "Insufficient evidence" (by design — see
+  hallucination mitigation above), and imaging uses heuristic classifiers.
+  Fallback output is **not** production-valid.
+- **Lab-report extraction is heuristic and NOT safe on arbitrary layouts.**
+  The lab engine (`app/services/lab_engine/`) matches analytes exactly,
+  converts units, prefers the report's printed range, never assumes sex/age,
+  and floors the headline risk on any critical value. On an independent set
+  of 65 fresh reports (15 Indian/US/UK layouts, Nov 2026) about 63% of
+  native-text PDFs were read fully correctly. Known failure classes: fixed
+  x-band column parsing of portrait tables, method/technology columns, urine
+  and CSF chemistry scored as serum, counts printed without a unit, titres
+  (1:160), form-style single-test reports, and footer lines degrading a
+  normal report to "unknown". Every extracted value must be checked by a
+  clinician against the source report.
+- **Chest X-ray input** is checked by a plausibility gate (contrast, texture,
+  grey-level entropy, torchxrayvision autoencoder), but CT/MR slices and
+  some grayscale photos still pass. Probabilities 0.50–0.60 are reported as
+  borderline, not detected.
 - **HIPAA audit logging is incomplete.** Do not process real PHI on this build.
-- **Docker Compose setup is unfinished.**
-- Dead code exists in the tree. `app/ml/predictors/` is orphaned.
+- **Org-level tenancy (PLT-01) is not enforced.** Access is per user: you see
+  only jobs you submitted. Admins may sign off any job and see all patient
+  history, but job status/results stay owner-only.
+- **Consent capture (DPD-01) is permissive** — it logs instead of blocking.
+- The UI is the in-browser-Babel build (`ui/VAIDYAAI.html`); the Vite port
+  (PLT-04) is unfinished.
+- Dead code remains in the tree (e.g. `app/workers/{claim,image,report}_tasks.py`
+  legacy task modules); the live tasks are in `app/workers/pipeline_tasks.py`.
 
 ---
 
@@ -194,8 +222,10 @@ tests/
 
 ```bash
 source .venv/bin/activate
-pytest -v
-pytest --cov=app --cov-report=term-missing
+# Unit + API tests need PostgreSQL (migrated) and Redis running; no model
+# downloads or Groq key needed.
+alembic upgrade head
+HF_HUB_OFFLINE=1 pytest tests/ --ignore=tests/test_e2e.py -m "not integration" --cov=app
 ```
 
 ---

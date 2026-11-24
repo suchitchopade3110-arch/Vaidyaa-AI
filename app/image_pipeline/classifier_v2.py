@@ -99,6 +99,11 @@ CLINICAL_MEANINGS = {
 }
 
 DETECTION_THRESHOLDS = {label: 0.50 for label in NIH_LABELS}
+# torchxrayvision normalises each class so 0.5 is its operating point, and on
+# real films a dozen classes sit at 0.50-0.57. Calling all of those
+# "detected" made every film read like a list of 12 diseases. Findings need
+# a margin above the operating point; 0.50-0.60 is reported as borderline.
+DETECTION_MARGIN = 0.10
 
 
 def _platt_scale(confidence: float, temperature: float = 3.2, bias: float = 0.0) -> float:
@@ -127,6 +132,7 @@ class ImageClassification14(BaseModel):
     all_findings: List[PathologyFinding]
     detected_pathologies: List[str]
     no_finding: bool
+    borderline_pathologies: List[str] = Field(default_factory=list)
     gradcam_path: str = ""
     model_version: str = "torchxrayvision-densenet121-nih"
 
@@ -152,10 +158,28 @@ def get_xrv_model():
 
 
 def _preprocess_for_xrv(img_pil: Image.Image) -> torch.Tensor:
-    img_gray = img_pil.convert("L").resize((224, 224), Image.LANCZOS)
+    img_gray = img_pil.convert("L")
+    # Centre square crop before resizing, as torchxrayvision's own
+    # XRayCenterCrop does, so the film isn't squashed out of aspect.
+    width, height = img_gray.size
+    side = min(width, height)
+    left, top = (width - side) // 2, (height - side) // 2
+    img_gray = img_gray.crop((left, top, left + side, top + side)).resize((224, 224), Image.LANCZOS)
     img_np = np.array(img_gray, dtype=np.float32)
     img_np = (img_np / 255.0) * 2048.0 - 1024.0
     return torch.from_numpy(img_np).unsqueeze(0).unsqueeze(0).to(DEVICE)
+
+
+def _as_probabilities(model, output):
+    """torchxrayvision's pretrained DenseNets already return probabilities:
+    sigmoid followed by operating-point normalisation (`op_threshs`), which
+    puts each class's decision threshold at 0.5. Applying sigmoid again
+    squashed [0, 1] into [0.5, 0.73], so EVERY pathology cleared the 0.5
+    detection threshold on EVERY image (even a black frame). Only apply a
+    sigmoid to raw logits."""
+    if getattr(model, "op_threshs", None) is not None or getattr(model, "apply_sigmoid", False):
+        return output
+    return torch.sigmoid(output)
 
 
 def _build_findings(probabilities: Dict[str, float]) -> List[PathologyFinding]:
@@ -170,7 +194,7 @@ def _build_findings(probabilities: Dict[str, float]) -> List[PathologyFinding]:
             PathologyFinding(
                 label=label,
                 probability=calibrated_prob,
-                detected=prob >= threshold,
+                detected=prob >= threshold + DETECTION_MARGIN,
                 severity=get_severity(calibrated_prob * 100),
                 clinical_meaning=CLINICAL_MEANINGS.get(label, ""),
             )
@@ -232,7 +256,7 @@ def classify_image_14class(
         img_tensor = _preprocess_for_xrv(img_pil)
         with torch.no_grad():
             output = model(img_tensor)
-            probs = torch.sigmoid(output).squeeze(0).detach().cpu().numpy()
+            probs = _as_probabilities(model, output).squeeze(0).detach().cpu().numpy()
 
         xrv_labels = [str(label) for label in getattr(model, "pathologies", NIH_LABELS)]
         prob_lookup = {_normalize_label(label): float(prob) for label, prob in zip(xrv_labels, probs)}
@@ -240,6 +264,11 @@ def classify_image_14class(
         all_findings = _build_findings(probabilities)
         display_probabilities = {label: _platt_scale(value) for label, value in probabilities.items()}
         detected_pathologies = [item.label for item in all_findings if item.detected]
+        borderline = [
+            label for label in NIH_LABELS
+            if label not in detected_pathologies
+            and probabilities.get(label, 0.0) >= DETECTION_THRESHOLDS.get(label, 0.5)
+        ]
 
         if detected_pathologies:
             primary = next(item for item in all_findings if item.detected)
@@ -259,6 +288,7 @@ def classify_image_14class(
             all_findings=all_findings,
             detected_pathologies=detected_pathologies,
             no_finding=no_finding,
+            borderline_pathologies=borderline,
             label=primary_finding,
             confidence=round(legacy_confidence, 4),
             probabilities=display_probabilities,

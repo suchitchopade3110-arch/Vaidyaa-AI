@@ -1,0 +1,17 @@
+male|thousands separators in text
+Platelet Count 2,50,000 /cumm 1,50,000 - 4,10,000
+Total WBC Count 7,200 /cumm 4,000 - 11,000
+---
+male|sex-specific printed ranges
+Uric Acid 9.8 mg/dL Male: 3.4 - 7.0 Female: 2.4 - 6.0
+Ferritin 8 ng/mL Male: 22 - 322
+ESR 85 mm/hr Male: 0 - 15
+---
+male|mixed realistic report (H/L flags, one-sided, qualifiers)
+Haemoglobin 13.9 g/dL 13.0 - 17.0
+Serum Potassium 6.9 H mmol/L 3.5 - 5.1
+Serum Sodium 121 L mmol/L 135 - 145
+Troponin I >50 ng/mL <0.04
+Triglycerides 880 mg/dL <150
+INR 7.2 0.8 - 1.2
+Chloride 101 mmol/L 98 - 107

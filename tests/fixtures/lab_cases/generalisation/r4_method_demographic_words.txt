@@ -1,0 +1,151 @@
+# RULE R4: method phrases ("by ELISA", "(Method: X)") are stripped from the name; the administrative-word guard
+# applies only to lines with no qualitative result and no known analyte; a result is never silently dropped.
+@@ R4 | M | 40 | HBsAg by CLIA
+HBsAg by CLIA Reactive
+=> HBsAg | POSITIVE
+=> risk>=high
+@@ R4 | M | 40 | anti-HIV non reactive by ELISA
+Anti-HIV 1/2 by ELISA Non Reactive
+=> Anti-HIV | NEGATIVE
+@@ R4 | M | 40 | malaria antigen by rapid card
+Malaria Antigen by Rapid Card Positive
+=> Malaria | POSITIVE
+@@ R4 | M | 40 | typhoid IgM
+Typhoid IgM by ELISA Positive
+=> Typhoid | POSITIVE
+@@ R4 | M | 40 | dengue IgM antibody detected
+Dengue IgM Antibody Detected
+=> Dengue | POSITIVE
+@@ R4 | M | 40 | chikungunya IgM negative
+Chikungunya IgM by ICT Negative
+=> Chikungunya | NEGATIVE
+@@ R4 | F | 30 | pregnancy test by card method
+Pregnancy Test (Urine) by Card Method Positive
+=> Pregnancy | POSITIVE
+@@ R4 | M | 40 | VDRL status
+VDRL Status Reactive
+=> VDRL | POSITIVE
+@@ R4 | M | 40 | HCV status non reactive
+HCV Status Non Reactive
+=> HCV | NEGATIVE
+@@ R4 | M | 40 | anti-CCP by CLIA numeric
+Anti-CCP by CLIA 250 U/mL <17
+=> Anti-CCP | HIGH | 250
+@@ R4 | M | 40 | ferritin by CMIA
+Ferritin by CMIA 8 ng/mL 24-336
+=> Ferritin | LOW | 8
+@@ R4 | M | 40 | creatinine by Jaffe kinetic
+Creatinine by Jaffe Kinetic 6.2 mg/dL 0.7-1.3
+=> Creatinine | HIGH | 6.2
+@@ R4 | M | 40 | urea by urease-GLDH
+Urea by Urease-GLDH 130 mg/dL 15-45
+=> Urea | HIGH | 130
+@@ R4 | M | 40 | TSH by ECLIA
+TSH by ECLIA 0.01 mIU/L 0.4-4.0
+=> TSH | LOW | 0.01
+@@ R4 | M | 40 | sodium by ISE direct, critical
+Sodium by ISE Direct 118 mmol/L 135-145
+=> Sodium | CRITICAL_LOW | 118
+@@ R4 | M | 40 | Patient haemoglobin
+Patient Hemoglobin 6.5 g/dL 13-17
+=> Hemoglobin | CRITICAL_LOW | 6.5
+@@ R4 | M | 40 | Patient potassium
+Patient Potassium 7.0 mmol/L 3.5-5.1
+=> Potassium | CRITICAL_HIGH | 7.0
+@@ R4 | M | 40 | Sample glucose
+Sample Glucose 38 mg/dL 70-100
+=> Glucose | CRITICAL_LOW | 38
+@@ R4 | M | 40 | HIV I & II antibody with a method in brackets
+HIV I & II Antibody (Method: Rapid) Reactive
+=> HIV | POSITIVE
+@@ R4 | M | 40 | TB gold status
+TB Gold (Quantiferon) Status Positive
+=> TB Gold | POSITIVE
+@@ R4 | M | 40 | H. pylori IgG by ELISA
+H. pylori IgG by ELISA Positive
+=> pylori | POSITIVE
+@@ R4 | M | 40 | stool occult blood
+Stool Occult Blood Positive
+=> Occult | POSITIVE
+@@ R4 | M | 40 | urine culture growth present
+Urine Culture Growth Present
+=> Culture | POSITIVE
+@@ R4 | M | 40 | rheumatoid factor status
+Rheumatoid Factor Status Positive
+=> Rheumatoid | POSITIVE
+@@ R4 | M | 40 | ANA by IFA
+ANA by IFA Positive
+=> ANA | POSITIVE
+@@ R4 | M | 40 | HIV status non reactive
+HIV Status Non Reactive
+=> HIV | NEGATIVE
+@@ R4 | M | 40 | direct Coombs by gel card
+Coombs Test (Direct) by Gel Card Positive
+=> Coombs | POSITIVE
+@@ R4 | M | 40 | blood group by gel method is information
+Blood Group by Gel Method A Positive
+=> Blood Group | INFO
+@@ R4 | M | 40 | patient blood group negative
+Patient Blood Group O Negative
+=> Blood Group | INFO
+@@ R4 | M | 40 | NS1 antigen with the method before the name words
+Dengue NS1 Antigen Test by Rapid Method Detected
+=> Dengue | POSITIVE
+@@ R4 | M | 40 | hepatitis A IgM status
+Hepatitis A IgM Antibody Status Reactive
+=> Hepatitis A | POSITIVE
+@@ R4 | M | 40 | method line is not a row
+Method: ELISA
+Hemoglobin 14.1 g/dL 13.0-17.0
+=> Hemoglobin | NORMAL | 14.1
+=> nowarn
+@@ R4 | M | 40 | sample type line is not a row
+Sample Type: Serum
+Hemoglobin 14.1 g/dL 13.0-17.0
+=> Hemoglobin | NORMAL | 14.1
+=> nowarn
+@@ R4 | M | 40 | report status line is not a row
+Report Status: Final
+Hemoglobin 14.1 g/dL 13.0-17.0
+=> Hemoglobin | NORMAL | 14.1
+=> nowarn
+@@ R4 | M | 40 | column header line is not a row
+Test Name Result Unit Reference Range
+Hemoglobin 14.1 g/dL 13.0-17.0
+=> Hemoglobin | NORMAL | 14.1
+=> nowarn
+@@ R4 | M | 40 | patient name and age line
+Patient Name: Rahul Sharma 54 Y
+Hemoglobin 14.1 g/dL 13.0-17.0
+=> Hemoglobin | NORMAL | 14.1
+=> nowarn
+@@ R4 | M | 40 | number of tests line
+No. of tests: 12
+Hemoglobin 14.1 g/dL 13.0-17.0
+=> Hemoglobin | NORMAL | 14.1
+=> nowarn
+@@ R4 | M | 40 | sample id line
+Sample ID 4455
+Hemoglobin 14.1 g/dL 13.0-17.0
+=> Hemoglobin | NORMAL | 14.1
+=> nowarn
+@@ R4 | M | 40 | method note after a result with a trailing method
+eGFR by MDRD 12 mL/min/1.73m2 >=60
+=> eGFR | LOW | 12
+@@ R4 | M | 40 | Hb with method in brackets
+Hemoglobin (Method: Cyanmethemoglobin) 6.9 g/dL 13.0-17.0
+=> Hemoglobin | CRITICAL_LOW | 6.9
+@@ R4 | M | 40 | name with by inside a known analyte
+Potassium by Indirect ISE 6.8 mmol/L 3.5-5.1
+=> Potassium | CRITICAL_HIGH | 6.8
+@@ R4 | M | 40 | serology on a line together with a numeric result
+HBsAg by ELISA Reactive   Hemoglobin 14.1 g/dL 13.0-17.0
+=> HBsAg | POSITIVE
+=> Hemoglobin | NORMAL | 14.1
+@@ R4 | M | 40 | a result with a unit but an unknown name is kept as UNKNOWN with a warning
+Hemoglobin 14.1 g/dL 13.0-17.0
+Status Zorbulin 55 U/L
+=> Hemoglobin | NORMAL | 14.1
+=> Status Zorbulin | UNKNOWN | 55
+=> warn
+=> risk=unknown

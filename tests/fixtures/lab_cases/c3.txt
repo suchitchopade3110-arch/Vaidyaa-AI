@@ -1,0 +1,71 @@
+male|flags H/L between value and unit
+Hemoglobin 9.2 L g/dL 13.0 - 17.0
+Potassium 6.8 H mmol/L 3.5 - 5.1
+Glucose 320 H mg/dL 70 - 99
+---
+male|flags star, units glued
+Hemoglobin 9.2* g/dL 13.0-17.0
+Potassium 6.8mmol/L 3.5-5.1
+Creatinine 4.2mg/dL (0.7-1.3)
+---
+male|Bio Ref Interval layout
+Test Name Result Unit Bio. Ref. Interval
+Haemoglobin 9.2 g/dL 13.0 - 17.0
+Total Leucocyte Count 2.1 10^3/µL 4.0 - 10.0
+Platelet Count 45 10^3/µL 150 - 410
+Serum Creatinine 4.2 mg/dL 0.70 - 1.30
+---
+male|one-sided ranges
+HbA1c 9.4 % <5.7
+LDL Cholesterol 190 mg/dL <100
+HDL Cholesterol 25 mg/dL >40
+Triglycerides 650 mg/dL Up to 150
+SGPT 400 U/L Up to 40
+---
+male|qualifiers
+Troponin I <0.01 ng/mL 0.00 - 0.04
+TSH >100 µIU/mL 0.4 - 4.0
+CRP <5 mg/L 0 - 10
+D-Dimer >20 µg/mL 0 - 0.5
+---
+male|range before unit
+Hemoglobin 9.2 13.0 - 17.0 g/dL
+Potassium 6.8 3.5 - 5.1 mmol/L
+---
+male|range with unit repeated / brackets
+Hemoglobin : 9.2 g/dL [13.0 - 17.0]
+Potassium : 6.8 mmol/L (Normal: 3.5 - 5.1 mmol/L)
+Sodium: 118 mmol/L Reference Range: 135-145
+---
+male|no ranges at all
+Hemoglobin 6.1 g/dL
+Potassium 6.9 mmol/L
+Sodium 118 mmol/L
+Creatinine 9.8 mg/dL
+Platelet Count 12000 /cumm
+---
+male|two-letter names
+Na 118 mmol/L 135 - 145
+K 6.9 mmol/L 3.5 - 5.1
+Hb 6.1 g/dL 13 - 17
+Cl 80 mmol/L 98 - 107
+---
+male|date/noise lines
+Patient Name: John Doe Age: 54 Years
+Collected: 12/03/2026 10:45 Reported: 12/03/2026 14:10
+Lab No 123456 Ref By Dr. Rao
+Hemoglobin 14.2 g/dL 13.0 - 17.0
+Page 1 of 2
+---
+female|age-specific pediatric not handled?
+Hemoglobin 11.2 g/dL 11.0 - 14.0
+---
+male|percent glued and differential
+Neutrophils 85% 40 - 70
+Lymphocytes 8 % 20 - 40
+Eosinophils 01 % 01 - 06
+---
+male|value 0 and decimals leading dot
+Basophils 0 % 0 - 1
+Bilirubin Direct .9 mg/dL 0.0 - 0.3
+Bilirubin Total 12.5 mg/dL 0.2 - 1.2

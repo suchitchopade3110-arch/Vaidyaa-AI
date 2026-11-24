@@ -14,7 +14,29 @@ const STATUS_META = {
   uncertain:  { label: 'Uncertain',  color: 'oklch(0.75 0.14 60)',  bg: 'oklch(0.75 0.14 60  / 0.12)' },
   failed:     { label: 'Failed',     color: 'oklch(0.60 0.18 25)',  bg: 'oklch(0.60 0.18 25  / 0.12)' },
   success:    { label: 'Success',    color: 'oklch(0.46 0.19 145)', bg: 'oklch(0.46 0.18 145 / 0.1)' },
+  completed:  { label: 'Completed',  color: 'oklch(0.46 0.19 145)', bg: 'oklch(0.46 0.18 145 / 0.1)' },
 };
+
+// Maps backend/Celery job states (SUCCESS, complete, FAILURE, ...) onto STATUS_META keys.
+function normalizeJobStatus(raw, fallback = 'completed') {
+  const s = String(raw || '').toLowerCase();
+  if (!s) return fallback;
+  if (['success', 'complete', 'completed', 'done', 'finished'].includes(s)) return 'completed';
+  if (['failure', 'failed', 'error', 'revoked'].includes(s)) return 'failed';
+  if (['pending', 'queued', 'received'].includes(s)) return 'pending';
+  if (['processing', 'progress', 'started', 'running', 'retry'].includes(s)) return 'processing';
+  return STATUS_META[s] ? s : fallback;
+}
+
+// Final status of a finished job's RESULT. Celery reports SUCCESS whenever
+// the task returned, but pipelines return their own failures as results
+// (status "failed" / "low_quality"), so the inner status wins when it says
+// the analysis did not complete.
+function resolveResultStatus(result, jobStatus) {
+  const inner = String((result && result.status) || '').toLowerCase();
+  if (['failed', 'failure', 'error', 'low_quality'].includes(inner)) return 'failed';
+  return normalizeJobStatus(jobStatus || inner);
+}
 
 // ─── StatusBadge ─────────────────────────────────────────────────────────────
 function StatusBadge({ status, size = 'sm' }) {
@@ -297,7 +319,7 @@ function ResultHeader({ status, jobId, elapsed }) {
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontSize: '18px', color: meta.color,
         }}>
-          {status === 'verified' ? '✓' : status === 'refuted' ? '✕' : status === 'uncertain' ? '◬' : status === 'failed' ? '!' : '…'}
+          {status === 'verified' || status === 'completed' || status === 'success' ? '✓' : status === 'refuted' ? '✕' : status === 'uncertain' ? '◬' : status === 'failed' ? '!' : '…'}
         </div>
         <div>
           <StatusBadge status={status} size="lg" />
@@ -358,7 +380,7 @@ function Button({ children, onClick, variant = 'primary', disabled, style = {} }
     ? (disabled ? 'oklch(0.70 0.13 195 / 0.4)' : hov ? 'oklch(0.52 0.19 145)' : 'oklch(0.46 0.19 145)')
     : hov ? 'var(--bg-hover)' : 'var(--bg-elevated)';
   return (
-    <button onClick={disabled ? undefined : onClick}
+    <button onClick={disabled ? undefined : onClick} disabled={!!disabled} aria-disabled={!!disabled}
       onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
       style={{
         padding: '10px 20px', borderRadius: '7px', border: variant === 'ghost' ? '1px solid var(--border)' : 'none',
@@ -391,6 +413,293 @@ function EntityChip({ label, type }) {
   );
 }
 
+// ─── Auth store (sessionStorage, in-memory fallback) ────────────────────────
+const AUTH_BASE = `${window.location.origin}/auth`;
+const AUTH_LOGOUT_EVENT = 'vaidya:logout';
+const AUTH_LOGIN_EVENT = 'vaidya:login';
+const AUTH_KEYS = { access: 'vaidya.access', refresh: 'vaidya.refresh', user: 'vaidya.user' };
+const authMemory = { access: null, refresh: null, user: null };
+
+function authRead(name) {
+  try {
+    const v = window.sessionStorage.getItem(AUTH_KEYS[name]);
+    if (v !== null) return v;
+  } catch (e) { /* storage unavailable */ }
+  return authMemory[name];
+}
+
+function authWrite(name, value) {
+  authMemory[name] = value || null;
+  try {
+    if (value) window.sessionStorage.setItem(AUTH_KEYS[name], value);
+    else window.sessionStorage.removeItem(AUTH_KEYS[name]);
+  } catch (e) { /* storage unavailable: memory copy is used */ }
+}
+
+const authStore = {
+  getAccess: () => authRead('access'),
+  getRefresh: () => authRead('refresh'),
+  getUser: () => authRead('user'),
+  isAuthenticated: () => !!authRead('access'),
+  setTokens({ access_token, refresh_token }, username) {
+    if (access_token) authWrite('access', access_token);
+    if (refresh_token) authWrite('refresh', refresh_token);
+    if (username) authWrite('user', username);
+  },
+  clear() {
+    authWrite('access', null);
+    authWrite('refresh', null);
+    authWrite('user', null);
+  },
+};
+
+// Pulls a readable message out of {"error":{"message"}} / {"detail": ...} bodies.
+function apiErrorMessage(body, fallback) {
+  if (body && typeof body === 'object') {
+    if (body.error && typeof body.error === 'object' && body.error.message) return body.error.message;
+    if (typeof body.error === 'string') return body.error;
+    if (typeof body.detail === 'string') return body.detail;
+    if (Array.isArray(body.detail) && body.detail.length) {
+      return body.detail.map(d => (d && d.msg) ? d.msg : String(d)).join('; ');
+    }
+    if (typeof body.message === 'string') return body.message;
+  }
+  return fallback;
+}
+
+// Bumped on every logout. A refresh that started before a logout must not
+// write its token back afterwards (that silently re-signed the user in).
+let authEpoch = 0;
+
+function forceLogout() {
+  authEpoch += 1;
+  authStore.clear();
+  try { window.dispatchEvent(new Event(AUTH_LOGOUT_EVENT)); } catch (e) {}
+}
+
+// Resolves to 'ok' (new access token stored), 'rejected' (server said the
+// refresh token is invalid/expired/revoked -> sign out), or 'unavailable'
+// (network error, 5xx, 429 -> keep the session; the user can retry).
+let refreshInFlight = null;
+function refreshAccessToken() {
+  // Coalesce concurrent refreshes (several polls can 401 at once).
+  if (refreshInFlight) return refreshInFlight;
+  const refresh_token = authStore.getRefresh();
+  if (!refresh_token) return Promise.resolve('rejected');
+  const epoch = authEpoch;
+  refreshInFlight = fetch(`${AUTH_BASE}/refresh`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ refresh_token }),
+  })
+    .then(async res => {
+      if (res.status === 401 || res.status === 403) return 'rejected';
+      if (!res.ok) return 'unavailable';
+      const data = await res.json().catch(() => null);
+      if (!data || !data.access_token) return 'unavailable';
+      if (epoch !== authEpoch) return 'rejected';  // signed out meanwhile
+      authStore.setTokens({ access_token: data.access_token, refresh_token: data.refresh_token });
+      return 'ok';
+    })
+    .catch(() => 'unavailable')
+    .finally(() => { refreshInFlight = null; });
+  return refreshInFlight;
+}
+
+function withAuthHeaders(options) {
+  const headers = new Headers((options && options.headers) || {});
+  const access = authStore.getAccess();
+  if (access) headers.set('Authorization', `Bearer ${access}`);
+  // Let the browser set the multipart boundary for FormData bodies.
+  if (options && typeof FormData !== 'undefined' && options.body instanceof FormData) {
+    headers.delete('Content-Type');
+  }
+  return { ...(options || {}), headers };
+}
+
+// fetch() with Bearer auth; on 401 refreshes once and retries once.
+async function apiFetch(url, options = {}) {
+  const res = await fetch(url, withAuthHeaders(options));
+  // Only 401 means "token missing/expired". 403 is a real permission
+  // answer (wrong role, report not signed off) — refreshing won't change it.
+  if (res.status !== 401) return res;
+
+  const refreshed = await refreshAccessToken();
+  if (refreshed === 'rejected') {
+    forceLogout();
+    return res;
+  }
+  if (refreshed !== 'ok') return res;  // auth service briefly unreachable: don't sign out
+  const retry = await fetch(url, withAuthHeaders(options));
+  // A 403 after a successful refresh is a permission error, not a dead session.
+  if (retry.status === 401) forceLogout();
+  return retry;
+}
+
+// Builds a ws(s):// URL for `path` on this origin with ?token=<access>.
+// Same-origin ws(s):// URL WITHOUT credentials. The access token travels in
+// the Sec-WebSocket-Protocol header (see openAuthWebSocket) so it never
+// lands in server or proxy access logs the way a ?token= query string does.
+function authWsUrl(path) {
+  const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+  return `${protocol}://${window.location.host}${path}`;
+}
+
+const WS_AUTH_SUBPROTOCOL = 'vaidya.bearer';
+
+function openAuthWebSocket(path) {
+  const token = authStore.getAccess() || '';
+  return new WebSocket(authWsUrl(path), [WS_AUTH_SUBPROTOCOL, token]);
+}
+
+// Role claim from the access token's JWT payload (no signature check — UI hint only).
+function currentUserRole() {
+  try {
+    const token = authStore.getAccess();
+    if (!token) return null;
+    const part = token.split('.')[1];
+    if (!part) return null;
+    let b64 = part.replace(/-/g, '+').replace(/_/g, '/');
+    while (b64.length % 4) b64 += '=';
+    const payload = JSON.parse(atob(b64));
+    return payload.role || null;
+  } catch (e) {
+    return null;
+  }
+}
+
+async function logout() {
+  const refresh_token = authStore.getRefresh();
+  if (refresh_token) {
+    try {
+      await fetch(`${AUTH_BASE}/logout`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh_token }),
+      });
+    } catch (e) { /* best effort */ }
+  }
+  forceLogout();
+}
+
+async function login(username, password) {
+  const res = await fetch(`${AUTH_BASE}/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password }),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(apiErrorMessage(body, res.status === 401 ? 'Invalid username or password' : `Sign-in failed (${res.status})`));
+  }
+  if (!body.access_token) throw new Error('Sign-in failed: no access token returned');
+  authStore.setTokens(body, username);
+  try { window.dispatchEvent(new Event(AUTH_LOGIN_EVENT)); } catch (e) {}
+  return body;
+}
+
+async function register(username, password) {
+  const res = await fetch(`${AUTH_BASE}/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password }),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(apiErrorMessage(body, res.status === 409 ? 'That username is already taken' : `Registration failed (${res.status})`));
+  }
+  return body;
+}
+
+// ─── LoginScreen ──────────────────────────────────────────────────────────────
+function LoginScreen({ onLogin }) {
+  const [mode, setMode] = useState('signin');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  const isRegister = mode === 'register';
+
+  const inputStyle = {
+    width: '100%', background: 'var(--bg-elevated)', border: '1px solid var(--border)',
+    borderRadius: '6px', padding: '9px 12px', color: 'var(--text-primary)',
+    fontSize: '13px', outline: 'none', transition: 'border-color 0.2s', boxSizing: 'border-box',
+  };
+  const labelStyle = {
+    fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', display: 'block',
+    marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.05em',
+  };
+  const focus = e => { e.target.style.borderColor = 'oklch(0.46 0.19 145)'; };
+  const blur = e => { e.target.style.borderColor = 'var(--border)'; };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (busy) return;
+    const u = username.trim();
+    if (u.length < 3 || u.length > 100) { setError('Username must be 3–100 characters.'); return; }
+    if (password.length < 8) { setError('Password must be at least 8 characters.'); return; }
+    if (isRegister && password !== confirm) { setError('Passwords do not match.'); return; }
+    setBusy(true);
+    setError('');
+    try {
+      if (isRegister) await register(u, password);
+      await login(u, password);
+      if (onLogin) onLogin();
+    } catch (err) {
+      setError(err.message || 'Something went wrong');
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', background: 'var(--bg-base)' }}>
+      <Card style={{ width: '100%', maxWidth: '380px', padding: '28px', animation: 'fade-in 0.2s ease' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
+          <img src="assets/vaidyaa-logo.jpeg" alt="VAIDYAA AI" style={{ width: '36px', height: '36px', borderRadius: '8px', objectFit: 'cover' }} />
+          <div>
+            <div style={{ fontSize: '16px', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>VAIDYAA</div>
+            <div style={{ fontSize: '10px', color: 'oklch(0.46 0.10 145)', fontFamily: 'var(--font-mono)', fontWeight: 600, letterSpacing: '0.08em' }}>AI PLATFORM</div>
+          </div>
+        </div>
+
+        <div style={{ marginBottom: '18px' }}>
+          <SegmentedControl
+            options={[{ value: 'signin', label: 'Sign in' }, { value: 'register', label: 'Create account' }]}
+            value={mode}
+            onChange={(m) => { setMode(m); setError(''); }}
+          />
+        </div>
+
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <div>
+            <label style={labelStyle} htmlFor="vaidya-username">Username</label>
+            <input id="vaidya-username" autoComplete="username" value={username}
+              onChange={e => setUsername(e.target.value)} style={inputStyle} onFocus={focus} onBlur={blur} />
+          </div>
+          <div>
+            <label style={labelStyle} htmlFor="vaidya-password">Password</label>
+            <input id="vaidya-password" type="password" autoComplete={isRegister ? 'new-password' : 'current-password'}
+              value={password} onChange={e => setPassword(e.target.value)} style={inputStyle} onFocus={focus} onBlur={blur} />
+          </div>
+          {isRegister && (
+            <div>
+              <label style={labelStyle} htmlFor="vaidya-confirm">Confirm password</label>
+              <input id="vaidya-confirm" type="password" autoComplete="new-password"
+                value={confirm} onChange={e => setConfirm(e.target.value)} style={inputStyle} onFocus={focus} onBlur={blur} />
+            </div>
+          )}
+          <ApiErrorAlert message={error} />
+          <Button disabled={busy} style={{ width: '100%' }}>
+            {busy ? (isRegister ? 'Creating account…' : 'Signing in…') : (isRegister ? 'Create account' : 'Sign in')}
+          </Button>
+        </form>
+      </Card>
+    </div>
+  );
+}
+
 Object.assign(window, {
   StatusBadge, ConfidenceMeter, PipelineStepper,
   FileUploadZone, PatientIdField, MedicalDisclaimer,
@@ -398,6 +707,9 @@ Object.assign(window, {
   EmptyResultState, ResultHeader, SectionLabel,
   Card, SegmentedControl, Button, EntityChip,
   STATUS_META,
+  authStore, apiFetch, authWsUrl, openAuthWebSocket, logout, apiErrorMessage,
+  currentUserRole, normalizeJobStatus, resolveResultStatus,
+  LoginScreen, AUTH_LOGOUT_EVENT, AUTH_LOGIN_EVENT,
 });
 
 }

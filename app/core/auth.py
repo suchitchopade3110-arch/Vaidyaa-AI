@@ -5,6 +5,15 @@ from app.config import settings
 
 security = HTTPBearer(auto_error=False)
 
+_BEARER = {"WWW-Authenticate": "Bearer"}
+
+
+def _unauthorized(message: str) -> HTTPException:
+    """401 = "authenticate (again)": no / bad / expired credentials.
+    403 is reserved for an authenticated caller lacking permission, so
+    clients can tell "refresh your token" apart from "not allowed"."""
+    return HTTPException(status_code=401, detail=message, headers=_BEARER)
+
 
 async def get_current_user(token=Depends(security)):
     """JWT guard for production routes.
@@ -14,7 +23,7 @@ async def get_current_user(token=Depends(security)):
     POST /auth/refresh.
     """
     if token is None:
-        raise HTTPException(status_code=403, detail="Missing token")
+        raise _unauthorized("Missing token")
 
     try:
         from jose import JWTError, jwt
@@ -27,10 +36,10 @@ async def get_current_user(token=Depends(security)):
     try:
         payload = jwt.decode(token.credentials, settings.SECRET_KEY, algorithms=["HS256"])
     except JWTError as exc:
-        raise HTTPException(status_code=403, detail="Invalid token") from exc
+        raise _unauthorized("Invalid or expired token") from exc
 
     if payload.get("type") != "access":
-        raise HTTPException(status_code=403, detail="Invalid token type")
+        raise _unauthorized("Invalid token type")
 
     return payload
 

@@ -1,0 +1,290 @@
+# RULE R10: headings, page markers, ids, dates and footnotes that contain digits are not results and must neither
+# become rows nor make a normal report "unknown". Each item is the stray line followed by one normal row.
+@@ R10 | M | 40 | Page 2 of 5
+Page 2 of 5
+Hemoglobin 14.1 g/dL 13.0-17.0
+=> Hemoglobin | NORMAL | 14.1
+=> nowarn
+=> risk=low
+@@ R10 | M | 40 | Page No: 3
+Page No: 3
+Hemoglobin 14.1 g/dL 13.0-17.0
+=> Hemoglobin | NORMAL | 14.1
+=> nowarn
+=> risk=low
+@@ R10 | M | 40 | Pg 1/2
+Pg 1/2
+Hemoglobin 14.1 g/dL 13.0-17.0
+=> Hemoglobin | NORMAL | 14.1
+=> nowarn
+=> risk=low
+@@ R10 | M | 40 | Test 4 of 12
+Test 4 of 12
+Hemoglobin 14.1 g/dL 13.0-17.0
+=> Hemoglobin | NORMAL | 14.1
+=> nowarn
+=> risk=low
+@@ R10 | M | 40 | Panel 3
+Panel 3
+Hemoglobin 14.1 g/dL 13.0-17.0
+=> Hemoglobin | NORMAL | 14.1
+=> nowarn
+=> risk=low
+@@ R10 | M | 40 | Report No 4455
+Report No 4455
+Hemoglobin 14.1 g/dL 13.0-17.0
+=> Hemoglobin | NORMAL | 14.1
+=> nowarn
+=> risk=low
+@@ R10 | M | 40 | Complete Haemogram (CBC) - 22 parameters
+Complete Haemogram (CBC) - 22 parameters
+Hemoglobin 14.1 g/dL 13.0-17.0
+=> Hemoglobin | NORMAL | 14.1
+=> nowarn
+=> risk=low
+@@ R10 | M | 40 | LIVER FUNCTION TEST (LFT) - 11 tests
+LIVER FUNCTION TEST (LFT) - 11 tests
+Hemoglobin 14.1 g/dL 13.0-17.0
+=> Hemoglobin | NORMAL | 14.1
+=> nowarn
+=> risk=low
+@@ R10 | M | 40 | KIDNEY PROFILE 6 Parameters
+KIDNEY PROFILE 6 Parameters
+Hemoglobin 14.1 g/dL 13.0-17.0
+=> Hemoglobin | NORMAL | 14.1
+=> nowarn
+=> risk=low
+@@ R10 | M | 40 | Thyroid Profile Total (T3, T4, TSH) 3 tests
+Thyroid Profile Total (T3, T4, TSH) 3 tests
+Hemoglobin 14.1 g/dL 13.0-17.0
+=> Hemoglobin | NORMAL | 14.1
+=> nowarn
+=> risk=low
+@@ R10 | M | 40 | Package: Full Body Checkup 72 tests
+Package: Full Body Checkup 72 tests
+Hemoglobin 14.1 g/dL 13.0-17.0
+=> Hemoglobin | NORMAL | 14.1
+=> nowarn
+=> risk=low
+@@ R10 | M | 40 | Section 2
+Section 2
+Hemoglobin 14.1 g/dL 13.0-17.0
+=> Hemoglobin | NORMAL | 14.1
+=> nowarn
+=> risk=low
+@@ R10 | M | 40 | Batch 5521
+Batch 5521
+Hemoglobin 14.1 g/dL 13.0-17.0
+=> Hemoglobin | NORMAL | 14.1
+=> nowarn
+=> risk=low
+@@ R10 | M | 40 | Lab Reference 4433221
+Lab Reference 4433221
+Hemoglobin 14.1 g/dL 13.0-17.0
+=> Hemoglobin | NORMAL | 14.1
+=> nowarn
+=> risk=low
+@@ R10 | M | 40 | Accession: 20260312-0045
+Accession: 20260312-0045
+Hemoglobin 14.1 g/dL 13.0-17.0
+=> Hemoglobin | NORMAL | 14.1
+=> nowarn
+=> risk=low
+@@ R10 | M | 40 | Printed on 12/03/2026 14:40
+Printed on 12/03/2026 14:40
+Hemoglobin 14.1 g/dL 13.0-17.0
+=> Hemoglobin | NORMAL | 14.1
+=> nowarn
+=> risk=low
+@@ R10 | M | 40 | Registered on 11-03-2026 09:15
+Registered on 11-03-2026 09:15
+Hemoglobin 14.1 g/dL 13.0-17.0
+=> Hemoglobin | NORMAL | 14.1
+=> nowarn
+=> risk=low
+@@ R10 | M | 40 | Sample Collected 12/03/2026 08:10
+Sample Collected 12/03/2026 08:10
+Hemoglobin 14.1 g/dL 13.0-17.0
+=> Hemoglobin | NORMAL | 14.1
+=> nowarn
+=> risk=low
+@@ R10 | M | 40 | Reg. No. 4455
+Reg. No. 4455
+Hemoglobin 14.1 g/dL 13.0-17.0
+=> Hemoglobin | NORMAL | 14.1
+=> nowarn
+=> risk=low
+@@ R10 | M | 40 | Dr. A Kumar MD (Reg 45678)
+Dr. A Kumar MD (Reg 45678)
+Hemoglobin 14.1 g/dL 13.0-17.0
+=> Hemoglobin | NORMAL | 14.1
+=> nowarn
+=> risk=low
+@@ R10 | M | 40 | Phone: 98765 43210
+Phone: 98765 43210
+Hemoglobin 14.1 g/dL 13.0-17.0
+=> Hemoglobin | NORMAL | 14.1
+=> nowarn
+=> risk=low
+@@ R10 | M | 40 | Mobile 9876543210
+Mobile 9876543210
+Hemoglobin 14.1 g/dL 13.0-17.0
+=> Hemoglobin | NORMAL | 14.1
+=> nowarn
+=> risk=low
+@@ R10 | M | 40 | Age: 45 Y / Sex: M
+Age: 45 Y / Sex: M
+Hemoglobin 14.1 g/dL 13.0-17.0
+=> Hemoglobin | NORMAL | 14.1
+=> nowarn
+=> risk=low
+@@ R10 | M | 40 | Age/Sex: 45 Y / Male
+Age/Sex: 45 Y / Male
+Hemoglobin 14.1 g/dL 13.0-17.0
+=> Hemoglobin | NORMAL | 14.1
+=> nowarn
+=> risk=low
+@@ R10 | M | 40 | Barcode 77889900
+Barcode 77889900
+Hemoglobin 14.1 g/dL 13.0-17.0
+=> Hemoglobin | NORMAL | 14.1
+=> nowarn
+=> risk=low
+@@ R10 | M | 40 | Ward 7 / Bed 12
+Ward 7 / Bed 12
+Hemoglobin 14.1 g/dL 13.0-17.0
+=> Hemoglobin | NORMAL | 14.1
+=> nowarn
+=> risk=low
+@@ R10 | M | 40 | Tel +91 22 2345 6789
+Tel +91 22 2345 6789
+Hemoglobin 14.1 g/dL 13.0-17.0
+=> Hemoglobin | NORMAL | 14.1
+=> nowarn
+=> risk=low
+@@ R10 | M | 40 | NABL Accreditation TC-5698
+NABL Accreditation TC-5698
+Hemoglobin 14.1 g/dL 13.0-17.0
+=> Hemoglobin | NORMAL | 14.1
+=> nowarn
+=> risk=low
+@@ R10 | M | 40 | Method Version 2.1
+Method Version 2.1
+Hemoglobin 14.1 g/dL 13.0-17.0
+=> Hemoglobin | NORMAL | 14.1
+=> nowarn
+=> risk=low
+@@ R10 | M | 40 | Page 1 of 1
+Page 1 of 1
+Hemoglobin 14.1 g/dL 13.0-17.0
+=> Hemoglobin | NORMAL | 14.1
+=> nowarn
+=> risk=low
+@@ R10 | M | 40 | Test Report 1 of 3
+Test Report 1 of 3
+Hemoglobin 14.1 g/dL 13.0-17.0
+=> Hemoglobin | NORMAL | 14.1
+=> nowarn
+=> risk=low
+@@ R10 | M | 40 | Kit Lot 55123
+Kit Lot 55123
+Hemoglobin 14.1 g/dL 13.0-17.0
+=> Hemoglobin | NORMAL | 14.1
+=> nowarn
+=> risk=low
+@@ R10 | M | 40 | LIPID PROFILE (8 parameters)
+LIPID PROFILE (8 parameters)
+Hemoglobin 14.1 g/dL 13.0-17.0
+=> Hemoglobin | NORMAL | 14.1
+=> nowarn
+=> risk=low
+@@ R10 | M | 40 | Diabetes Profile - 3 tests
+Diabetes Profile - 3 tests
+Hemoglobin 14.1 g/dL 13.0-17.0
+=> Hemoglobin | NORMAL | 14.1
+=> nowarn
+=> risk=low
+@@ R10 | M | 40 | Thyroid Function Test 2
+Thyroid Function Test 2
+Hemoglobin 14.1 g/dL 13.0-17.0
+=> Hemoglobin | NORMAL | 14.1
+=> nowarn
+=> risk=low
+@@ R10 | M | 40 | Visit No 12
+Visit No 12
+Hemoglobin 14.1 g/dL 13.0-17.0
+=> Hemoglobin | NORMAL | 14.1
+=> nowarn
+=> risk=low
+@@ R10 | M | 40 | Bill No: 77881
+Bill No: 77881
+Hemoglobin 14.1 g/dL 13.0-17.0
+=> Hemoglobin | NORMAL | 14.1
+=> nowarn
+=> risk=low
+@@ R10 | M | 40 | Episode 4455 / 2026
+Episode 4455 / 2026
+Hemoglobin 14.1 g/dL 13.0-17.0
+=> Hemoglobin | NORMAL | 14.1
+=> nowarn
+=> risk=low
+@@ R10 | M | 40 | Sr. No. 14
+Sr. No. 14
+Hemoglobin 14.1 g/dL 13.0-17.0
+=> Hemoglobin | NORMAL | 14.1
+=> nowarn
+=> risk=low
+@@ R10 | M | 40 | Patient ID 99812
+Patient ID 99812
+Hemoglobin 14.1 g/dL 13.0-17.0
+=> Hemoglobin | NORMAL | 14.1
+=> nowarn
+=> risk=low
+@@ R10 | M | 40 | UHID: 100234567
+UHID: 100234567
+Hemoglobin 14.1 g/dL 13.0-17.0
+=> Hemoglobin | NORMAL | 14.1
+=> nowarn
+=> risk=low
+@@ R10 | M | 40 | Collected at: Branch 12, Sector 4
+Collected at: Branch 12, Sector 4
+Hemoglobin 14.1 g/dL 13.0-17.0
+=> Hemoglobin | NORMAL | 14.1
+=> nowarn
+=> risk=low
+@@ R10 | M | 40 | Printed Page 3 of 7
+Printed Page 3 of 7
+Hemoglobin 14.1 g/dL 13.0-17.0
+=> Hemoglobin | NORMAL | 14.1
+=> nowarn
+=> risk=low
+@@ R10 | M | 40 | *** End of Report ***
+*** End of Report ***
+Hemoglobin 14.1 g/dL 13.0-17.0
+=> Hemoglobin | NORMAL | 14.1
+=> nowarn
+=> risk=low
+@@ R10 | M | 40 | Result 3 of 6 reported
+Result 3 of 6 reported
+Hemoglobin 14.1 g/dL 13.0-17.0
+=> Hemoglobin | NORMAL | 14.1
+=> nowarn
+=> risk=low
+@@ R10 | M | 40 | Lab No: 123456789
+Lab No: 123456789
+Hemoglobin 14.1 g/dL 13.0-17.0
+=> Hemoglobin | NORMAL | 14.1
+=> nowarn
+=> risk=low
+@@ R10 | M | 40 | genuine unread result: Zorbulin Index 55
+Hemoglobin 14.1 g/dL 13.0-17.0
+Zorbulin Index 55
+=> Hemoglobin | NORMAL | 14.1
+=> warn
+=> risk=unknown
+@@ R10 | M | 40 | genuine unread result: Mystery Marker XQ 55
+Hemoglobin 14.1 g/dL 13.0-17.0
+Mystery Marker XQ 55
+=> Hemoglobin | NORMAL | 14.1
+=> warn
+=> risk=unknown

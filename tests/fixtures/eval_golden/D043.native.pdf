@@ -1,0 +1,915 @@
+%PDF-1.4
+%“Œ‹ž ReportLab Generated PDF document (opensource)
+1 0 obj
+<<
+/F1 2 0 R /F2 3 0 R
+>>
+endobj
+2 0 obj
+<<
+/BaseFont /Helvetica /Encoding /WinAnsiEncoding /Name /F1 /Subtype /Type1 /Type /Font
+>>
+endobj
+3 0 obj
+<<
+/BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding /Name /F2 /Subtype /Type1 /Type /Font
+>>
+endobj
+4 0 obj
+<<
+/Contents 9 0 R /MediaBox [ 0 0 595.28 841.89 ] /Parent 8 0 R /Resources <<
+/Font 1 0 R /ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
+>> /Rotate 0 /Trans <<
+
+>> 
+  /Type /Page
+>>
+endobj
+5 0 obj
+<<
+/Contents 10 0 R /MediaBox [ 0 0 595.28 841.89 ] /Parent 8 0 R /Resources <<
+/Font 1 0 R /ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
+>> /Rotate 0 /Trans <<
+
+>> 
+  /Type /Page
+>>
+endobj
+6 0 obj
+<<
+/PageMode /UseNone /Pages 8 0 R /Type /Catalog
+>>
+endobj
+7 0 obj
+<<
+/Author () /CreationDate (D:20000101000000+00'00') /Creator (vaidya-eval) /Keywords () /ModDate (D:20000101000000+00'00') /Producer (ReportLab PDF Library - \(opensource\)) 
+  /Subject (unspecified) /Title (Brightwater Clinical Laboratory - Laboratory Report) /Trapped /False
+>>
+endobj
+8 0 obj
+<<
+/Count 2 /Kids [ 4 0 R 5 0 R ] /Type /Pages
+>>
+endobj
+9 0 obj
+<<
+/Length 13939
+>>
+stream
+1 0 0 1 0 0 cm  BT /F1 12 Tf 14.4 TL ET
+.5 w
+.82 .82 .82 RG
+.82 .82 .82 rg
+n
+74 790.89 m
+74 800.2788 66.38884 807.89 57 807.89 c
+47.61116 807.89 40 800.2788 40 790.89 c
+40 781.5012 47.61116 773.89 57 773.89 c
+66.38884 773.89 74 781.5012 74 790.89 c
+f*
+.8 w
+.25 .25 .25 RG
+.25 .25 .25 rg
+n
+74 790.89 m
+74 800.2788 66.38884 807.89 57 807.89 c
+47.61116 807.89 40 800.2788 40 790.89 c
+40 781.5012 47.61116 773.89 57 773.89 c
+66.38884 773.89 74 781.5012 74 790.89 c
+S
+.8 w
+.25 .25 .25 RG
+.25 .25 .25 rg
+n 47.65 781.54 18.7 18.7 re S
+0 0 0 rg
+BT /F2 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 50.86 786.93 Tm (BC) Tj T* ET
+0 0 0 rg
+BT /F2 15 Tf 18 TL ET
+BT 1 0 0 1 84 791.49 Tm (Brightwater Clinical Laboratory) Tj T* ET
+0 0 0 rg
+BT /F1 8 Tf 9.6 TL ET
+BT 1 0 0 1 84 779.21 Tm (7 Lotus Street, Lucknow 184338) Tj T* ET
+0 0 0 rg
+BT /F1 8 Tf 9.6 TL ET
+BT 1 0 0 1 477.22 798.21 Tm (Tel: +91 00000 09101) Tj T* ET
+0 0 0 rg
+BT /F1 8 Tf 9.6 TL ET
+BT 1 0 0 1 465.02 787.21 Tm (Toll Free: 1800-000-0607) Tj T* ET
+0 0 0 rg
+BT /F1 7.5 Tf 9 TL ET
+BT 1 0 0 1 342.74 776.69 Tm (info@brightwater.example.org  |  www.brightwater.example.com) Tj T* ET
+1.2 w
+0 0 0 RG
+0 0 0 rg
+n 40 765.89 m 555.28 765.89 l S
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 44 749.73 Tm (Patient Name: Tarun Kulkarni) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 44 737.23 Tm (Age / Sex: 10 Years / Male) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 44 724.73 Tm (Referred By: Dr. Ravi Kapoor) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 307.64 749.73 Tm (Patient ID: PID-778784) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 307.64 737.23 Tm (Lab No: LN92845048) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 307.64 724.73 Tm (Sample ID: S9283657) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 307.64 712.23 Tm (Collected: 13/01/2026) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 447.64 712.23 Tm (Reported: 13/01/2026) Tj T* ET
+.5 w
+.9 .9 .9 RG
+.9 .9 .9 rg
+n 40 664.89 515.28 15 re f*
+0 0 0 rg
+BT /F2 9 Tf 10.8 TL ET
+BT 1 0 0 1 44 668.25 Tm (COMPLETE BLOOD COUNT \(CBC\)) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 40 654.21 Tm (Test) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 305 654.21 Tm (Result) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 372 654.21 Tm (Unit) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 438 654.21 Tm (Bio. Ref. Interval) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 520 654.21 Tm (Method) Tj T* ET
+.6 w
+0 0 0 RG
+0 0 0 rg
+n 40 650.89 m 555.28 650.89 l S
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 40 635.05 Tm (Hemoglobin) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 305 635.05 Tm (12.7) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 372 635.05 Tm (g%) Tj T* ET
+0 0 0 rg
+BT /F1 7.5 Tf 9 TL ET
+BT 1 0 0 1 438 636.01 Tm (11.5 to 15.5) Tj T* ET
+0 0 0 rg
+BT /F1 7 Tf 8.4 TL ET
+BT 1 0 0 1 520 636.49 Tm (Photometry) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 40 617.33 Tm (RBC Count) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 305 617.33 Tm (4.86) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 372 617.33 Tm (million/\265L) Tj T* ET
+0 0 0 rg
+BT /F1 7.5 Tf 9 TL ET
+BT 1 0 0 1 438 618.29 Tm (M: 4.50 to 5.50) Tj T* ET
+0 0 0 rg
+BT /F1 7.5 Tf 9 TL ET
+BT 1 0 0 1 438 609.14 Tm (F: 3.80 to 4.80) Tj T* ET
+0 0 0 rg
+BT /F1 7 Tf 8.4 TL ET
+BT 1 0 0 1 520 618.77 Tm (Impedance) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 40 591.68 Tm (Haematocrit) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 305 591.68 Tm (38.5) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 372 591.68 Tm (%) Tj T* ET
+0 0 0 rg
+BT /F1 7.5 Tf 9 TL ET
+BT 1 0 0 1 438 592.64 Tm (35.0 to 45.0) Tj T* ET
+0 0 0 rg
+BT /F1 7 Tf 8.4 TL ET
+BT 1 0 0 1 520 593.12 Tm (Calculated) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 40 573.96 Tm (MCV) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 305 573.96 Tm (79.2) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 372 573.96 Tm (fL) Tj T* ET
+0 0 0 rg
+BT /F1 7.5 Tf 9 TL ET
+BT 1 0 0 1 438 574.92 Tm (77.0 to 95.0) Tj T* ET
+0 0 0 rg
+BT /F1 7 Tf 8.4 TL ET
+BT 1 0 0 1 520 575.4 Tm (Calculated) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 40 556.24 Tm (MCH) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 305 556.24 Tm (26.1) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 372 556.24 Tm (pg) Tj T* ET
+0 0 0 rg
+BT /F1 7.5 Tf 9 TL ET
+BT 1 0 0 1 438 557.2 Tm (27.0 to 32.0) Tj T* ET
+0 0 0 rg
+BT /F1 7 Tf 8.4 TL ET
+BT 1 0 0 1 520 557.68 Tm (Calculated) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 40 538.52 Tm (MCHC) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 305 538.52 Tm (33.0) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 372 538.52 Tm (g/dL) Tj T* ET
+0 0 0 rg
+BT /F1 7.5 Tf 9 TL ET
+BT 1 0 0 1 438 539.48 Tm (32.0 to 36.0) Tj T* ET
+0 0 0 rg
+BT /F1 7 Tf 8.4 TL ET
+BT 1 0 0 1 520 539.96 Tm (Calculated) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 40 520.8 Tm (RDW) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 305 520.8 Tm (13.4) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 372 520.8 Tm (%) Tj T* ET
+0 0 0 rg
+BT /F1 7.5 Tf 9 TL ET
+BT 1 0 0 1 438 521.76 Tm (11.5 to 14.5) Tj T* ET
+0 0 0 rg
+BT /F1 7 Tf 8.4 TL ET
+BT 1 0 0 1 520 522.24 Tm (Calculated) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 40 503.08 Tm (WBC) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 305 503.08 Tm (113.9) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 372 503.08 Tm (x10\263/\265L) Tj T* ET
+0 0 0 rg
+BT /F1 7.5 Tf 9 TL ET
+BT 1 0 0 1 438 504.04 Tm (4.5 to 13.5) Tj T* ET
+0 0 0 rg
+BT /F1 7 Tf 8.4 TL ET
+BT 1 0 0 1 520 504.52 Tm (Impedance) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 40 485.36 Tm (Neutrophils) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 305 485.36 Tm (61) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 372 485.36 Tm (%) Tj T* ET
+0 0 0 rg
+BT /F1 7.5 Tf 9 TL ET
+BT 1 0 0 1 438 486.32 Tm (40 to 65) Tj T* ET
+0 0 0 rg
+BT /F1 7 Tf 8.4 TL ET
+BT 1 0 0 1 520 486.8 Tm (Impedance) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 40 467.63 Tm (Lymphocytes) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 305 467.63 Tm (38) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 372 467.63 Tm (%) Tj T* ET
+0 0 0 rg
+BT /F1 7.5 Tf 9 TL ET
+BT 1 0 0 1 438 468.59 Tm (30 to 50) Tj T* ET
+0 0 0 rg
+BT /F1 7 Tf 8.4 TL ET
+BT 1 0 0 1 520 469.07 Tm (Impedance) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 40 449.91 Tm (Monocytes) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 305 449.91 Tm (7) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 372 449.91 Tm (%) Tj T* ET
+0 0 0 rg
+BT /F1 7.5 Tf 9 TL ET
+BT 1 0 0 1 438 450.87 Tm (2 to 10) Tj T* ET
+0 0 0 rg
+BT /F1 7 Tf 8.4 TL ET
+BT 1 0 0 1 520 451.35 Tm (Impedance) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 40 432.19 Tm (Eosinophils) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 305 432.19 Tm (3) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 372 432.19 Tm (%) Tj T* ET
+0 0 0 rg
+BT /F1 7.5 Tf 9 TL ET
+BT 1 0 0 1 438 433.15 Tm (1 to 6) Tj T* ET
+0 0 0 rg
+BT /F1 7 Tf 8.4 TL ET
+BT 1 0 0 1 520 433.63 Tm (Impedance) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 40 414.47 Tm (Basophils) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 305 414.47 Tm (1) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 372 414.47 Tm (%) Tj T* ET
+0 0 0 rg
+BT /F1 7.5 Tf 9 TL ET
+BT 1 0 0 1 438 415.43 Tm (0 to 2) Tj T* ET
+0 0 0 rg
+BT /F1 7 Tf 8.4 TL ET
+BT 1 0 0 1 520 415.91 Tm (Impedance) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 40 396.75 Tm (Platelet Count) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 305 396.75 Tm (301) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 372 396.75 Tm (10\263/\265L) Tj T* ET
+0 0 0 rg
+BT /F1 7.5 Tf 9 TL ET
+BT 1 0 0 1 438 397.71 Tm (150 to 450) Tj T* ET
+0 0 0 rg
+BT /F1 7 Tf 8.4 TL ET
+BT 1 0 0 1 520 398.19 Tm (Impedance) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 40 379.03 Tm (MPV) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 305 379.03 Tm (9.2) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 372 379.03 Tm (fL) Tj T* ET
+0 0 0 rg
+BT /F1 7.5 Tf 9 TL ET
+BT 1 0 0 1 438 379.99 Tm (7.5 to 11.5) Tj T* ET
+0 0 0 rg
+BT /F1 7 Tf 8.4 TL ET
+BT 1 0 0 1 520 380.47 Tm (Calculated) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 40 361.31 Tm (ESR) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 305 361.31 Tm (3) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 372 361.31 Tm (mm/hr) Tj T* ET
+0 0 0 rg
+BT /F1 7.5 Tf 9 TL ET
+BT 1 0 0 1 438 362.27 Tm (M: 0 to 15) Tj T* ET
+0 0 0 rg
+BT /F1 7.5 Tf 9 TL ET
+BT 1 0 0 1 438 353.12 Tm (F: 0 to 20) Tj T* ET
+0 0 0 rg
+BT /F1 7 Tf 8.4 TL ET
+BT 1 0 0 1 520 362.75 Tm (Westergren) Tj T* ET
+.5 w
+.9 .9 .9 RG
+.9 .9 .9 rg
+n 40 324.4915 515.28 15 re f*
+0 0 0 rg
+BT /F2 9 Tf 10.8 TL ET
+BT 1 0 0 1 44 327.85 Tm (KIDNEY FUNCTION TEST \(KFT\) AND ELECTROLYTES) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 40 313.81 Tm (Test) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 305 313.81 Tm (Result) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 372 313.81 Tm (Unit) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 438 313.81 Tm (Bio. Ref. Interval) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 520 313.81 Tm (Method) Tj T* ET
+.6 w
+0 0 0 RG
+0 0 0 rg
+n 40 310.4915 m 555.28 310.4915 l S
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 40 294.66 Tm (Urea) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 305 294.66 Tm (14) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 372 294.66 Tm (mg/dL) Tj T* ET
+0 0 0 rg
+BT /F1 7.5 Tf 9 TL ET
+BT 1 0 0 1 438 295.62 Tm (10 to 40) Tj T* ET
+0 0 0 rg
+BT /F1 7 Tf 8.4 TL ET
+BT 1 0 0 1 520 296.1 Tm (Urease-GLDH) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 40 276.93 Tm (Creatinine) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 305 276.93 Tm (0.44) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 372 276.93 Tm (mg/dL) Tj T* ET
+0 0 0 rg
+BT /F1 7.5 Tf 9 TL ET
+BT 1 0 0 1 438 277.89 Tm (0.30 to 0.70) Tj T* ET
+0 0 0 rg
+BT /F1 7 Tf 8.4 TL ET
+BT 1 0 0 1 520 278.37 Tm (Jaffe) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 40 259.21 Tm (Uric Acid) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 305 259.21 Tm (6.4) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 372 259.21 Tm (mg/dL) Tj T* ET
+0 0 0 rg
+BT /F1 7.5 Tf 9 TL ET
+BT 1 0 0 1 438 260.17 Tm (M: 3.5 to 7.2) Tj T* ET
+0 0 0 rg
+BT /F1 7.5 Tf 9 TL ET
+BT 1 0 0 1 438 251.02 Tm (F: 2.6 to 6.0) Tj T* ET
+0 0 0 rg
+BT /F1 7 Tf 8.4 TL ET
+BT 1 0 0 1 520 260.65 Tm (Uricase) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 40 233.56 Tm (Sodium) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 305 233.56 Tm (140) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 372 233.56 Tm (mmol/L) Tj T* ET
+0 0 0 rg
+BT /F1 7.5 Tf 9 TL ET
+BT 1 0 0 1 438 234.52 Tm (135 to 145) Tj T* ET
+0 0 0 rg
+BT /F1 7 Tf 8.4 TL ET
+BT 1 0 0 1 520 235 Tm (ISE) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 40 215.84 Tm (Potassium) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 305 215.84 Tm (4.6) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 372 215.84 Tm (mmol/L) Tj T* ET
+0 0 0 rg
+BT /F1 7.5 Tf 9 TL ET
+BT 1 0 0 1 438 216.8 Tm (3.5 to 5.1) Tj T* ET
+0 0 0 rg
+BT /F1 7 Tf 8.4 TL ET
+BT 1 0 0 1 520 217.28 Tm (ISE) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 40 198.12 Tm (Chloride) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 305 198.12 Tm (105) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 372 198.12 Tm (mmol/L) Tj T* ET
+0 0 0 rg
+BT /F1 7.5 Tf 9 TL ET
+BT 1 0 0 1 438 199.08 Tm (98 to 107) Tj T* ET
+0 0 0 rg
+BT /F1 7 Tf 8.4 TL ET
+BT 1 0 0 1 520 199.56 Tm (ISE) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 40 180.4 Tm (Total CO2) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 305 180.4 Tm (21) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 372 180.4 Tm (mmol/L) Tj T* ET
+0 0 0 rg
+BT /F1 7.5 Tf 9 TL ET
+BT 1 0 0 1 438 181.36 Tm (20 to 28) Tj T* ET
+0 0 0 rg
+BT /F1 7 Tf 8.4 TL ET
+BT 1 0 0 1 520 181.84 Tm (ISE) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 40 162.68 Tm (Calcium, Total) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 305 162.68 Tm (10.0) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 372 162.68 Tm (mg/dL) Tj T* ET
+0 0 0 rg
+BT /F1 7.5 Tf 9 TL ET
+BT 1 0 0 1 438 163.64 Tm (8.8 to 10.8) Tj T* ET
+0 0 0 rg
+BT /F1 7 Tf 8.4 TL ET
+BT 1 0 0 1 520 164.12 Tm (Arsenazo) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 40 144.96 Tm (Phosphorus) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 305 144.96 Tm (4.6) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 372 144.96 Tm (mg/dL) Tj T* ET
+0 0 0 rg
+BT /F1 7.5 Tf 9 TL ET
+BT 1 0 0 1 438 145.92 Tm (3.7 to 5.6) Tj T* ET
+0 0 0 rg
+BT /F1 7 Tf 8.4 TL ET
+BT 1 0 0 1 520 146.4 Tm (Molybdate) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 40 127.24 Tm (Magnesium) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 305 127.24 Tm (2.2) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 372 127.24 Tm (mg/dL) Tj T* ET
+0 0 0 rg
+BT /F1 7.5 Tf 9 TL ET
+BT 1 0 0 1 438 128.2 Tm (1.7 to 2.4) Tj T* ET
+0 0 0 rg
+BT /F1 7 Tf 8.4 TL ET
+BT 1 0 0 1 520 128.68 Tm (Xylidyl) Tj T* ET
+.4 w
+.4 .4 .4 RG
+.4 .4 .4 rg
+n 40 81 m 555.28 81 l S
+0 0 0 rg
+BT /F1 7 Tf 8.4 TL ET
+BT 1 0 0 1 40 71.28 Tm (Tel: +91 00000 09101) Tj T* ET
+0 0 0 rg
+BT /F1 7 Tf 8.4 TL ET
+BT 1 0 0 1 170 71.28 Tm (Toll Free: 1800-000-0607) Tj T* ET
+0 0 0 rg
+BT /F1 7 Tf 8.4 TL ET
+BT 1 0 0 1 481.75 71.28 Tm (Reports within 24 hours) Tj T* ET
+0 0 0 rg
+BT /F1 7 Tf 8.4 TL ET
+BT 1 0 0 1 40 61.48 Tm (Accreditation Cert. No. FA-6502) Tj T* ET
+0 0 0 rg
+BT /F2 7 Tf 8.4 TL ET
+BT 1 0 0 1 518.32 61.48 Tm (Page 1 of 2) Tj T* ET
+0 0 0 rg
+BT /F1 7 Tf 8.4 TL ET
+BT 1 0 0 1 40 51.68 Tm (Brightwater Clinical Laboratory, 7 Lotus Street, Lucknow 184338  |  info@brightwater.example.org) Tj T* ET
+ 
+endstream
+endobj
+10 0 obj
+<<
+/Length 6929
+>>
+stream
+1 0 0 1 0 0 cm  BT /F1 12 Tf 14.4 TL ET
+.5 w
+.82 .82 .82 RG
+.82 .82 .82 rg
+n
+60 797.89 m
+60 803.4128 55.52285 807.89 50 807.89 c
+44.47715 807.89 40 803.4128 40 797.89 c
+40 792.3672 44.47715 787.89 50 787.89 c
+55.52285 787.89 60 792.3672 60 797.89 c
+f*
+.8 w
+.25 .25 .25 RG
+.25 .25 .25 rg
+n
+60 797.89 m
+60 803.4128 55.52285 807.89 50 807.89 c
+44.47715 807.89 40 803.4128 40 797.89 c
+40 792.3672 44.47715 787.89 50 787.89 c
+55.52285 787.89 60 792.3672 60 797.89 c
+S
+.8 w
+.25 .25 .25 RG
+.25 .25 .25 rg
+n 44.5 792.39 11 11 re S
+0 0 0 rg
+BT /F2 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 43.86 793.93 Tm (BC) Tj T* ET
+0 0 0 rg
+BT /F2 10 Tf 12 TL ET
+BT 1 0 0 1 68 796.29 Tm (Brightwater Clinical Laboratory) Tj T* ET
+0 0 0 rg
+BT /F1 8 Tf 9.6 TL ET
+BT 1 0 0 1 473.02 798.21 Tm (Patient ID: PID-778784) Tj T* ET
+0 0 0 rg
+BT /F1 8 Tf 9.6 TL ET
+BT 1 0 0 1 68 784.21 Tm (Patient Name: Tarun Kulkarni) Tj T* ET
+0 0 0 rg
+BT /F1 8 Tf 9.6 TL ET
+BT 1 0 0 1 479.23 784.21 Tm (Lab No: LN92845048) Tj T* ET
+.6 w
+0 0 0 RG
+0 0 0 rg
+n 40 769.89 m 555.28 769.89 l S
+.5 w
+.9 .9 .9 RG
+.9 .9 .9 rg
+n 40 746.89 515.28 15 re f*
+0 0 0 rg
+BT /F2 9 Tf 10.8 TL ET
+BT 1 0 0 1 44 750.25 Tm (GLUCOSE AND HbA1c) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 40 736.21 Tm (Test) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 305 736.21 Tm (Result) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 372 736.21 Tm (Unit) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 438 736.21 Tm (Bio. Ref. Interval) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 520 736.21 Tm (Method) Tj T* ET
+.6 w
+0 0 0 RG
+0 0 0 rg
+n 40 732.89 m 555.28 732.89 l S
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 40 717.05 Tm (Glucose Fasting) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 305 717.05 Tm (82) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 372 717.05 Tm (mg/dL) Tj T* ET
+0 0 0 rg
+BT /F1 7.5 Tf 9 TL ET
+BT 1 0 0 1 438 718.01 Tm (70 to 100) Tj T* ET
+0 0 0 rg
+BT /F1 7 Tf 8.4 TL ET
+BT 1 0 0 1 520 718.49 Tm (GOD-POD) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 40 699.33 Tm (Post Prandial Blood Sugar \(PPBS\)) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 305 699.33 Tm (112) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 372 699.33 Tm (mg/dL) Tj T* ET
+0 0 0 rg
+BT /F1 7.5 Tf 9 TL ET
+BT 1 0 0 1 438 700.29 Tm (70 to 140) Tj T* ET
+0 0 0 rg
+BT /F1 7 Tf 8.4 TL ET
+BT 1 0 0 1 520 700.77 Tm (GOD-POD) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 40 681.61 Tm (HbA1c) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 305 681.61 Tm (3.1) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 372 681.61 Tm (%) Tj T* ET
+0 0 0 rg
+BT /F1 7.5 Tf 9 TL ET
+BT 1 0 0 1 438 682.57 Tm (< 5.7) Tj T* ET
+0 0 0 rg
+BT /F1 7 Tf 8.4 TL ET
+BT 1 0 0 1 520 683.05 Tm (HPLC) Tj T* ET
+.5 w
+.9 .9 .9 RG
+.9 .9 .9 rg
+n 40 652.7265 515.28 15 re f*
+0 0 0 rg
+BT /F2 9 Tf 10.8 TL ET
+BT 1 0 0 1 44 656.09 Tm (THYROID PROFILE) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 40 642.05 Tm (Test) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 305 642.05 Tm (Result) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 372 642.05 Tm (Unit) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 438 642.05 Tm (Bio. Ref. Interval) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 520 642.05 Tm (Method) Tj T* ET
+.6 w
+0 0 0 RG
+0 0 0 rg
+n 40 638.7265 m 555.28 638.7265 l S
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 40 622.89 Tm (Total T3) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 305 622.89 Tm (142) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 372 622.89 Tm (ng/dL) Tj T* ET
+0 0 0 rg
+BT /F1 7.5 Tf 9 TL ET
+BT 1 0 0 1 438 623.85 Tm (80 to 200) Tj T* ET
+0 0 0 rg
+BT /F1 7 Tf 8.4 TL ET
+BT 1 0 0 1 520 624.33 Tm (CLIA) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 40 605.17 Tm (Total T4) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 305 605.17 Tm (8.2) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 372 605.17 Tm (\265g/dL) Tj T* ET
+0 0 0 rg
+BT /F1 7.5 Tf 9 TL ET
+BT 1 0 0 1 438 606.13 Tm (5.0 to 12.0) Tj T* ET
+0 0 0 rg
+BT /F1 7 Tf 8.4 TL ET
+BT 1 0 0 1 520 606.61 Tm (CLIA) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 40 587.45 Tm (Thyroid Stimulating Hormone \(TSH\)) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 305 587.45 Tm (2.83) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 372 587.45 Tm (\265IU/mL) Tj T* ET
+0 0 0 rg
+BT /F1 7.5 Tf 9 TL ET
+BT 1 0 0 1 438 588.41 Tm (Adult: 0.40 to 4.00) Tj T* ET
+0 0 0 rg
+BT /F1 7.5 Tf 9 TL ET
+BT 1 0 0 1 438 579.26 Tm (Child: 0.60 to 4.80) Tj T* ET
+0 0 0 rg
+BT /F1 7 Tf 8.4 TL ET
+BT 1 0 0 1 520 588.89 Tm (CLIA) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 40 561.8 Tm (Free T4) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 305 561.8 Tm (1.15) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 372 561.8 Tm (ng/dL) Tj T* ET
+0 0 0 rg
+BT /F1 7.5 Tf 9 TL ET
+BT 1 0 0 1 438 562.76 Tm (Adult: 0.80 to 1.80) Tj T* ET
+0 0 0 rg
+BT /F1 7.5 Tf 9 TL ET
+BT 1 0 0 1 438 553.61 Tm (Child: 0.90 to 1.70) Tj T* ET
+0 0 0 rg
+BT /F1 7 Tf 8.4 TL ET
+BT 1 0 0 1 520 563.24 Tm (CLIA) Tj T* ET
+.5 w
+.9 .9 .9 RG
+.9 .9 .9 rg
+n 40 524.9819 515.28 15 re f*
+0 0 0 rg
+BT /F2 9 Tf 10.8 TL ET
+BT 1 0 0 1 44 528.34 Tm (LIVER FUNCTION TEST \(LFT\)) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 40 514.3 Tm (Test) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 305 514.3 Tm (Result) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 372 514.3 Tm (Unit) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 438 514.3 Tm (Bio. Ref. Interval) Tj T* ET
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 520 514.3 Tm (Method) Tj T* ET
+.6 w
+0 0 0 RG
+0 0 0 rg
+n 40 510.9819 m 555.28 510.9819 l S
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 40 495.15 Tm (Total Bilirubin) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 305 495.15 Tm (0.2) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 372 495.15 Tm (mg/dL) Tj T* ET
+0 0 0 rg
+BT /F1 7.5 Tf 9 TL ET
+BT 1 0 0 1 438 496.11 Tm (0.3 to 1.2) Tj T* ET
+0 0 0 rg
+BT /F1 7 Tf 8.4 TL ET
+BT 1 0 0 1 520 496.59 Tm (Diazo) Tj T* ET
+.4 w
+.4 .4 .4 RG
+.4 .4 .4 rg
+n 40 81 m 555.28 81 l S
+0 0 0 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 259.64 70.32 Tm (*** End of Report ***) Tj T* ET
+0 0 0 rg
+BT /F1 7 Tf 8.4 TL ET
+BT 1 0 0 1 373.72 60.08 Tm (Dr. Rajan Langford, MD \(Pathology\)  |  Reg. No. FX-86925) Tj T* ET
+0 0 0 rg
+BT /F1 7 Tf 8.4 TL ET
+BT 1 0 0 1 40 50.28 Tm (Tel: +91 00000 09101) Tj T* ET
+0 0 0 rg
+BT /F1 7 Tf 8.4 TL ET
+BT 1 0 0 1 170 50.28 Tm (Toll Free: 1800-000-0607) Tj T* ET
+0 0 0 rg
+BT /F1 7 Tf 8.4 TL ET
+BT 1 0 0 1 481.75 50.28 Tm (Reports within 24 hours) Tj T* ET
+0 0 0 rg
+BT /F1 7 Tf 8.4 TL ET
+BT 1 0 0 1 40 40.48 Tm (Accreditation Cert. No. FA-6502) Tj T* ET
+0 0 0 rg
+BT /F2 7 Tf 8.4 TL ET
+BT 1 0 0 1 518.32 40.48 Tm (Page 2 of 2) Tj T* ET
+0 0 0 rg
+BT /F1 7 Tf 8.4 TL ET
+BT 1 0 0 1 40 30.68 Tm (Brightwater Clinical Laboratory, 7 Lotus Street, Lucknow 184338  |  info@brightwater.example.org) Tj T* ET
+ 
+endstream
+endobj
+xref
+0 11
+0000000000 65535 f 
+0000000061 00000 n 
+0000000102 00000 n 
+0000000209 00000 n 
+0000000321 00000 n 
+0000000520 00000 n 
+0000000720 00000 n 
+0000000788 00000 n 
+0000001085 00000 n 
+0000001150 00000 n 
+0000015141 00000 n 
+trailer
+<<
+/ID 
+[<378e218c1b582415a9b152a161f36fbb><378e218c1b582415a9b152a161f36fbb>]
+% ReportLab generated PDF document -- digest (opensource)
+
+/Info 7 0 R
+/Root 6 0 R
+/Size 11
+>>
+startxref
+22122
+%%EOF

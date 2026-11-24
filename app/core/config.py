@@ -29,6 +29,22 @@ class Settings(BaseSettings):
             f"@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
         )
 
+    @property
+    def SYNC_DATABASE_URL(self) -> str:
+        """psycopg2 DSN for Celery workers and Alembic. Honours DATABASE_URL
+        like the async URL does — workers/Alembic used to ignore it and
+        always build from POSTGRES_* (Alembic from a hard-coded ini URL)."""
+        if self.DATABASE_URL_ENV:
+            url = self.DATABASE_URL_ENV
+            for prefix in ("postgresql+asyncpg://", "postgresql+psycopg2://", "postgres://"):
+                if url.startswith(prefix):
+                    return "postgresql://" + url[len(prefix):]
+            return url
+        return (
+            f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
+            f"@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+        )
+
     # Redis / Celery
     REDIS_URL: str = "redis://localhost:6379/0"
     CELERY_BROKER_URL: str = "redis://localhost:6379/0"
@@ -54,6 +70,10 @@ class Settings(BaseSettings):
     MIN_CONFIDENCE_THRESHOLD: float = 0.30   # Below → "Insufficient evidence"
     HIGH_CONFIDENCE_THRESHOLD: float = 0.80  # Above → Green
     MIN_SOURCES_REQUIRED: int = 2            # Below → Uncertainty flag
+    # A retrieved passage only counts as supporting evidence (and is only
+    # shown to the LLM / cited) at or above this retrieval score. Measured on
+    # the bundled KB: off-topic keyword hits score <= 0.33, on-topic >= 0.43.
+    MIN_SOURCE_RELEVANCE: float = 0.40
     
     MEDICAL_DISCLAIMER: str = (
         "⚠️ AI-assisted analysis only. NOT A MEDICAL DIAGNOSIS. "
@@ -67,11 +87,26 @@ class Settings(BaseSettings):
     TEXT_TASK_TIMEOUT: int = 30
 
     # Auth
+    # Open self-registration creates a `clinician` account, and clinicians
+    # can sign off reports (which unlocks patient-facing QR sharing). On by
+    # default for development; OFF by default when APP_ENV=production unless
+    # explicitly enabled.
+    ALLOW_SELF_REGISTRATION: bool | None = None
+    # Rate limiting (read via Settings so values in .env apply too).
+    RATE_LIMIT_ENABLED: bool = True
+    RATE_LIMIT_STORAGE: str = ""          # default: REDIS_URL; e.g. "memory://"
+    AUTH_RATE_LIMIT: str = "10/minute"    # per client IP on /auth/login and /auth/register
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 20
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
     # Request-level safety net (long-running work belongs in Celery, not here)
     REQUEST_TIMEOUT_SECONDS: int = 30
+
+    @property
+    def self_registration_enabled(self) -> bool:
+        if self.ALLOW_SELF_REGISTRATION is not None:
+            return self.ALLOW_SELF_REGISTRATION
+        return self.APP_ENV != "production"
 
     class Config:
         env_file = ".env"
