@@ -221,3 +221,28 @@ def test_unknown_flag_always_needs_review():
                                                    ("legacy_urine", 1, None, 0.5), ("legacy_urine", 1, 0.9, 0.9)])
 def test_compute_confidence_table(origin, n, conf, want):
     assert compute_confidence(origin, line_count=n, min_token_conf=conf) == want
+
+
+def test_rr25_invariants_over_the_golden_samples(monkeypatch):
+    from pathlib import Path
+
+    from app.services import ocr_service
+    from app.services.review.extract import extract_report
+
+    monkeypatch.setattr(ocr_service, "ocr_image", lambda image: [])
+    golden = sorted((Path(__file__).resolve().parents[1] / "tests" / "fixtures" / "eval_golden").glob("*.native.pdf"))
+    assert len(golden) == 3
+    total = 0
+    for pdf in golden:
+        out = extract_report(str(pdf), "lab", "male", 45)
+        assert out.status == "ok"
+        for r in out.rows:
+            total += 1
+            assert r.needs_review == bool(r.review_codes)
+            assert bool(r.review_reason) == r.needs_review
+            assert "NR-" not in (r.review_reason or "")
+            if r.kind == "unread_line":
+                assert r.needs_review and r.review_codes == ["NR-UNREAD"]
+            if r.prelim_flag == "UNKNOWN" or (r.prelim_flag or "").startswith("CRITICAL"):
+                assert r.needs_review, (pdf.name, r.name_raw, r.prelim_flag)
+    assert total > 60           # three non-trivial reports (39 + ...): the property is checked on real rows

@@ -145,13 +145,18 @@ def detect_report_type(text: str) -> str:
     return "urinalysis" if hits >= 2 else "lab"
 
 
-def run_urinalysis_pipeline(text: str) -> dict[str, Any]:
-    """Urinalysis NER + pattern extraction + RAG evidence."""
+def extract_urine_entities(text: str) -> dict[str, Any]:
+    """Urinalysis entities from report text: Groq NER, regex fallback. No patterns, no knowledge-base query."""
     try:
         raw = _call_groq(URINE_NER_PROMPT.format(text=text[:12000]))
-        entities = _normalize_urine_entities(_parse_json(raw))
+        return _normalize_urine_entities(_parse_json(raw))
     except Exception:
-        entities = _extract_urine_entities_regex(text)
+        return _extract_urine_entities_regex(text)
+
+
+def run_urinalysis_pipeline(text: str) -> dict[str, Any]:
+    """Urinalysis NER + pattern extraction + RAG evidence."""
+    entities = extract_urine_entities(text)
 
     patterns = _apply_urine_pattern_rules(entities)
     entities["detected_patterns"] = patterns

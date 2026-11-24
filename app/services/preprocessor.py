@@ -27,7 +27,7 @@ from typing import Optional, List, Dict, Any, Tuple
 import numpy as np
 import cv2
 from PIL import Image
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 # ── Device ────────────────────────────────────────────────
 import torch
@@ -89,6 +89,7 @@ class OcrOutput(BaseModel):
     raw_text: str
     confidence: float          # mean word confidence from Tesseract
     pages: List[str]           # per-page text
+    layout: Optional[Any] = Field(default=None, exclude=True)   # DocumentLayout when read with run_ocr_with_layout
 
 
 class NerOutput(BaseModel):

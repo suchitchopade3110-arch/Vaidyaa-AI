@@ -255,9 +255,10 @@ def _validate_file_safe(file_path: str) -> _ValidationResult:
 
 def _run_ocr_safe(file_path: str):
     try:
-        from app.services.preprocessor import run_ocr
+        from app.services.preprocessor import run_ocr_with_layout
 
-        return run_ocr(file_path)
+        out, layout = run_ocr_with_layout(file_path)
+        return out.model_copy(update={"layout": layout})   # layout feeds provenance (E7); text is run_ocr's
     except Exception as exc:
         logger.warning("OCR unavailable for %s: %s", file_path, exc)
         return type("OcrFallback", (), {"raw_text": "", "confidence": 0.0, "pages": []})()
