@@ -58,6 +58,7 @@ class ParsedRow:
     section: str = ""                      # nearest preceding section heading ("URINE ROUTINE")
     result_range: Optional[Tuple[float, float]] = None  # microscopy result printed as a range ("2-3 /hpf")
     note: str = ""                         # how the reader chose the value (e.g. the "current" column)
+    specimen: Optional[str] = None         # serum | urine | csf | fluid | other | unknown; None = unset (P2 S5 floor)
 
 
 @dataclass

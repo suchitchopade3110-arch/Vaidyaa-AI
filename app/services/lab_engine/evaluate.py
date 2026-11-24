@@ -249,6 +249,28 @@ def _positive_is_abnormal(name: str, text: str) -> bool:
 
 
 _URINE_MICROSCOPY_REMAP = {"rbc": "urine_rbc", "wbc": "urine_pus_cells"}
+
+# S5 floor (plans/P2.md 7.3): a row whose specimen is not blood is never scored against a blood analyte's registry
+# range or critical limits. Specimen None / "serum" / "unknown" leaves behaviour unchanged.
+NON_BLOOD_SPECIMENS = frozenset({"urine", "csf", "fluid", "other"})
+_NON_BLOOD_KEYS = {"specific_gravity", "urine_ph"}
+
+
+def is_blood_analyte_key(key: Optional[str]) -> bool:
+    """True for a registry analyte that is a blood analyte (not a urine / CSF analyte)."""
+    return bool(key) and not (key.startswith("urine_") or key.startswith("csf_") or key in _NON_BLOOD_KEYS)
+
+
+def apply_specimen_floor(p: ParsedRow, analyte: Optional[Analyte]) -> Tuple[Optional[Analyte], str]:
+    """(analyte after the S5 floor, note). A generic "pH" on a urine row is the urine pH."""
+    spec = p.specimen
+    if analyte is None or spec not in NON_BLOOD_SPECIMENS:
+        return analyte, ""
+    if analyte.key == "ph_unspecified" and spec == "urine":
+        return REGISTRY["urine_ph"], "specimen: urine"
+    if is_blood_analyte_key(analyte.key):
+        return None, f"specimen {spec}: blood reference ranges and critical limits not applied"
+    return analyte, ""
 _NEGATIVE_OK_NAME = re.compile(r"excess|deficit|delta|change|differ|gap|balance|slope|score|index|variation|shift|z-?score", re.I)
 
 
@@ -264,7 +286,7 @@ def _unknown_row(p: ParsedRow, analyte: Optional[Analyte], value, unit, lo, hi, 
 
 def _ambiguous_row(p: ParsedRow, warnings: List[str]) -> ScoredRow:
     """Several bare numbers before the unit and nothing that says which is the current result."""
-    analyte = match_analyte(p.name)
+    analyte, _ = apply_specimen_floor(p, match_analyte(p.name))
     msg = f"{p.name}: {p.ambiguity}; not scored"
     hits = []
     for cand in p.candidates or []:
@@ -329,6 +351,9 @@ def _score_row(p: ParsedRow, sex: Optional[str], age: Optional[int], warnings: L
     lo, hi = p.ref_low, p.ref_high
     strict_lo, strict_hi = p.ref_strict_low, p.ref_strict_high
     notes: List[str] = [p.note] if p.note else []
+    analyte, floor_note = apply_specimen_floor(p, analyte)
+    if floor_note:
+        notes.append(floor_note)
 
     # ---- a negative concentration is not a result ------------------------------------------------------
     negative_ok = (analyte is not None and analyte.allow_negative) or bool(_NEGATIVE_OK_NAME.search(name)) \
